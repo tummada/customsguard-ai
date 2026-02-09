@@ -1,0 +1,69 @@
+# ==============================================================================
+# AI-SaaS World-Class: Global Git Ignore
+# ==============================================================================
+
+# --- System Files ---
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.swp
+
+# --- Security & Environment (CRITICAL) ---
+# ห้ามเอาไฟล์ Config จริงและคีย์ลับขึ้น Git เด็ดขาด
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+certs/
+
+# --- Docker & Infrastructure ---
+# Ignore ข้อมูลใน Database และ Redis (ให้สร้างใหม่จาก Migration)
+data/postgres/*
+data/redis/*
+!data/postgres/.gitkeep
+!data/redis/.gitkeep
+
+# --- Java Backend (Spring Boot) ---
+backend-core/.mvn/wrapper/maven-wrapper.jar
+backend-core/target/
+backend-core/build/
+backend-core/.gradle/
+backend-core/bin/
+backend-core/out/
+*.class
+*.jar
+*.war
+
+# --- Frontend (Angular 21) ---
+frontend-app/node_modules/
+frontend-app/dist/
+frontend-app/.angular/
+frontend-app/.cache/
+frontend-app/npm-debug.log*
+frontend-app/yarn-error.log*
+
+# --- AI & n8n (Backend AI) ---
+backend-ai/node_modules/
+backend-ai/.n8n/
+# ถ้ามี Python ในอนาคต
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+
+# --- Antigravity Brain ---
+# เก็บ Skills ไว้ แต่เลือก ignore memory ถ้ามีข้อมูลส่วนตัวผู้ใช้เยอะ
+.antigravity/memory/*.json
+
+# --- IDEs & Editors ---
+.idea/
+.vscode/
+*.swp
+*.swo
+.project
+.classpath
+.settings/
+.nb-gradle/

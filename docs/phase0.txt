@@ -1,0 +1,61 @@
+นี่คือสรุปเนื้อหาของ **Phase 0: Domain & Contract First** สำหรับนำไปใช้ประกอบเอกสารโครงการ (Project Documentation) ครับ โดยสรุปประเด็นสำคัญที่เป็น "เสาเข็ม" ของระบบทั้งหมด
+
+---
+
+# เอกสารสรุปโครงการ: Phase 0 — Domain & Contract First
+
+**เป้าหมาย:** ออกแบบโครงสร้างพื้นฐานและข้อตกลงร่วมกัน (Contract) เพื่อรองรับระบบ Multi-tenant AI SaaS ภายใต้ข้อจำกัดทรัพยากร (RAM 8GB) โดยเน้นความเสถียรและความปลอดภัยสูงสุด
+
+## 1. ยุทธศาสตร์การบริหารทรัพยากร (RAM 8GB Optimization)
+
+เพื่อให้ระบบทั้งหมด (DB, Backend, AI Orchestrator) รันได้บนเครื่องเดียวอย่างเสถียร เราใช้กลยุทธ์ดังนี้:
+
+* **Modular Monolith:** พัฒนาแบบแยกโมดูลในระบบเดียว เพื่อลด Overhead ของการรันหลาย Microservices
+* **Hybrid Runtime:** พัฒนาด้วย Java Standard JRE แต่ Deploy ด้วย **GraalVM Native Image** เพื่อรีด RAM ให้เหลือต่ำกว่า 200MB
+* **Resource Quota:** กำหนด Hard Limit ในระดับ Container (Docker) เพื่อป้องกัน Service ใด Service หนึ่งแย่ง RAM จนระบบล่ม
+
+| Service | RAM Allocation | Key Strategy |
+| --- | --- | --- |
+| **PostgreSQL** | 1.5 GB | Shared Buffers 1GB + RLS |
+| **Java Backend** | 2.5 GB | Native Image + Virtual Threads |
+| **n8n (AI Engine)** | 1.5 GB | Queue Mode (External GPU Bridge) |
+| **Redis** | 512 MB | AOF Persistence + allkeys-lru |
+| **OS & Others** | 2.0 GB | Ubuntu OS + Nginx Proxy |
+
+## 2. การออกแบบโดเมน (Logical Domain Model)
+
+โครงสร้างข้อมูลถูกออกแบบมาเพื่อความปลอดภัยและการตรวจสอบย้อนกลับ (Auditability):
+
+* **Tenant (Workspace):** ข้อมูลทุกอย่าง "ห้อย" อยู่กับ `tenant_id` (UUID v7) เพื่อการแยกข้อมูลแบบเด็ดขาด
+* **Credit Ledger System:** ใช้ระบบ **"Reserve & Confirm"**
+* เมื่อเริ่มงาน: ทำการ Reserve (ล็อก) ยอดเงินไว้
+* เมื่อเสร็จงาน: ทำการ Confirm (หักจริง) หรือ Release (คืนเงิน) หากงานพัง
+
+
+* **AI Job State Machine:** ควบคุมวงจรชีวิตงานด้วยสถานะ: `CREATED` → `QUEUED` → `PROCESSING` → `COMPLETED` / `FAILED` / `STALLED`
+
+## 3. มาตรฐานความปลอดภัย (Security & Multi-tenancy)
+
+* **JWT Binding:** Access Token จะมี Claim `tenants: []` ระบุสิทธิ์ที่ User มี
+* **Cross-check Validation:** ทุก Request ต้องส่ง `X-Tenant-ID` และระบบจะตรวจสอบกับ JWT Claim ทันทีในระดับ Filter (ไม่ต้องยิง DB)
+* **Row-Level Security (RLS):** บังคับใช้ในระดับฐานข้อมูล PostgreSQL เพื่อป้องกัน Data Leakage แม้จะเกิด Bug ในระดับ Code
+
+## 4. มาตรฐานการสื่อสาร (API & Communication)
+
+* **OpenAPI 3.0.3 (Contract-First):** ทุก Agent ทำงานภายใต้สัญญาเดียวกันใน `openapi.yaml`
+* **Async-First:** งาน AI ส่งคืน `202 Accepted` ทันที และใช้ **SSE (Server-Sent Events)** ในการส่งความคืบหน้า (Progress 0-100%) กลับไปยัง Frontend แบบ Real-time
+* **Idempotency:** บังคับใช้ `X-Idempotency-Key` สำหรับทุกรายการที่มีผลต่อการเงิน
+* **Pagination:** บังคับใช้ในทุก API ที่ดึง List ข้อมูล เพื่อป้องกันการเกิด OOM (Out of Memory)
+
+## 5. กฎเหล็กของทีม (Global Commandments)
+
+1. **No Yes-Man:** AI Agents ต้องโต้แย้งหากคำสั่งเสี่ยงต่อทรัพยากรหรือความปลอดภัย
+2. **Silence is Veto:** การ Merge Code ต้องได้รับการยืนยันจาก Agent ที่เกี่ยวข้องครบทุกด้าน (Security, Resource, Logic)
+3. **Transactional Outbox:** ทุกการเปลี่ยนแปลงสถานะงานต้องบันทึกลง DB พร้อมกับ Event เสมอ เพื่อป้องกันข้อมูลหายเมื่อระบบ Restart
+
+---
+
+**ก้าวต่อไป (Next Steps):**
+ขณะนี้ Phase 0 เสร็จสมบูรณ์ 100% แล้ว เอกสารชุดนี้จะถูกใช้เป็น Guideline ในการสร้าง **Phase 1: Physical Infrastructure & Base Code**
+
+**ต้องการให้ผมเริ่มเขียนไฟล์ `docker-compose.yml` สำหรับนำไปใช้ประกอบเอกสารในส่วน Infrastructure เลยไหมครับ?**
