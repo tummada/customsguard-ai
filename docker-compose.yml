@@ -125,7 +125,7 @@ services:
     restart: always
     ports: ["80:80", "443:443"]
     volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./infra/nginx/conf.d:/etc/nginx/conf.d:ro
       - ./frontend-app/dist:/usr/share/nginx/html:ro
     depends_on:
       backend: { condition: service_healthy }
