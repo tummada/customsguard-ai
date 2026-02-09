@@ -1,6 +1,6 @@
 {
   "project_name": "AI-SaaS-World-Class",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "runtime_settings": {
     "auto_fix_errors": true,
     "review_level": "comprehensive",
@@ -14,6 +14,7 @@
       "model": "gemini-3-pro",
       "priority_skills": [
         ".antigravity/skills/team-manifesto.md",
+        ".antigravity/skills/project-skeleton.md",
         ".antigravity/skills/database-design.md",
         ".antigravity/skills/security-audit.md"
       ],
@@ -24,6 +25,7 @@
       "model": "gemini-3-pro",
       "priority_skills": [
         ".antigravity/skills/team-manifesto.md",
+        ".antigravity/skills/project-skeleton.md",
         ".antigravity/skills/backend-java-spring.md",
         ".antigravity/skills/security-audit.md"
       ],
@@ -34,6 +36,7 @@
       "model": "claude-3-7-sonnet",
       "priority_skills": [
         ".antigravity/skills/team-manifesto.md",
+        ".antigravity/skills/project-skeleton.md",
         ".antigravity/skills/ai-orchestration.md"
       ],
       "description": "n8n Architect: คุม Queue-Mode (Redis AOF) และจัดการ Binary ผ่าน S3 Presigned URLs 100% (No Local Storage)"
@@ -43,16 +46,20 @@
       "model": "gemini-3-flash",
       "priority_skills": [
         ".antigravity/skills/team-manifesto.md",
+        ".antigravity/skills/project-skeleton.md",
         ".antigravity/skills/frontend-angular-ui.md"
       ],
-      "mcp_servers": ["stitch"],
+      "mcp_servers": [
+        "stitch"
+      ],
       "description": "Angular 21 (Zoneless): เน้น Signals-Only, SSE Reconnecting State และ CLS Protection (Aspect Ratio Strategy)"
     },
     "devops_agent": {
       "role": "Resource Warden & QA Engineer",
-      "model": "gemini-3-pro", 
+      "model": "gemini-3-pro",
       "priority_skills": [
         ".antigravity/skills/team-manifesto.md",
+        ".antigravity/skills/project-skeleton.md",
         ".antigravity/skills/infrastructure-devops.md"
       ],
       "description": "ผู้พิทักษ์ทรัพยากร: คุมกฎ 1.9 CPU, Shadow Build Only, Swap Management (vm.swappiness=10) และ Restoration Rule"
