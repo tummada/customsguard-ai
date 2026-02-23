@@ -63,6 +63,20 @@
         ".antigravity/skills/infrastructure-devops.md"
       ],
       "description": "ผู้พิทักษ์ทรัพยากร: คุมกฎ 1.9 CPU, Shadow Build Only, Swap Management (vm.swappiness=10) และ Restoration Rule"
+    },
+    "marketing_agent": {
+      "role": "Senior Full-stack Brand Architect",
+      "model": "gemini-3-flash",
+      "priority_skills": [
+        ".antigravity/skills/team-manifesto.md",
+        ".antigravity/skills/project-skeleton.md",
+        ".antigravity/skills/marketing-landing-page.md"
+      ],
+      "description": "ผู้ดูแล Marketing Stack (Node.js/Express): เน้น Luxury Protocol, Zero-CLS Design และการจัดการ Lead ผ่าน PostgreSQL Schema แยกส่วน",
+      "resource_limits": {
+        "cpu": 0.2,
+        "ram": "256MB"
+      }
     }
   }
 }
