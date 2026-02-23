@@ -40,12 +40,22 @@
 - `backups/`: Daily workflow exports
 - `custom-nodes/`: Specific logic for AI Integration
 
-## 📂 6. Infrastructure: `/infra`
+## 📂 7. Infrastructure: `/infra`
 - `nginx/`: 
     - `conf.d/default.conf` (Uses 'backend:8080' upstream) [FIXED NAMING]
 - `scripts/`: `backup.sh`, `deploy.sh`, `security-scan.sh`
 
-## 📂 7. Antigravity Skills: `/.antigravity/skills`
+## 📂 8. Marketing Site: `/marketing-site` (Node.js + Express)
+- `src/`
+    - `routes/`: Lead capture and landing page routing
+    - `controllers/`: Lead processing logic
+    - `middleware/`: Row Level Security (RLS) & Tenant filtering
+    - `config/`: Database connections & Env settings
+- `public/`: Static Assets (Luxury Brand Protocol)
+- `views/`: EJS or Pug Templates
+- `Dockerfile`: Node.js 20-Alpine configuration
+
+## 📂 9. Antigravity Skills: `/.antigravity/skills`
 - `team-manifesto.md`
 - `database-design.md`
 - `backend-java-spring.md`
@@ -53,6 +63,8 @@
 - `security-audit.md`
 - `ai-orchestration.md`
 - `project-skeleton.md`
+- `marketing-landing-page.md`
+- `logo-design.md`
 
 ---
 "Alignment is the silent driver of project velocity."

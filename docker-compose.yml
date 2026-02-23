@@ -116,7 +116,22 @@ services:
       - N8N_WEBHOOK_URL=${APP_BASE_URL}/n8n/
     deploy:
       resources:
-        limits: { cpus: '0.4', memory: 1536M }
+        limits: { cpus: '0.3', memory: 1536M }
+    logging: *default-logging
+
+  marketing:
+    build: ./marketing-site
+    container_name: saas-marketing
+    restart: always
+    environment:
+      - NODE_ENV=${APP_ENV}
+      - DB_URL=postgres://postgres:5432/${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - TENANT_ID_HEADER=x-tenant-id
+    deploy:
+      resources:
+        limits: { cpus: '0.2', memory: 256M }
     logging: *default-logging
 
   nginx:

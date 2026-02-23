@@ -72,7 +72,7 @@
         ".antigravity/skills/project-skeleton.md",
         ".antigravity/skills/marketing-landing-page.md"
       ],
-      "description": "ผู้ดูแล Marketing Stack (Node.js/Express): เน้น Luxury Protocol, Zero-CLS Design และการจัดการ Lead ผ่าน PostgreSQL Schema แยกส่วน",
+      "description": "ผู้ดูแล Marketing Stack (Node.js/Express): คุมกฏ Lead Validation, Zero-CLS Design และการจัดการ RLS ผ่าน tenant_id (Strict Multi-tenancy)",
       "resource_limits": {
         "cpu": 0.2,
         "ram": "256MB"
