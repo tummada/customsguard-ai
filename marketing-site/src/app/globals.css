@@ -1,0 +1,238 @@
+@import "tailwindcss";
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Offset anchor scroll for fixed navbar (h-24 = 6rem + 1rem breathing room) */
+[id] {
+  scroll-margin-top: 7rem;
+}
+
+@theme {
+  --font-sans: var(--font-inter), var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-manrope), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-instrument), serif;
+
+  --color-luxury-gold: #D4AF37;
+  --color-luxury-gold-hover: #B4941F;
+
+  --tracking-luxury: -0.02em;
+}
+
+@layer base {
+  body {
+    overflow-x: hidden;
+    letter-spacing: var(--tracking-luxury);
+    line-height: 1.625;
+    background-color: #ffffff;
+    background-image:
+      linear-gradient(rgba(212, 175, 55, 0.03) 0.5px, transparent 0.5px),
+      linear-gradient(90deg, rgba(212, 175, 55, 0.03) 0.5px, transparent 0.5px);
+    background-size: 40px 40px;
+  }
+
+  /* H1/H2: Instrument Serif feel — weight 300 for precision */
+  h1,
+  h2 {
+    font-family: var(--font-serif);
+    letter-spacing: -0.025em;
+    font-style: italic;
+  }
+
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
+    letter-spacing: -0.025em;
+  }
+
+  .font-serif-italic {
+    font-family: var(--font-serif);
+    font-style: italic;
+  }
+}
+
+@layer components {
+
+  /* "2 minutes" — most visually prominent element on the page */
+  .time-gold-shimmer {
+    background: linear-gradient(90deg,
+        #c49b2e 0%,
+        #D4AF37 35%,
+        #f0d060 50%,
+        #D4AF37 65%,
+        #c49b2e 100%);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: shimmer-text 3s linear infinite;
+    filter: drop-shadow(0 0 10px rgba(212, 175, 55, 0.55));
+  }
+
+  @keyframes shimmer-text {
+    0% {
+      background-position: 200% center;
+    }
+
+    100% {
+      background-position: -200% center;
+    }
+  }
+
+  .bento-card {
+    background: white;
+    border-radius: 2rem;
+    padding: 3rem;
+    /* 0.5px gold-to-transparent gradient border */
+    border: 0.5px solid transparent;
+    border-image: linear-gradient(135deg, rgba(212, 175, 55, 0.25), transparent 70%) 1;
+    box-shadow: inset 0 0 40px rgba(212, 175, 55, 0.02);
+    overflow: hidden;
+    position: relative;
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    outline: 1px solid transparent;
+    perspective: 1200px;
+    transform-style: preserve-3d;
+    transition: border-color 600ms ease, box-shadow 600ms ease;
+    /* Override border-image with a fallback for border-radius clipping */
+    border: 0.5px solid rgba(212, 175, 55, 0.2);
+  }
+
+  .bento-card:hover {
+    border-color: rgba(212, 175, 55, 0.4);
+    box-shadow:
+      inset 0 0 40px rgba(212, 175, 55, 0.03),
+      0 0 0 0.5px rgba(212, 175, 55, 0.35),
+      0 0 20px rgba(212, 175, 55, 0.1);
+  }
+
+  .shadow-luxury {
+    box-shadow: 0 0 50px rgba(212, 175, 55, 0.03);
+  }
+
+  /* Bento Grid stacking — isolate each card's stacking context */
+  .bento-card>* {
+    position: relative;
+    z-index: 1;
+  }
+
+  /*
+   * Gold Shimmer Border
+   * Apply to an OUTER WRAPPER div, NOT to .bento-card (overflow:hidden clips ::after).
+   * ::before = static base border (always visible, prevents flicker between shimmer cycles)
+   * ::after  = animated shimmer highlight on top
+   */
+  .gold-shimmer-border {
+    position: relative;
+    border-radius: 2rem;
+  }
+
+  /* Base gold border — 0.05 opacity: just enough to anchor the card, not overpower */
+  .gold-shimmer-border::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: rgba(212, 175, 55, 0.05);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* Shimmer overlay */
+  .gold-shimmer-border::after {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(90deg,
+        rgba(212, 175, 55, 0),
+        rgba(212, 175, 55, 0.65),
+        rgba(212, 175, 55, 0));
+    background-size: 200% 100%;
+    animation: gold-border-shift 6s ease-in-out infinite;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  @keyframes gold-border-shift {
+    0% {
+      background-position: 150% 0;
+    }
+
+    50% {
+      background-position: -50% 0;
+    }
+
+    100% {
+      background-position: 150% 0;
+    }
+  }
+
+  /* Vault Morph CTA Button */
+  .vault-morph {
+    position: relative;
+    overflow: hidden;
+    transition: all 500ms cubic-bezier(0.16, 1, 0.3, 1);
+    background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  }
+
+  /* Active press-down */
+  .vault-morph:active {
+    transform: scale(0.98);
+  }
+
+  /* Diagonal lens flare beam — sweeps on hover */
+  .vault-morph::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(105deg,
+        transparent 30%,
+        rgba(255, 255, 255, 0.06) 42%,
+        rgba(212, 175, 55, 0.18) 48%,
+        rgba(212, 175, 55, 0.25) 50%,
+        rgba(212, 175, 55, 0.18) 52%,
+        rgba(255, 255, 255, 0.06) 58%,
+        transparent 70%);
+    opacity: 0;
+    transform: translateX(-100%);
+    transition: opacity 400ms ease;
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  .vault-morph:hover::before {
+    opacity: 1;
+    animation: lens-flare 0.8s ease-in-out;
+  }
+
+  @keyframes lens-flare {
+    0% {
+      transform: translateX(-100%);
+    }
+
+    100% {
+      transform: translateX(100%);
+    }
+  }
+}
