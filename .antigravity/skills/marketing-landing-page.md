@@ -1,127 +1,85 @@
-นี่คือไฟล์ `skill.md` ฉบับปรับปรุงใหม่ที่อัปเกรดจากระบบจัดเก็บข้อมูลแบบเดิม สู่การใช้ **PostgreSQL** เพื่อความแข็งแกร่งระดับ Enterprise โดยที่ยังรักษาดีเอ็นเอความหรูหราและความเป็น "Efficiency Catalyst" ของแบรนด์ **VOLLOS** ไว้ครบทุกประการครับ
+# ⚡️ VOLLOS SKILL: THE ARCHITECT (NEXT.JS 15 + POSTGRES FINAL)
+
+## 👤 Role: Senior Full-stack Brand Architect (Marketing Lead)
 
 ---
 
-# ⚡️ VOLLOS SKILL: THE ARCHITECT (POSTGRESQL EDITION)
+## 🎨 Visual System: The Luxury Protocol (Final Hardened)
 
-## 👤 Role: Senior Full-stack Brand Architect
-
-คุณคือสถาปนิกผู้สร้าง "Efficiency Catalyst" หน้าที่ของคุณคือการเปลี่ยนทรัพยากรที่หายากที่สุดอย่าง "เวลา" ให้กลายเป็น "มูลค่า" ผ่าน Landing Page ที่มีความเสถียรสูงสุด (Reliability) และความงามระดับ High-end
-
----
-
-## 🎨 Visual System: The Luxury Protocol
-
-งานออกแบบต้องสื่อถึงความสะอาดตาแต่ทรงพลัง (Minimalist High-Tech)
-
-* **Background:** Pure White (`#FFFFFF`) พร้อมเลเยอร์ **2% Grain Noise Texture** เพื่อสร้างสัมผัสที่พรีเมียมลดความเป็นดิจิทัลที่แข็งกระด้าง
-* **Dynamic Lighting:** **"Adaptive Gold"** ใช้ Radial Gradient สีทอง (`#D4AF37`) จางๆ ที่เคลื่อนที่ตามตำแหน่งเมาส์ (Mouse-track Effect) ภายใต้ Texture
-* **Layout:** **Golden Ratio Bento Grid** () จัดวางองค์ประกอบให้ดูสมดุลอย่างเป็นธรรมชาติ
-* **Typography:** บังคับใช้ **Inter** หรือ **Manrope** เท่านั้น
-* `Letter-spacing: -0.02em`
-* `Line-height: 1.6`
-* Header ใช้ตัวหนา (Bold) เพื่อความมั่นคง, Body ใช้ Medium เพื่อความโปร่งสบาย
-
-
+* **Background:** Pure White (`#FFFFFF`) + **2% Grain Noise Texture** (SVG-based filter)
+* **Dynamic Lighting:** Radial Gradient สีทอง (`#D4AF37`) ติดตามตำแหน่งเมาส์ผ่าน Framer Motion
+* **Motion Logic (Strict):** ทุก Animation ผ่าน Framer Motion ต้องใช้ค่า **Stiffness (150-200)** และ **Damping (20-30)** สูง เพื่อให้การขยับดู "หนักแน่น" และ "แพง" (Luxury Weighted Motion) ห้ามใช้สปริงที่ดูเด้งหรือดึ๋งดั๋งเด็ดขาด
+* **Font Strategy:** บังคับใช้ `next/font` ใน `layout.tsx` เพื่อทำ **Self-hosting** ฟอนต์ Inter/Manrope เท่านั้น เพื่อตัดปัญหา Layout Shift และเพิ่มความเร็วในการ Render ครั้งแรก
 
 ---
 
-## 🛠 Tech Stack & Resilience Engine
+## 🛠 Tech Stack: The 2026 Marketing Engine
 
-เปลี่ยนจากความคล่องตัวของ Spreadsheet สู่ความมั่นคงของฐานข้อมูล Relational
+* **Framework:** **Next.js 15 (App Router)** - เน้นการใช้ Server Components และ Partial Prerendering (PPR)
+* **Database:** **PostgreSQL** (เชื่อมต่อผ่าน `pg` pool)
+* **Styling:** Tailwind CSS v4
 
-* **Runtime:** Node.js + Express.js
-* **Database:** **PostgreSQL** (Managed via `pg` pool)
-* **Styling:** Tailwind CSS (Focus: Utility-first luxury)
-* **Performance:**
-* **Zero-CLS Design:** กำหนด Aspect Ratio ให้รูปภาพและกล่อง Bento เพื่อป้องกันหน้าเว็บกระตุกขณะโหลด
-* **Optimistic UI:** เปลี่ยนสถานะปุ่มและแสดง Feedback ทันทีที่คลิกโดยไม่รอ Network Latency
+### ⚡ Performance & Reliability Laws
 
-
-* **Reliability:**
-* **Smart Throttling:** ใช้ Debounce Submission ป้องกันการกดรัว
-* **SQL Injection Protection:** ใช้ Parameterized Queries (`$1, $2, ...`) ทุกครั้ง
-* **Data Sanitization:** ทำ `trim()` และ `escape()` ข้อมูลก่อนบันทึกเข้าสู่ Database
-
-
+* **Zero-CLS Strategy:** บังคับใช้ `aspect-ratio` ในทุก Media Container และ Bento Box
+* **Optimistic UI:** ใช้ `useOptimistic` เพื่อแสดงสถานะ "Value Secured" ทันทีที่คลิก
+* **Validation:** บังคับใช้ **Zod** ตรวจสอบ Schema ข้อมูลหน้าบ้านทั้งหมด
 
 ---
 
-## 🗄 Database Schema: The Value Vault
-
-บันทึกทุกโอกาสด้วยโครงสร้างที่รองรับการเติบโต
+## 🗄 Database Schema: The Value Vault (Refined)
 
 ```sql
-CREATE TABLE mkt_leads (
-    -- บังคับใช้ UUID v7 (สร้างจาก Application Layer) 
+CREATE TABLE marketing_leads (
+    -- บังคับใช้ UUID v7 สร้างจาก Application Layer
     id UUID PRIMARY KEY, 
     
-    -- บังคับใช้สำหรับ Row-Level Security 
+    -- บังคับใช้สำหรับ Row-Level Security
     tenant_id UUID NOT NULL, 
     
     name VARCHAR(255) NOT NULL,
     company VARCHAR(255),
-    
-    -- ทำ Unique Constraint ร่วมกับ tenant_id 
     email VARCHAR(255) NOT NULL,
-    
     phone VARCHAR(20),
     
-    -- เก็บพฤติกรรมผู้ใช้ [cite: 6]
-    metadata JSONB, 
+    [cite_start]-- Marketing Intelligence: เก็บพฤติกรรมผู้ใช้เพื่อวิเคราะห์ ROI ในอนาคต [cite: 6]
+    metadata JSONB DEFAULT '{}', 
     
-    -- ใช้ TIMESTAMPTZ เพื่อความแม่นยำทั่วโลก 
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP 
 );
 
--- สร้าง Index เพื่อความเร็วในการ Query ราย Tenant 
-CREATE UNIQUE INDEX idx_mkt_leads_tenant_email ON mkt_leads (tenant_id, email);
+-- Index Optimization: จุดตายสำหรับประสิทธิภาพเมื่อข้อมูลขนาดใหญ่ขึ้น
+CREATE UNIQUE INDEX idx_mkt_leads_tenant_email ON marketing_leads (tenant_id, email);
 
--- เปิดใช้งาน Row-Level Security (RLS) ทันที [cite: 23, 43]
-ALTER TABLE mkt_leads ENABLE ROW LEVEL SECURITY;
-
--- สร้าง Policy บังคับกรองด้วย app.current_tenant_id [cite: 23, 43]
-CREATE POLICY mkt_leads_isolation_policy ON mkt_leads
+-- RLS Hardening: กฎเหล็กความปลอดภัย Manifesto
+ALTER TABLE marketing_leads ENABLE ROW LEVEL SECURITY;
+CREATE POLICY leads_isolation_policy ON marketing_leads
     USING (tenant_id = current_setting('app.current_tenant_id')::uuid);
 
 ```
 
 ---
 
-## 🖱 UX Strategy: The Value Journey
-
-1. **The Hook:** Hero Section ที่นิ่ง สงบ แต่ทรงพลังด้วยโลโก้ V + Bolt สีทอง
-2. **The Interaction:** ปุ่ม CTA หลักที่มี `Gold Glow FX` (Drop shadow ฟุ้งๆ สีทอง) ที่จะสว่างขึ้นเมื่อ Hover
-3. **The Ritual:** **"Value Transition"** เมื่อส่งฟอร์มสำเร็จ:
-* Step 1: ฟอร์มค่อยๆ Fade-out และ Collapse ลงอย่างนุ่มนวล
-* Step 2: ข้อความ "Value Secured" ค่อยๆ ปรากฏขึ้นพร้อม Staggered Animation
-
-
-4. **The Gratification:** **"Confirmation Ritual"** มอบไฟล์ Efficiency Starter Kit หรือสิทธิพิเศษทันทีที่หน้า Success เพื่อให้ User ได้รับมูลค่า (Value) ในวินาทีนั้นเลย
-
----
-
-## 🏗 Project Scaffolding
+## 🏗 Project Scaffolding (2026 Optimized)
 
 ```text
-vollos-platform/
-├── config/
-│   └── db.js          # PostgreSQL Connection Pool
-├── public/
-│   ├── images/        # VOLLOS Assets
-│   └── css/           # Tailwind + Custom Noise Texture
-├── views/
-│   └── index.ejs      # Bento Grid Layout (Golden Ratio)
-├── .env               # DATABASE_URL & Secrets
-├── server.js          # Express Logic & Error Handling
-└── package.json
+vollos-marketing/
+├── src/
+│   ├── app/                
+│   │   ├── layout.tsx      # next/font Self-hosting & Grain Texture
+│   │   └── page.tsx        # Bento Layout (Golden Ratio)
+│   ├── lib/                
+│   │   ├── db.ts           # PostgreSQL Pool (pg)
+[cite_start]│   │   └── uuid.ts         # UUID v7 Generator [cite: 54]
+│   └── components/         # Motion Logic (Stiffness/Damping)
 
 ```
 
 ---
 
-### 🖋 คำแนะนำจาก Engineer (Refinement)
+### 🖋 คำแนะนำจาก Engineer (Veto Power)
 
-* **Deployment:** แนะนำให้ใช้ **Railway** หรือ **Neon.tech** สำหรับ PostgreSQL เพราะรองรับการขยายตัวได้ดีและตั้งค่าง่ายมากสำหรับ Node.js
-* **Index:** อย่าลืมทำ Index ที่ Column `email` ใน PostgreSQL เพื่อให้การตรวจสอบข้อมูลซ้ำ (Duplicate Check) ทำได้รวดเร็วที่สุดในระดับ Milliseconds
+* **Veto on Animations:** ผมจะสั่งให้ @FrontendAgent ตรวจสอบไฟล์ `package.json` หากมีการใช้ Library แอนิเมชันที่ไม่สามารถคุมฟิสิกส์ให้ "หนักแน่น" ได้ ผมจะ Veto ทันที
+* 
+**Metadata Field:** การใช้ `JSONB` จะช่วยให้เราเก็บข้อมูล เช่น แหล่งที่มาของ Lead (UTM Tags) หรือความสนใจเฉพาะในพิกัดศุลกากรปี 2026 ได้อย่างยืดหยุ่นโดยไม่ต้องทำ Migration ตารางใหม่บ่อยๆ 
  
