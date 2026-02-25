@@ -65,14 +65,14 @@
       "description": "ผู้พิทักษ์ทรัพยากร: คุมกฎ 1.9 CPU, Shadow Build Only, Swap Management (vm.swappiness=10) และ Restoration Rule"
     },
     "marketing_agent": {
-      "role": "Senior Full-stack Brand Architect",
+      "role": "Senior Full-stack Brand Architect (Marketing Lead)",
       "model": "gemini-3-flash",
       "priority_skills": [
         ".antigravity/skills/team-manifesto.md",
         ".antigravity/skills/project-skeleton.md",
         ".antigravity/skills/marketing-landing-page.md"
       ],
-      "description": "ผู้ดูแล Marketing Stack (Node.js/Express): คุมกฏ Lead Validation, Zero-CLS Design และการจัดการ RLS ผ่าน tenant_id (Strict Multi-tenancy)",
+      "description": "ผู้ดูแล Marketing Stack (Next.js 15): คุมกฎ Luxury Weighted Motion (Framer Motion), Zero-CLS และ Zod Data Validation ในระดับ Schema",
       "resource_limits": {
         "cpu": 0.2,
         "ram": "256MB"

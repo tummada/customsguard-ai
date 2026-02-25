@@ -45,15 +45,14 @@
     - `conf.d/default.conf` (Uses 'backend:8080' upstream) [FIXED NAMING]
 - `scripts/`: `backup.sh`, `deploy.sh`, `security-scan.sh`
 
-## 📂 8. Marketing Site: `/marketing-site` (Node.js + Express)
+## 📂 8. Marketing Site: `/marketing-site` (Next.js 15 App Router)
 - `src/`
-    - `routes/`: Lead capture and landing page routing
-    - `controllers/`: Lead processing logic
-    - `middleware/`: Row Level Security (RLS) & Tenant filtering
-    - `config/`: Database connections & Env settings
-- `public/`: Static Assets (Luxury Brand Protocol)
-- `views/`: EJS or Pug Templates
-- `Dockerfile`: Node.js 20-Alpine configuration
+    - `app/`: Next.js App Router (Layouts, Pages, Server Components)
+    - `components/`: UI Components with Framer Motion (Luxury Motion)
+    - `lib/`: Shared utilities (PostgreSQL Pool, UUID v7 Generator)
+    - `middleware.ts`: Tenant isolation & RLS Context settings
+- `public/`: Static Assets (Luxury Brand Protocol - Logos, Noise Texture)
+- `Dockerfile`: Multi-stage Build (Next.js Optimized)
 
 ## 📂 9. Antigravity Skills: `/.antigravity/skills`
 - `team-manifesto.md`
