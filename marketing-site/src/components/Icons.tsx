@@ -73,3 +73,17 @@ export const SparklesIcon = () => (
         <path d="M5 17l.5 1.5L7 19l-1.5.5L5 21l-.5-1.5L3 19l1.5-.5L5 17z" />
     </CustomIcon>
 );
+
+export const TagIcon = () => (
+    <CustomIcon>
+        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+        <line x1="7" y1="7" x2="7.01" y2="7" />
+    </CustomIcon>
+);
+
+export const MessageIcon = () => (
+    <CustomIcon>
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </CustomIcon>
+);
+

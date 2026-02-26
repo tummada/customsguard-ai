@@ -5,11 +5,11 @@ import { queryWithTenant } from '@/lib/db';
 import { generateUUIDv7 } from '@/lib/uuid';
 
 const leadSchema = z.object({
-    name: z.string().min(2, "Name is too short"),
-    company: z.string().min(2, "Company is too short"),
-    email: z.string().email("Invalid work email"),
-    phone: z.string().min(9, "Phone is too short"),
-    category: z.string().optional(),
+    name: z.string().min(1, "กรุณาระบุชื่อ-นามสกุล"),
+    company: z.string().min(1, "กรุณาระบุชื่อบริษัท"),
+    email: z.string().email("กรุณาระบุอีเมลธุรกิจที่ถูกต้อง"),
+    phone: z.string().regex(/^[0-9]{10}$/, "กรุณาระบุเบอร์โทรศัพท์ 10 หลัก"),
+    category: z.string().min(1, "กรุณาเลือกประเภทธุรกิจ"),
 });
 
 // Mock DEFAULT_TENANT_ID as per VOLLOS Multi-tenant rule
@@ -56,6 +56,6 @@ export async function submitLead(_prevState: unknown, formData: FormData) {
         return { success: true, message: 'Value Secured' };
     } catch (error: any) {
         console.error('Lead Capture Error:', error.message);
-        return { success: false, message: 'Efficiency Interrupted. Please try again.' };
+        return { success: false, message: 'ขออภัย ไม่สามารถดำเนินการได้ในขณะนี้ กรุณาตรวจสอบข้อมูลหรือลองใหม่อีกครั้ง' };
     }
 }
