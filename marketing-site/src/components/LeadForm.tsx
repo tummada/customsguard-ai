@@ -224,7 +224,7 @@ export function LeadForm() {
                                                 className={`w-full text-left px-5 py-3 text-sm transition-all duration-150 cursor-pointer
                                                     ${catValue === cat.value
                                                         ? "bg-luxury-gold/10 text-luxury-gold font-medium"
-                                                        : "text-gray-600 hover:bg-luxury-gold/10 hover:text-black font-light"
+                                                        : "text-gray-600 hover:bg-luxury-gold/10 hover:text-black font-medium"
                                                     }`}
                                             >
                                                 {cat.label}

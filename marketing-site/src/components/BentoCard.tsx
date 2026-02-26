@@ -25,7 +25,7 @@ export const BentoCard = ({ children, className = "", id }: BentoCardProps) => {
     const spotBg = useTransform(
         [smoothX, smoothY],
         ([x, y]) =>
-            `radial-gradient(circle at ${(x as number) * 100}% ${(y as number) * 100}%, rgba(212, 175, 55, 0.07) 0%, transparent 60%)`
+            `radial-gradient(circle at ${(x as number) * 100}% ${(y as number) * 100}%, rgba(212, 175, 55, 0.20) 0%, transparent 45%)`
     );
 
     function handleMouseMove({ currentTarget, clientX, clientY }: MouseEvent) {

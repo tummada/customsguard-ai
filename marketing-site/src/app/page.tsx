@@ -114,7 +114,7 @@ export default function LandingPage() {
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true, amount: 0.3 }}
                             transition={{ type: "spring", stiffness: 100, damping: 30, mass: 1, delay: idx * 0.15 }}
-                            className="relative bg-white rounded-3xl p-8 border border-gray-100 hover:border-luxury-gold/20 transition-all duration-500 group"
+                            className="relative bg-white rounded-3xl p-8 border border-[rgba(212,175,55,0.2)] hover:border-luxury-gold/40 transition-all duration-500 group"
                         >
                             {/* Step number */}
                             <span className="absolute top-6 right-6 text-[10px] font-bold text-gray-200 tracking-widest">

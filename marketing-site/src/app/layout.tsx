@@ -34,6 +34,10 @@ const prompt = Prompt({
 export const metadata: Metadata = {
   title: "VOLLOS | AI จัดการใบขนสินค้า & HS-Code อัตโนมัติ",
   description: "หยุดนรกการคีย์ใบขน! เปลี่ยนงาน 3 ชั่วโมง ให้เหลือ 2 นาที ด้วย VOLLOS AI สำหรับธุรกิจ SME ไทย",
+  icons: {
+    icon: "/images/logo.svg",
+    apple: "/images/logo.svg",
+  },
 };
 
 export default function RootLayout({

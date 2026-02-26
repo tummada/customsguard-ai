@@ -27,8 +27,8 @@ html {
     line-height: 1.625;
     background-color: #ffffff;
     background-image:
-      linear-gradient(rgba(212, 175, 55, 0.03) 0.5px, transparent 0.5px),
-      linear-gradient(90deg, rgba(212, 175, 55, 0.03) 0.5px, transparent 0.5px);
+      linear-gradient(rgba(212, 175, 55, 0.07) 0.5px, transparent 0.5px),
+      linear-gradient(90deg, rgba(212, 175, 55, 0.07) 0.5px, transparent 0.5px);
     background-size: 40px 40px;
   }
 
@@ -100,16 +100,16 @@ html {
     perspective: 1200px;
     transform-style: preserve-3d;
     transition: border-color 600ms ease, box-shadow 600ms ease;
-    /* Override border-image with a fallback for border-radius clipping */
-    border: 0.5px solid rgba(212, 175, 55, 0.2);
+    /* Robust gold border for LCD screens */
+    border: 1px solid rgba(212, 175, 55, 0.3);
   }
 
   .bento-card:hover {
-    border-color: rgba(212, 175, 55, 0.4);
+    border-color: rgba(212, 175, 55, 0.5);
     box-shadow:
-      inset 0 0 40px rgba(212, 175, 55, 0.03),
-      0 0 0 0.5px rgba(212, 175, 55, 0.35),
-      0 0 20px rgba(212, 175, 55, 0.1);
+      inset 0 0 40px rgba(212, 175, 55, 0.04),
+      0 0 0 1px rgba(212, 175, 55, 0.4),
+      0 0 24px rgba(212, 175, 55, 0.12);
   }
 
   .shadow-luxury {
@@ -207,13 +207,11 @@ html {
     width: 200%;
     height: 200%;
     background: linear-gradient(105deg,
-        transparent 30%,
-        rgba(255, 255, 255, 0.06) 42%,
-        rgba(212, 175, 55, 0.18) 48%,
-        rgba(212, 175, 55, 0.25) 50%,
-        rgba(212, 175, 55, 0.18) 52%,
-        rgba(255, 255, 255, 0.06) 58%,
-        transparent 70%);
+        transparent 40%,
+        rgba(255, 255, 255, 0.2) 47%,
+        rgba(212, 175, 55, 0.4) 50%,
+        rgba(255, 255, 255, 0.2) 53%,
+        transparent 60%);
     opacity: 0;
     transform: translateX(-100%);
     transition: opacity 400ms ease;
@@ -223,7 +221,7 @@ html {
 
   .vault-morph:hover::before {
     opacity: 1;
-    animation: lens-flare 0.8s ease-in-out;
+    animation: lens-flare 3s ease-in-out infinite;
   }
 
   @keyframes lens-flare {
