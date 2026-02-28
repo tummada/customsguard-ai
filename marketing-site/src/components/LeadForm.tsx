@@ -68,7 +68,7 @@ const categories = [
     { value: "others", label: "Others" },
 ];
 
-export function LeadForm() {
+export function LeadForm({ productCategory = 'Unknown Product' }: { productCategory?: string }) {
     const [state, action, isPending] = useActionState<FormState, FormData>(
         async (prevState, formData) => {
             // Final validation before actual action
@@ -378,6 +378,8 @@ export function LeadForm() {
                             </button>
                             <ErrorMsg error={fieldErrors.category} />
 
+                            <input type="hidden" name="product_category" value={productCategory} />
+
                             <AnimatePresence>
                                 {catOpen && (
                                     <motion.ul
@@ -417,45 +419,45 @@ export function LeadForm() {
                             animate={{ x: [0, -4, 4, -4, 4, -2, 2, 0] }}
                             transition={{ repeat: Infinity, repeatDelay: 4.5, duration: 0.5 }}
                         >
-                        <motion.button
-                            type="submit"
-                            disabled={isPending || !ready}
-                            onHoverStart={() => setBtnHovered(true)}
-                            onHoverEnd={() => setBtnHovered(false)}
-                            whileHover={{ scale: 0.98 }}
-                            whileTap={{ scale: 0.96 }}
-                            animate={{
-                                boxShadow: [
-                                    "0 0 0px rgba(212, 175, 55, 0)",
-                                    "0 0 20px rgba(212, 175, 55, 0.4)",
-                                    "0 0 0px rgba(212, 175, 55, 0)",
-                                ],
-                            }}
-                            transition={{
-                                boxShadow: { repeat: Infinity, duration: 2.5, ease: "easeInOut" },
-                                scale: luxurySpring,
-                            }}
-                            className="group vault-morph relative overflow-hidden w-full text-white font-bold px-6 py-5 rounded-2xl disabled:opacity-50"
-                        >
-                            {isPending ? (
-                                <span className="flex items-center justify-center gap-3">กำลังดำเนินการ...</span>
-                            ) : (
-                                <>
-                                    <span className="relative z-10 flex items-center justify-center gap-3 group-hover:-translate-y-[150%] group-hover:opacity-0 transition-all duration-500">
-                                        สมัคร Founder&apos;s Club
-                                        <motion.span
-                                            animate={{ x: btnHovered ? 0 : [0, 4, 0] }}
-                                            transition={{ repeat: btnHovered ? 0 : Infinity, duration: 2, ease: "easeInOut" }}
-                                        >
-                                            <ArrowIcon />
-                                        </motion.span>
-                                    </span>
-                                    <span className="absolute inset-0 z-10 flex items-center justify-center translate-y-[150%] opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500 font-bold tracking-tight">
-                                        ENTER THE VAULT
-                                    </span>
-                                </>
-                            )}
-                        </motion.button>
+                            <motion.button
+                                type="submit"
+                                disabled={isPending || !ready}
+                                onHoverStart={() => setBtnHovered(true)}
+                                onHoverEnd={() => setBtnHovered(false)}
+                                whileHover={{ scale: 0.98 }}
+                                whileTap={{ scale: 0.96 }}
+                                animate={{
+                                    boxShadow: [
+                                        "0 0 0px rgba(212, 175, 55, 0)",
+                                        "0 0 20px rgba(212, 175, 55, 0.4)",
+                                        "0 0 0px rgba(212, 175, 55, 0)",
+                                    ],
+                                }}
+                                transition={{
+                                    boxShadow: { repeat: Infinity, duration: 2.5, ease: "easeInOut" },
+                                    scale: luxurySpring,
+                                }}
+                                className="group vault-morph relative overflow-hidden w-full text-white font-bold px-6 py-5 rounded-2xl disabled:opacity-50"
+                            >
+                                {isPending ? (
+                                    <span className="flex items-center justify-center gap-3">กำลังดำเนินการ...</span>
+                                ) : (
+                                    <>
+                                        <span className="relative z-10 flex items-center justify-center gap-3 group-hover:-translate-y-[150%] group-hover:opacity-0 transition-all duration-500">
+                                            สมัคร Founder&apos;s Club
+                                            <motion.span
+                                                animate={{ x: btnHovered ? 0 : [0, 4, 0] }}
+                                                transition={{ repeat: btnHovered ? 0 : Infinity, duration: 2, ease: "easeInOut" }}
+                                            >
+                                                <ArrowIcon />
+                                            </motion.span>
+                                        </span>
+                                        <span className="absolute inset-0 z-10 flex items-center justify-center translate-y-[150%] opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500 font-bold tracking-tight">
+                                            ENTER THE VAULT
+                                        </span>
+                                    </>
+                                )}
+                            </motion.button>
                         </motion.div>
 
                         <p className="text-[9px] text-gray-500 font-medium tracking-wide mt-4 text-center">

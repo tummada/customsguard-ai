@@ -4,21 +4,15 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
 /*
- * Animation cycle:
- *   1. Show "3 ชั่วโมง" (Prompt 300, gray, strikethrough) for 1.4s after entering viewport
- *   2. Cross-fade (0.6s) to "2 นาที" (Instrument Serif 700, gold shimmer + glow)
- *   3. FREEZE for 10 seconds (first cycle) / 8 seconds (subsequent)
- *   4. Soft cross-fade back to "3 ชั่วโมง"
- *   5. Repeat (2s pause on "before" before next cycle)
+ * Strikethrough Morph Animation:
+ *   1. Show "3 ชม." in muted gray (#b0b0b0)
+ *   2. Animate a thin (0.5px) golden strikethrough line left → right
+ *   3. Crossfade to "2 นาที" in gold (Instrument Serif) with glow
+ *   4. Hold for 10s, then smoothly reset and loop
  *
  * Zero-Shift Layout:
- *   - Outer: `inline-flex items-baseline relative mx-2` — in-flow, baseline-aligned
- *   - Ghost ("3 ชั่วโมง") stays in flow to hold the container's width
- *   - Live text is `position: absolute, inset: 0` — no layout reflow, no surrounding text shift
- *
- * Baseline Guard:
- *   - `alignItems: "baseline"` on the live-text wrapper aligns text baselines
- *   - Static `y: "0.04em"` on "2 นาที" calibrates Instrument Serif vs Thai font baseline
+ *   - Ghost text holds container width in flow
+ *   - Live text is absolutely positioned — no surrounding text shift
  */
 
 const fade = { duration: 0.6, ease: [0.4, 0, 0.2, 1] } as const;
@@ -26,12 +20,12 @@ const fade = { duration: 0.6, ease: [0.4, 0, 0.2, 1] } as const;
 export function TimeCollapse() {
     const ref = useRef<HTMLSpanElement>(null);
     const [isVisible, setIsVisible] = useState(false);
-    const [phase, setPhase] = useState<"before" | "after">("before");
+    const [phase, setPhase] = useState<"before" | "striking" | "after">("before");
     const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-    const isFirstCycle = useRef(true);
 
-    // Observe viewport entry
     useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
         const observer = new IntersectionObserver(
             ([entry]) => {
                 if (entry.isIntersecting) setIsVisible(true);
@@ -39,25 +33,27 @@ export function TimeCollapse() {
             },
             { threshold: 0.5 }
         );
-        if (ref.current) observer.observe(ref.current);
+        observer.observe(el);
         return () => observer.disconnect();
     }, []);
 
-    // Single effect drives the entire cycle — no dual-timer race condition
     useEffect(() => {
         if (timerRef.current) clearTimeout(timerRef.current);
 
         if (!isVisible) {
             setPhase("before");
-            isFirstCycle.current = true;
             return;
         }
 
         if (phase === "before") {
-            timerRef.current = setTimeout(() => setPhase("after"), 3000);
+            // Show "3 ชม." in gray, then start strikethrough
+            timerRef.current = setTimeout(() => setPhase("striking"), 3000);
+        } else if (phase === "striking") {
+            // Strikethrough line animates (0.8s CSS), wait 1s total then morph
+            timerRef.current = setTimeout(() => setPhase("after"), 1000);
         } else {
-            isFirstCycle.current = false;
-            timerRef.current = setTimeout(() => setPhase("before"), 3000);
+            // Hold "2 นาที" for 10s, then smooth reset
+            timerRef.current = setTimeout(() => setPhase("before"), 10000);
         }
 
         return () => { if (timerRef.current) clearTimeout(timerRef.current); };
@@ -69,10 +65,7 @@ export function TimeCollapse() {
             className="inline-flex items-baseline relative mx-2"
             style={{ verticalAlign: "baseline", transform: "translateY(1.5px)" }}
         >
-            {/*
-             * Ghost — Prompt 300, always invisible but in flow.
-             * Sets the container width so surrounding Thai text never shifts.
-             */}
+            {/* Ghost — Prompt 300, invisible but in flow to hold width */}
             <span
                 aria-hidden="true"
                 style={{
@@ -84,14 +77,10 @@ export function TimeCollapse() {
                     pointerEvents: "none",
                 }}
             >
-                3&nbsp;ชั่วโมง
+                3&nbsp;ชม.
             </span>
 
-            {/*
-             * Live text — absolutely covers the ghost.
-             * `alignItems: "baseline"` keeps the animated text on the same
-             * baseline as the ghost, which aligns with the surrounding h1.
-             */}
+            {/* Live text — absolutely covers the ghost */}
             <span
                 aria-live="polite"
                 style={{
@@ -103,11 +92,7 @@ export function TimeCollapse() {
                 }}
             >
                 <AnimatePresence mode="wait">
-                    {phase === "before" ? (
-                        /*
-                         * "3 ชั่วโมง" — Prompt 300, muted gray, struck through.
-                         * Represents the old painful reality.
-                         */
+                    {phase !== "after" ? (
                         <motion.span
                             key="before"
                             initial={{ opacity: 0 }}
@@ -117,24 +102,31 @@ export function TimeCollapse() {
                             style={{
                                 fontFamily: "var(--font-prompt), sans-serif",
                                 fontWeight: 300,
-                                color: "#9ca3af",
-                                textDecoration: "line-through",
-                                textDecorationColor: "#9ca3af",
-                                textDecorationThickness: "1px",
+                                color: "#b0b0b0",
                                 whiteSpace: "nowrap",
                                 willChange: "opacity",
+                                position: "relative",
+                                display: "inline-block",
                             }}
                         >
-                            3&nbsp;ชั่วโมง
+                            3&nbsp;ชม.
+                            {/* Golden strikethrough line — animates left to right */}
+                            <span
+                                style={{
+                                    position: "absolute",
+                                    left: 0,
+                                    top: "50%",
+                                    height: "0.5px",
+                                    width: "100%",
+                                    background: "linear-gradient(90deg, #D4AF37 0%, #e6c27a 100%)",
+                                    transform: phase === "striking" ? "scaleX(1)" : "scaleX(0)",
+                                    transformOrigin: "left center",
+                                    transition: "transform 0.8s cubic-bezier(0.4, 0, 0.2, 1)",
+                                    pointerEvents: "none",
+                                }}
+                            />
                         </motion.span>
                     ) : (
-                        /*
-                         * "2 นาที" — Instrument Serif 700, gold shimmer + glow.
-                         * Represents the precision outcome — premium vs the thin Prompt.
-                         *
-                         * Baseline Guard: `y: "0.04em"` shifts Instrument Serif's visual
-                         * baseline to match surrounding Thai type. Tune if fonts change.
-                         */
                         <motion.span
                             key="after"
                             className="time-gold-shimmer"
@@ -159,7 +151,7 @@ export function TimeCollapse() {
                             transition={fade}
                             style={{
                                 fontFamily: 'var(--font-instrument), "Instrument Serif", serif',
-                                fontWeight: 700,
+                                fontWeight: 400,
                                 whiteSpace: "nowrap",
                                 willChange: "opacity, transform, filter",
                             }}
