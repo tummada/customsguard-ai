@@ -1,43 +1,34 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
 /*
  * Animation cycle:
- *   1. Show "3 ชั่วโมง" (with strikethrough) for 1.4s after entering viewport
- *   2. Morph to "2 นาที" (gold shimmer)
- *   3. FREEZE for 8 seconds
- *   4. Soft fade reset back to "3 ชั่วโมง"
- *   5. Repeat from step 1
+ *   1. Show "3 ชั่วโมง" (Prompt 300, gray, strikethrough) for 1.4s after entering viewport
+ *   2. Cross-fade (0.6s) to "2 นาที" (Instrument Serif 700, gold shimmer + glow)
+ *   3. FREEZE for 10 seconds (first cycle) / 8 seconds (subsequent)
+ *   4. Soft cross-fade back to "3 ชั่วโมง"
+ *   5. Repeat (2s pause on "before" before next cycle)
+ *
+ * Zero-Shift Layout:
+ *   - Outer: `inline-flex items-baseline relative mx-2` — in-flow, baseline-aligned
+ *   - Ghost ("3 ชั่วโมง") stays in flow to hold the container's width
+ *   - Live text is `position: absolute, inset: 0` — no layout reflow, no surrounding text shift
+ *
+ * Baseline Guard:
+ *   - `alignItems: "baseline"` on the live-text wrapper aligns text baselines
+ *   - Static `y: "0.04em"` on "2 นาที" calibrates Instrument Serif vs Thai font baseline
  */
 
-const morphSpring = {
-    type: "spring",
-    stiffness: 100,
-    damping: 40,
-    mass: 0.8,
-} as const;
-
-const softFade = { duration: 0.6, ease: [0.4, 0, 0.2, 1] } as const;
-const exitFade = { duration: 0.4, ease: [0.4, 0, 1, 1] } as const;
-
-const textStyle: React.CSSProperties = {
-    fontFamily: "var(--font-prompt), sans-serif",
-    letterSpacing: "0",
-    fontWeight: "700",
-    fontSize: "1.25rem",
-    lineHeight: "1.2",
-    willChange: "transform, opacity",
-    backfaceVisibility: "hidden",
-};
+const fade = { duration: 0.6, ease: [0.4, 0, 0.2, 1] } as const;
 
 export function TimeCollapse() {
     const ref = useRef<HTMLSpanElement>(null);
     const [isVisible, setIsVisible] = useState(false);
-    // "before" = 3 ชั่วโมง, "after" = 2 นาที
     const [phase, setPhase] = useState<"before" | "after">("before");
     const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+    const isFirstCycle = useRef(true);
 
     // Observe viewport entry
     useEffect(() => {
@@ -52,111 +43,128 @@ export function TimeCollapse() {
         return () => observer.disconnect();
     }, []);
 
-    // Animation cycle controller
-    const startCycle = useCallback(() => {
-        // Step 1: Show "3 ชั่วโมง" for 1.4s, then switch to "2 นาที"
-        timerRef.current = setTimeout(() => {
-            setPhase("after");
-
-            // Step 3: Freeze for 10s, then reset to "3 ชั่วโมง"
-            timerRef.current = setTimeout(() => {
-                setPhase("before");
-            }, 10000);
-        }, 1400);
-    }, []);
-
+    // Single effect drives the entire cycle — no dual-timer race condition
     useEffect(() => {
+        if (timerRef.current) clearTimeout(timerRef.current);
+
         if (!isVisible) {
-            // Reset when leaving viewport
             setPhase("before");
-            if (timerRef.current) clearTimeout(timerRef.current);
+            isFirstCycle.current = true;
             return;
         }
-        startCycle();
-        return () => {
-            if (timerRef.current) clearTimeout(timerRef.current);
-        };
-    }, [isVisible, startCycle]);
 
-    // When phase resets to "before", restart the cycle
-    useEffect(() => {
-        if (isVisible && phase === "before") {
-            // Small delay to let the fade-in of "3 ชั่วโมง" finish
-            timerRef.current = setTimeout(() => {
-                setPhase("after");
-
-                timerRef.current = setTimeout(() => {
-                    setPhase("before");
-                }, 8000);
-            }, 2000);
+        if (phase === "before") {
+            timerRef.current = setTimeout(() => setPhase("after"), 3000);
+        } else {
+            isFirstCycle.current = false;
+            timerRef.current = setTimeout(() => setPhase("before"), 3000);
         }
-        return () => {
-            if (timerRef.current) clearTimeout(timerRef.current);
-        };
-        // Only trigger on phase change while visible
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [phase, isVisible]);
+
+        return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+    }, [isVisible, phase]);
 
     return (
         <span
             ref={ref}
-            style={{
-                display: "inline-flex",
-                alignItems: "baseline",
-                position: "relative",
-                margin: "0 0.2rem",
-                verticalAlign: "baseline",
-            }}
+            className="inline-flex items-baseline relative mx-2"
+            style={{ verticalAlign: "baseline", transform: "translateY(1.5px)" }}
         >
-            {/* Ghost — locks width to wider string */}
+            {/*
+             * Ghost — Prompt 300, always invisible but in flow.
+             * Sets the container width so surrounding Thai text never shifts.
+             */}
             <span
                 aria-hidden="true"
                 style={{
-                    ...textStyle,
-                    visibility: "hidden",
-                    pointerEvents: "none",
-                    userSelect: "none",
+                    fontFamily: "var(--font-prompt), sans-serif",
+                    fontWeight: 300,
                     whiteSpace: "nowrap",
+                    visibility: "hidden",
+                    userSelect: "none",
+                    pointerEvents: "none",
                 }}
             >
-                3 ชั่วโมง
+                3&nbsp;ชั่วโมง
             </span>
 
-            {/* Animated layer */}
-            <span style={{ position: "absolute", left: 0, right: 0, display: "flex", justifyContent: "center" }}>
+            {/*
+             * Live text — absolutely covers the ghost.
+             * `alignItems: "baseline"` keeps the animated text on the same
+             * baseline as the ghost, which aligns with the surrounding h1.
+             */}
+            <span
+                aria-live="polite"
+                style={{
+                    position: "absolute",
+                    inset: 0,
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "baseline",
+                }}
+            >
                 <AnimatePresence mode="wait">
                     {phase === "before" ? (
+                        /*
+                         * "3 ชั่วโมง" — Prompt 300, muted gray, struck through.
+                         * Represents the old painful reality.
+                         */
                         <motion.span
                             key="before"
-                            initial={{ opacity: 0, filter: "blur(4px)" }}
-                            animate={{ opacity: 1, filter: "blur(0px)" }}
-                            exit={{ opacity: 0, scale: 0.95, filter: "blur(3px)" }}
-                            transition={softFade}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={fade}
                             style={{
-                                ...textStyle,
-                                color: "#b0b0b0",
+                                fontFamily: "var(--font-prompt), sans-serif",
+                                fontWeight: 300,
+                                color: "#9ca3af",
                                 textDecoration: "line-through",
-                                textDecorationColor: "rgba(212, 175, 55, 0.3)",
-                                textDecorationThickness: "0.5px",
+                                textDecorationColor: "#9ca3af",
+                                textDecorationThickness: "1px",
+                                whiteSpace: "nowrap",
+                                willChange: "opacity",
                             }}
                         >
-                            3 ชั่วโมง
+                            3&nbsp;ชั่วโมง
                         </motion.span>
                     ) : (
+                        /*
+                         * "2 นาที" — Instrument Serif 700, gold shimmer + glow.
+                         * Represents the precision outcome — premium vs the thin Prompt.
+                         *
+                         * Baseline Guard: `y: "0.04em"` shifts Instrument Serif's visual
+                         * baseline to match surrounding Thai type. Tune if fonts change.
+                         */
                         <motion.span
                             key="after"
-                            initial={{ opacity: 0, scale: 0.9, filter: "blur(4px)" }}
-                            animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-                            exit={{ opacity: 0, filter: "blur(3px)" }}
-                            transition={morphSpring}
-                            style={{
-                                ...textStyle,
-                                color: "#D4AF37",
-                                textShadow: "0 0 12px rgba(212, 175, 55, 0.25)",
-                            }}
                             className="time-gold-shimmer"
+                            initial={{
+                                opacity: 0,
+                                scale: 0.97,
+                                y: "0.04em",
+                                filter: "blur(4px) drop-shadow(0 0 0px rgba(212,175,55,0)) drop-shadow(0 0 0px rgba(212,175,55,0))",
+                            }}
+                            animate={{
+                                opacity: 1,
+                                scale: 1,
+                                y: "0.04em",
+                                filter: "blur(0px) drop-shadow(0 0 10px rgba(212,175,55,0.55)) drop-shadow(0 0 20px rgba(212,175,55,0.3))",
+                            }}
+                            exit={{
+                                opacity: 0,
+                                scale: 0.97,
+                                y: "0.04em",
+                                filter: "blur(3px) drop-shadow(0 0 0px rgba(212,175,55,0)) drop-shadow(0 0 0px rgba(212,175,55,0))",
+                            }}
+                            transition={fade}
+                            style={{
+                                fontFamily: 'var(--font-instrument), "Instrument Serif", serif',
+                                fontWeight: 700,
+                                whiteSpace: "nowrap",
+                                willChange: "opacity, transform, filter",
+                            }}
                         >
-                            2 นาที
+                            2&nbsp;นาที
                         </motion.span>
                     )}
                 </AnimatePresence>

@@ -14,7 +14,7 @@ const initialState: FormState = { success: false };
 const luxurySpring = { type: 'spring', stiffness: 100, damping: 40, mass: 1.5 } as const;
 
 const inputClass =
-    "w-full bg-white/50 backdrop-blur-sm border border-gray-200/50 rounded-2xl pl-12 pr-6 py-4 text-sm shadow-[inset_0_1px_3px_rgba(0,0,0,0.04)] focus:outline-none focus:border-luxury-gold/40 focus:shadow-[0_0_0_3px_rgba(212,175,55,0.1),inset_0_1px_3px_rgba(0,0,0,0.04)] transition-all duration-300 font-light placeholder:text-gray-400";
+    "w-full bg-white/50 backdrop-blur-sm border border-gray-200/50 rounded-2xl pl-12 pr-6 py-5 text-base shadow-[inset_0_2px_6px_rgba(0,0,0,0.06)] focus:outline-none focus:border-luxury-gold/40 focus:shadow-[0_0_0_3px_rgba(212,175,55,0.1),inset_0_2px_6px_rgba(0,0,0,0.06)] transition-all duration-300 font-light placeholder:text-gray-400";
 
 /* Tiny inline SVG icons — 16×16, 1.5px stroke, gold */
 const iconClass = "absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-luxury-gold pointer-events-none";
@@ -107,6 +107,7 @@ export function LeadForm() {
 
     /* ── Custom Field Validation State ── */
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+    const [btnHovered, setBtnHovered] = useState(false);
 
     const handleInput = (name: string) => {
         if (fieldErrors[name]) {
@@ -155,9 +156,6 @@ export function LeadForm() {
     const catLabel = categories.find((c) => c.value === catValue)?.label ?? "";
     const dropdownRef = useRef<HTMLDivElement>(null);
 
-    /* ── Vault-morph hover text state ── */
-    const [btnHover, setBtnHover] = useState(false);
-
     /* ── Spam protection: disable submit for 2s after mount ── */
     const [ready, setReady] = useState(false);
     useEffect(() => {
@@ -202,9 +200,9 @@ export function LeadForm() {
                 <div className="w-16 h-16 bg-luxury-gold/10 rounded-full flex items-center justify-center mb-6">
                     <ArrowIcon />
                 </div>
-                <h3 className="text-2xl font-bold mb-3 tracking-tighter">ลงทะเบียนเรียบร้อยแล้ว</h3>
+                <h3 className="text-2xl font-bold mb-3 tracking-tighter">ลงทะเบียนจองสิทธิ์เรียบร้อยแล้ว</h3>
                 <p className="text-[#D4AF37] text-sm font-medium mt-2 leading-relaxed max-w-xs px-4">
-                    ทีมงาน VOLLOS จะติดต่อกลับเพื่อยืนยันสิทธิ์ Founder&apos;s Club ของท่านโดยเร็วที่สุด
+                    ทีมงานจะติดต่อกลับเพื่อยืนยันสิทธิ์ภายใน 48 ชม.
                 </p>
             </motion.div>
         );
@@ -217,24 +215,38 @@ export function LeadForm() {
     };
 
     return (
-        <form action={action} noValidate className="flex flex-col h-full justify-between p-2 lg:p-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16">
+        <form action={action} noValidate className="flex flex-col h-full justify-between p-4 lg:p-12">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-24">
                 {/* Left Column: Value Proposition */}
                 <div className="flex flex-col justify-center">
                     <div className="mb-8">
+                        {/* Gold Seal */}
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ ...luxurySpring, delay: 0.05 }}
+                            className="mb-6"
+                        >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                                src="https://placehold.co/100x100/D4AF37/FFF?text=Gold+Seal"
+                                alt="Founder's Club Gold Seal"
+                                className="w-20 h-20 rounded-full shadow-[0_0_24px_rgba(212,175,55,0.35)]"
+                            />
+                        </motion.div>
                         <motion.div
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
                             className="inline-flex items-center gap-2 bg-luxury-gold/5 border border-luxury-gold/20 rounded-full px-4 py-1.5 mb-8"
                         >
                             <span className="w-1.5 h-1.5 bg-luxury-gold rounded-full" />
-                            <span className="text-[10px] font-bold text-luxury-gold tracking-widest uppercase">
+                            <span className="text-[10px] font-bold text-luxury-gold tracking-tight uppercase font-[family-name:var(--font-inter)]">
                                 EARLY ACCESS & LIFETIME PRIVILEGE
                             </span>
                         </motion.div>
                         <h3 className="text-3xl lg:text-5xl font-light mb-6 tracking-tight leading-tight">
                             ลงทะเบียนรับสิทธิ์<br />
-                            <span className="font-bold">Founder&apos;s Club</span>
+                            <span className="font-bold font-[family-name:var(--font-inter)] uppercase">Founder&apos;s Club</span>
                         </h3>
                         <p className="text-gray-400 text-sm lg:text-[15px] font-normal leading-relaxed mb-10 max-w-md">
                             เรากำลังมองหา 10 บริษัทแรกเพื่อร่วมปฏิวัติการคีย์ใบขนสินค้า กรอกข้อมูลเพื่อรับสิทธิ์พิจารณาเข้าร่วมโครงการ
@@ -243,7 +255,7 @@ export function LeadForm() {
 
                     {/* "Why Join?" Bullets */}
                     <div className="space-y-8">
-                        <p className="text-[11px] font-bold text-gray-300 tracking-[0.2em] uppercase mb-4">Why Join?</p>
+                        <p className="text-[11px] font-bold text-gray-300 tracking-tight uppercase mb-4 font-[family-name:var(--font-inter)]">Why Join?</p>
                         {benefits.map((b, i) => (
                             <motion.div
                                 key={i}
@@ -263,31 +275,29 @@ export function LeadForm() {
                     </div>
 
                     {/* Urgency badge (Mobile Only) */}
-                    <motion.div
-                        animate={{ scale: [1, 1.02, 1] }}
-                        transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
-                        className="mt-12 inline-flex lg:hidden items-center gap-2 bg-red-50 border border-red-200/60 rounded-full px-4 py-1.5"
-                    >
-                        <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                        <span className="text-[10px] font-bold text-red-600 tracking-wide">
-                            เหลือเพียง 4 สิทธิ์สุดท้ายสำหรับสิทธิพิเศษตลอดชีพ
-                        </span>
-                    </motion.div>
+                    <div className="mt-12 flex lg:hidden flex-col gap-2">
+                        <div className="flex justify-between items-center text-[10px] font-bold tracking-tight uppercase text-gray-500 font-[family-name:var(--font-inter)]">
+                            <span>BATCH 01 INTAKE</span>
+                            <span className="text-luxury-gold">8/10 SLOTS RESERVED</span>
+                        </div>
+                        <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div className="h-full bg-luxury-gold/30 rounded-full" style={{ width: '80%' }} />
+                        </div>
+                    </div>
                 </div>
 
                 {/* Right Column: The Form */}
                 <div className="relative">
                     {/* Desktop Urgency Badge */}
-                    <motion.div
-                        animate={{ scale: [1, 1.02, 1] }}
-                        transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
-                        className="hidden lg:inline-flex items-center gap-2 bg-red-50 border border-red-200/60 rounded-full px-4 py-1.5 mb-8"
-                    >
-                        <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                        <span className="text-[10px] font-bold text-red-600 tracking-wide">
-                            เหลือเพียง 4 สิทธิ์สุดท้าย
-                        </span>
-                    </motion.div>
+                    <div className="hidden lg:flex flex-col gap-2 mb-8">
+                        <div className="flex justify-between items-center text-[10px] font-bold tracking-tight uppercase text-gray-500 font-[family-name:var(--font-inter)]">
+                            <span>BATCH 01 INTAKE</span>
+                            <span className="text-luxury-gold">8/10 SLOTS RESERVED</span>
+                        </div>
+                        <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div className="h-full bg-luxury-gold/30 rounded-full" style={{ width: '80%' }} />
+                        </div>
+                    </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {/* Name */}
@@ -355,9 +365,9 @@ export function LeadForm() {
                             <button
                                 type="button"
                                 onClick={() => setCatOpen((v) => !v)}
-                                className={`w-full bg-white/50 backdrop-blur-sm border rounded-2xl pl-12 pr-10 py-4 text-sm text-left shadow-[inset_0_1px_3px_rgba(0,0,0,0.04)] transition-all duration-300 font-light cursor-pointer
+                                className={`w-full bg-white/50 backdrop-blur-sm border rounded-2xl pl-12 pr-10 py-5 text-base text-left shadow-[inset_0_2px_6px_rgba(0,0,0,0.06)] transition-all duration-300 font-light cursor-pointer
                                 ${catOpen
-                                        ? "border-luxury-gold/40 shadow-[0_0_0_3px_rgba(212,175,55,0.1),inset_0_1px_3px_rgba(0,0,0,0.04)]"
+                                        ? "border-luxury-gold/40 shadow-[0_0_0_3px_rgba(212,175,55,0.1),inset_0_2px_6px_rgba(0,0,0,0.06)]"
                                         : fieldErrors.category
                                             ? "border-[#E57373]/50 shadow-[0_0_0_3px_rgba(229,115,115,0.05)]"
                                             : "border-gray-200/50 hover:border-gray-300/60"
@@ -401,65 +411,76 @@ export function LeadForm() {
                             </AnimatePresence>
                         </div>
                     </div>
-                </div>
 
-                <div className="mt-6">
-                    <motion.button
-                        type="submit"
-                        disabled={isPending || !ready}
-                        whileHover={{ scale: 0.98 }}
-                        whileTap={{ scale: 0.96 }}
-                        onMouseEnter={() => setBtnHover(true)}
-                        onMouseLeave={() => setBtnHover(false)}
-                        animate={{
-                            boxShadow: [
-                                "0 0 0px rgba(212, 175, 55, 0)",
-                                "0 0 20px rgba(212, 175, 55, 0.4)",
-                                "0 0 0px rgba(212, 175, 55, 0)",
-                            ],
-                        }}
-                        transition={{
-                            boxShadow: { repeat: Infinity, duration: 2.5, ease: "easeInOut" },
-                            scale: luxurySpring,
-                        }}
-                        className="vault-morph w-full text-white font-bold px-6 py-5 rounded-2xl flex items-center justify-center gap-3 group disabled:opacity-50"
-                    >
-                        <span
-                            className="relative z-10 transition-all duration-500"
-                            style={{ letterSpacing: btnHover ? '0.15em' : '0em' }}
+                    <div className="mt-6">
+                        <motion.div
+                            animate={{ x: [0, -4, 4, -4, 4, -2, 2, 0] }}
+                            transition={{ repeat: Infinity, repeatDelay: 4.5, duration: 0.5 }}
                         >
-                            {state.success ? "ได้รับข้อมูลแล้ว" : isPending ? "กำลังดำเนินการ..." : btnHover ? "Enter the Vault" : "สมัคร Founder's Club"}
-                        </span>
-                        <motion.span
-                            className="relative z-10"
-                            animate={{ x: [0, 4, 0] }}
-                            transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                        <motion.button
+                            type="submit"
+                            disabled={isPending || !ready}
+                            onHoverStart={() => setBtnHovered(true)}
+                            onHoverEnd={() => setBtnHovered(false)}
+                            whileHover={{ scale: 0.98 }}
+                            whileTap={{ scale: 0.96 }}
+                            animate={{
+                                boxShadow: [
+                                    "0 0 0px rgba(212, 175, 55, 0)",
+                                    "0 0 20px rgba(212, 175, 55, 0.4)",
+                                    "0 0 0px rgba(212, 175, 55, 0)",
+                                ],
+                            }}
+                            transition={{
+                                boxShadow: { repeat: Infinity, duration: 2.5, ease: "easeInOut" },
+                                scale: luxurySpring,
+                            }}
+                            className="group vault-morph relative overflow-hidden w-full text-white font-bold px-6 py-5 rounded-2xl disabled:opacity-50"
                         >
-                            <ArrowIcon />
-                        </motion.span>
-                    </motion.button>
-
-                    <p className="text-[9px] text-gray-400 font-bold uppercase tracking-[0.2em] mt-4 text-center opacity-60">
-                        ข้อมูลเข้ารหัสด้วย RS256 & RLS
-                    </p>
-
-                    {!state.success && (state.message || state.errors) && (
-                        <div className="mt-4 px-4 text-center">
-                            <p className="text-[#E57373] text-[10px] font-medium uppercase tracking-widest leading-relaxed">
-                                {state.message || "ขออภัย ไม่สามารถดำเนินการได้ในขณะนี้ กรุณาตรวจสอบข้อมูลหรือลองใหม่อีกครั้ง"}
-                            </p>
-                            {state.errors && Object.keys(state.errors).length > 0 && (
-                                <ul className="mt-1 list-none">
-                                    {Object.values(state.errors).flat().map((err, i) => (
-                                        <li key={i} className="text-[#E57373] text-[9px] font-medium opacity-80 uppercase tracking-tighter italic">
-                                            * {err}
-                                        </li>
-                                    ))}
-                                </ul>
+                            {isPending ? (
+                                <span className="flex items-center justify-center gap-3">กำลังดำเนินการ...</span>
+                            ) : (
+                                <>
+                                    <span className="relative z-10 flex items-center justify-center gap-3 group-hover:-translate-y-[150%] group-hover:opacity-0 transition-all duration-500">
+                                        สมัคร Founder&apos;s Club
+                                        <motion.span
+                                            animate={{ x: btnHovered ? 0 : [0, 4, 0] }}
+                                            transition={{ repeat: btnHovered ? 0 : Infinity, duration: 2, ease: "easeInOut" }}
+                                        >
+                                            <ArrowIcon />
+                                        </motion.span>
+                                    </span>
+                                    <span className="absolute inset-0 z-10 flex items-center justify-center translate-y-[150%] opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500 font-bold tracking-tight">
+                                        ENTER THE VAULT
+                                    </span>
+                                </>
                             )}
-                        </div>
-                    )}
+                        </motion.button>
+                        </motion.div>
+
+                        <p className="text-[9px] text-gray-500 font-medium tracking-wide mt-4 text-center">
+                            🛡️ ข้อมูล Invoice ของคุณถูกประมวลผลในระบบปิด ไม่มีการรั่วไหลสู่ AI สาธารณะ 100%
+                        </p>
+
+                        {!state.success && (state.message || state.errors) && (
+                            <div className="mt-4 px-4 text-center">
+                                <p className="text-[#E57373] text-[10px] font-medium uppercase tracking-widest leading-relaxed">
+                                    {state.message || "ขออภัย ระบบขัดข้องชั่วคราว กรุณาตรวจสอบข้อมูลและลองใหม่อีกครั้ง"}
+                                </p>
+                                {state.errors && Object.keys(state.errors).length > 0 && (
+                                    <ul className="mt-1 list-none">
+                                        {Object.values(state.errors).flat().map((err, i) => (
+                                            <li key={i} className="text-[#E57373] text-[9px] font-medium opacity-80 uppercase tracking-tighter italic">
+                                                * {err}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
+            </div>
         </form>
     );
 }

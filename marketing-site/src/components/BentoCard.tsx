@@ -68,7 +68,7 @@ export const BentoCard = ({ children, className = "", id }: BentoCardProps) => {
                 }}
             />
             {/* Content always above spotlight */}
-            <div style={{ position: "relative", zIndex: 1, height: "100%", display: "contents" }}>
+            <div style={{ position: "relative", zIndex: 1, height: "100%", display: "flex", flexDirection: "column", flex: 1, alignItems: "inherit", justifyContent: "inherit" }}>
                 {children}
             </div>
         </motion.div>
