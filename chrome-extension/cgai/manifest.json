@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "VOLLOS - Customs Guard AI",
+  "version": "0.1.0",
+  "description": "AI-powered customs declaration assistant for Thai customs clearance",
+  "permissions": [
+    "sidePanel",
+    "storage",
+    "unlimitedStorage",
+    "tabs",
+    "scripting",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://*.customs.go.th/*",
+    "https://generativelanguage.googleapis.com/*"
+  ],
+  "side_panel": {
+    "default_path": "src/sidepanel/index.html"
+  },
+  "background": {
+    "service_worker": "src/background/index.ts",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*.customs.go.th/*", "<all_urls>"],
+      "js": ["src/content/index.ts"],
+      "all_frames": true
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["assets/*", "public/*", "pdf.worker.min.mjs"],
+      "matches": ["https://*.customs.go.th/*", "<all_urls>"]
+    }
+  ],
+  "icons": {
+    "16": "public/icon-16.png",
+    "48": "public/icon-48.png",
+    "128": "public/icon-128.png"
+  }
+}
