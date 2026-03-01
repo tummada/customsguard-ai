@@ -7,9 +7,8 @@ WORKDIR /app
 # Copy source code
 COPY . .
 
-# Build native image (Assuming Gradle or Maven wrapper is present)
-# Using Gradle wrapper as standard for Spring Boot
-RUN ./gradlew nativeCompile
+# Build native image using Gradle multi-module (bootable module = platform-app)
+RUN ./gradlew :platform-app:nativeCompile
 
 # Stage 2: Run Native Image
 FROM debian:bookworm-slim
@@ -24,10 +23,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 # Copy binary from builder
-COPY --from=builder /app/build/native/nativeCompile/backend-core /app/backend-core
+COPY --from=builder /app/platform-app/build/native/nativeCompile/platform-app /app/vollos-backend
 
 # Expose port
 EXPOSE 8080
 
 # Run application
-ENTRYPOINT ["/app/backend-core"]
+ENTRYPOINT ["/app/vollos-backend"]
