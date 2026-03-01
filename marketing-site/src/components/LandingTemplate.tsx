@@ -4,7 +4,7 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import { BentoCard } from "./BentoCard";
 import { LeadForm } from "./LeadForm";
-import { TargetIcon, ShieldIcon, ZapIcon, UploadIcon, SearchAIIcon, SparklesIcon } from "./Icons";
+import { TargetIcon, ShieldIcon, ZapIcon, UploadIcon, SearchAIIcon, SparklesIcon, EyeScanIcon, LayersIcon, ClipboardCheckIcon } from "./Icons";
 import { RadarBlueprint } from "./RadarBlueprint";
 import { TimeCollapse } from "./TimeCollapse";
 import { ProductConfig } from "../types/product";
@@ -25,6 +25,9 @@ export function LandingTemplate({ config }: LandingTemplateProps) {
             case 'target': return <TargetIcon />;
             case 'zap': return <ZapIcon />;
             case 'shield': return <ShieldIcon />;
+            case 'eye-scan': return <EyeScanIcon />;
+            case 'layers': return <LayersIcon />;
+            case 'clipboard-check': return <ClipboardCheckIcon />;
             default: return null;
         }
     };
@@ -139,7 +142,7 @@ export function LandingTemplate({ config }: LandingTemplateProps) {
                             {config.pain.kicker}
                         </span>
                         <h2
-                            className="text-3xl md:text-4xl font-bold tracking-tight mb-6"
+                            className="text-3xl md:text-4xl font-bold tracking-normal mb-6 font-[family-name:var(--font-prompt)]"
                             dangerouslySetInnerHTML={{ __html: config.pain.headline }}
                         />
                         <p className="text-gray-400 font-light leading-relaxed mb-8 text-sm lg:text-base">
@@ -176,7 +179,7 @@ export function LandingTemplate({ config }: LandingTemplateProps) {
                     <span className="inline-block text-[10px] font-bold text-luxury-gold tracking-[0.3em] uppercase mb-4">
                         {config.process.kicker}
                     </span>
-                    <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
+                    <h2 className="text-3xl md:text-4xl font-bold tracking-normal font-[family-name:var(--font-prompt)]">
                         {config.process.headline}
                     </h2>
                 </motion.div>
@@ -199,7 +202,7 @@ export function LandingTemplate({ config }: LandingTemplateProps) {
                             {/* Content: Icon + Title + Desc — grows to fill available space */}
                             <div className="flex flex-col flex-1">
                                 <div className="mb-6">{renderIcon(item.iconId)}</div>
-                                <h3 className="text-xl font-semibold mb-3 tracking-tight font-[family-name:var(--font-inter)] uppercase">{item.title}</h3>
+                                <h3 className="text-xl font-semibold mb-3 tracking-normal font-[family-name:var(--font-prompt)] uppercase">{item.title}</h3>
                                 <p className="text-gray-400 font-light leading-relaxed text-sm">{item.desc}</p>
                             </div>
 
@@ -229,19 +232,28 @@ export function LandingTemplate({ config }: LandingTemplateProps) {
                     {/* ─── Row 1 ─── */}
 
                     {/* Features mapped from config */}
-                    {config.features.cards.map((card, i) => (
-                        <div key={card.id} className={i === 0 ? "md:col-span-7" : "md:col-span-5"}>
-                            <BentoCard className={i === 0
-                                ? "h-full min-h-[380px] flex flex-col justify-between"
-                                : "h-full min-h-[380px] flex flex-col items-center justify-center text-center"
+                    {config.features.cards.map((card) => (
+                        <div key={card.id} className="md:col-span-4">
+                            <BentoCard className={card.statValue
+                                ? "h-full min-h-[380px] flex flex-col items-center justify-center text-center"
+                                : "h-full min-h-[380px] flex flex-col justify-between"
                             }>
-                                {i === 0 ? (
+                                {card.statValue ? (
+                                    <>
+                                        <div className="mb-6">{renderIcon(card.iconId)}</div>
+                                        <h4 className="text-7xl font-black text-luxury-gold mb-2 tracking-tighter">{card.statValue}</h4>
+                                        <p className="text-xs font-bold tracking-[0.2em] uppercase">{card.statLabel}</p>
+                                        <div className="mt-8 text-sm text-gray-400 font-medium max-w-[200px] leading-relaxed">
+                                            {card.description}
+                                        </div>
+                                    </>
+                                ) : (
                                     <>
                                         <div>
                                             <div className="mb-8">
                                                 {renderIcon(card.iconId)}
                                             </div>
-                                            <h3 className="text-4xl font-semibold mb-4 tracking-tight font-[family-name:var(--font-inter)] uppercase">{card.title}</h3>
+                                            <h3 className="text-2xl font-semibold mb-4 tracking-normal font-[family-name:var(--font-prompt)]">{card.title}</h3>
                                             <p className="text-gray-400 max-w-md font-light leading-relaxed">
                                                 {card.description}
                                             </p>
@@ -250,15 +262,6 @@ export function LandingTemplate({ config }: LandingTemplateProps) {
                                             {card.badges?.map((badge, bIdx) => (
                                                 <span key={bIdx} className="bg-luxury-gold/5 px-4 py-2 rounded-full border border-luxury-gold/10">{badge}</span>
                                             ))}
-                                        </div>
-                                    </>
-                                ) : (
-                                    <>
-                                        <div className="mb-6">{renderIcon(card.iconId)}</div>
-                                        <h4 className="text-7xl font-black text-luxury-gold mb-2 tracking-tighter">{card.statValue}</h4>
-                                        <p className="text-xs font-bold tracking-[0.2em] uppercase">{card.statLabel}</p>
-                                        <div className="mt-8 text-sm text-gray-400 font-medium max-w-[200px] leading-relaxed">
-                                            {card.description}
                                         </div>
                                     </>
                                 )}
@@ -278,7 +281,7 @@ export function LandingTemplate({ config }: LandingTemplateProps) {
                                         <ShieldIcon />
                                     </div>
                                     <div>
-                                        <h3 className="text-xl font-semibold tracking-tight mb-2 font-[family-name:var(--font-prompt)]">{config.security.headline}</h3>
+                                        <h3 className="text-xl font-semibold tracking-normal mb-2 font-[family-name:var(--font-prompt)]">{config.security.headline}</h3>
                                         <p className="text-gray-400 text-sm font-light leading-relaxed font-[family-name:var(--font-prompt)]">
                                             {config.security.description}
                                         </p>

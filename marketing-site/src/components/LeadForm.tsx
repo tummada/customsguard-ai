@@ -181,7 +181,7 @@ export function LeadForm({ productCategory = 'Unknown Product' }: { productCateg
         },
         {
             icon: <TagIcon />,
-            text: "ส่วนลด Founder's Club 50% ตลอดชีพ"
+            text: "จำกัด 10 บริษัทแรก — รับส่วนลด 50% ตลอดชีพ"
         },
         {
             icon: <MessageIcon />,
@@ -245,11 +245,11 @@ export function LeadForm({ productCategory = 'Unknown Product' }: { productCateg
                             </span>
                         </motion.div>
                         <h3 className="text-3xl lg:text-5xl font-light mb-6 tracking-tight leading-tight">
-                            ลงทะเบียนรับสิทธิ์<br />
+                            จองสิทธิ์<br />
                             <span className="font-bold font-[family-name:var(--font-inter)] uppercase">Founder&apos;s Club</span>
                         </h3>
                         <p className="text-gray-400 text-sm lg:text-[15px] font-normal leading-relaxed mb-10 max-w-md">
-                            เรากำลังมองหา 10 บริษัทแรกเพื่อร่วมปฏิวัติการคีย์ใบขนสินค้า กรอกข้อมูลเพื่อรับสิทธิ์พิจารณาเข้าร่วมโครงการ
+                            เราไม่ได้แค่สร้าง Software แต่เรากำลังคัดเลือกพาร์ทเนอร์เพื่อกำหนดมาตรฐานใหม่ของชิปปิ้งไทย
                         </p>
                     </div>
 
@@ -444,7 +444,7 @@ export function LeadForm({ productCategory = 'Unknown Product' }: { productCateg
                                 ) : (
                                     <>
                                         <span className="relative z-10 flex items-center justify-center gap-3 group-hover:-translate-y-[150%] group-hover:opacity-0 transition-all duration-500">
-                                            สมัคร Founder&apos;s Club
+                                            จองสิทธิ์ Founder&apos;s Club
                                             <motion.span
                                                 animate={{ x: btnHovered ? 0 : [0, 4, 0] }}
                                                 transition={{ repeat: btnHovered ? 0 : Infinity, duration: 2, ease: "easeInOut" }}
