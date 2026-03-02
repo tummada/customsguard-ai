@@ -1,108 +1,48 @@
+import { apiClient } from "@/lib/api-client";
 import type { ExtractedLineItem } from "@/types";
 
-const EXTRACTION_PROMPT = `You are a Thai customs document data extraction AI. Analyze this invoice/customs document image and extract ALL line items.
+/**
+ * Submit a PDF scan job to the VOLLOS backend.
+ * No more direct Gemini API calls — everything goes through our backend.
+ */
+export async function submitScanToBackend(
+  pdfBase64: string
+): Promise<{ jobId: string }> {
+  const base64Data = pdfBase64.replace(/^data:application\/pdf;base64,/, "");
+  const binaryStr = atob(base64Data);
+  const bytes = new Uint8Array(binaryStr.length);
+  for (let i = 0; i < binaryStr.length; i++) {
+    bytes[i] = binaryStr.charCodeAt(i);
+  }
+  const blob = new Blob([bytes], { type: "application/pdf" });
 
-For each line item, return:
-- hsCode: HS tariff code (e.g. "8471.30.10"). If unsure, provide best guess.
-- descriptionTh: Product description in Thai (if visible)
-- descriptionEn: Product description in English
-- quantity: Number of units as string
-- weight: Weight in KG as string
-- unitPrice: Price per unit as string
-- cifPrice: CIF price (Cost + Insurance + Freight) as string
-- currency: Currency code (e.g. "USD", "THB")
-- confidence: Your confidence level 0.0-1.0 for this line item's accuracy
-- aiReason: If confidence < 0.9, explain why (e.g. "blurry text", "ambiguous HS code")
+  const result = await apiClient.scanPdf(blob, "IMPORT");
+  return { jobId: result.jobId };
+}
 
-Return ONLY valid JSON in this exact format:
-{
-  "items": [
-    {
-      "hsCode": "...",
-      "descriptionTh": "...",
-      "descriptionEn": "...",
-      "quantity": "...",
-      "weight": "...",
-      "unitPrice": "...",
-      "cifPrice": "...",
-      "currency": "...",
-      "confidence": 0.95,
-      "aiReason": ""
-    }
-  ]
-}`;
-
-export async function extractViaGemini(
-  pages: string[],
-  apiKey: string
+/**
+ * Poll backend for scan job completion.
+ */
+export async function pollScanResult(
+  jobId: string,
+  maxWaitMs = 120000,
+  intervalMs = 3000
 ): Promise<ExtractedLineItem[]> {
-  const allItems: ExtractedLineItem[] = [];
+  const deadline = Date.now() + maxWaitMs;
 
-  // Build multi-image parts for Gemini
-  const imageParts = pages.map((dataUrl) => {
-    const base64 = dataUrl.replace(/^data:image\/\w+;base64,/, "");
-    return {
-      inline_data: {
-        mime_type: "image/png",
-        data: base64,
-      },
-    };
-  });
+  while (Date.now() < deadline) {
+    const result = await apiClient.getJobStatus(jobId);
 
-  const requestBody = {
-    contents: [
-      {
-        parts: [
-          { text: EXTRACTION_PROMPT },
-          ...imageParts,
-        ],
-      },
-    ],
-    generationConfig: {
-      responseMimeType: "application/json",
-      temperature: 0.1,
-    },
-  };
-
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody),
+    if (result.status === "COMPLETED") {
+      return [];
     }
-  );
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Gemini API error (${response.status}): ${errorText}`);
+    if (result.status === "FAILED") {
+      throw new Error("Scan job failed on the server");
+    }
+
+    await new Promise((r) => setTimeout(r, intervalMs));
   }
 
-  const data = await response.json();
-  const textContent =
-    data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-  if (!textContent) {
-    throw new Error("Gemini returned empty response");
-  }
-
-  const parsed = JSON.parse(textContent);
-  const items: ExtractedLineItem[] = (parsed.items || []).map(
-    (item: ExtractedLineItem, _index: number) => ({
-      hsCode: item.hsCode || "",
-      descriptionTh: item.descriptionTh || "",
-      descriptionEn: item.descriptionEn || "",
-      quantity: item.quantity || "",
-      weight: item.weight || "",
-      unitPrice: item.unitPrice || "",
-      cifPrice: item.cifPrice || "",
-      currency: item.currency || "USD",
-      confidence: typeof item.confidence === "number" ? item.confidence : 0.5,
-      aiReason: item.aiReason || "",
-      sourcePageIndex: 0, // all pages sent together
-    })
-  );
-
-  allItems.push(...items);
-  return allItems;
+  throw new Error("Scan job timed out after " + maxWaitMs + "ms");
 }

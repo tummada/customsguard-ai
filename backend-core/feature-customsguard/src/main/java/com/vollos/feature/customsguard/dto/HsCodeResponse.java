@@ -1,14 +1,14 @@
 package com.vollos.feature.customsguard.dto;
 
 import java.math.BigDecimal;
-import java.util.UUID;
 
 public record HsCodeResponse(
-        UUID id,
         String code,
         String descriptionTh,
         String descriptionEn,
-        BigDecimal dutyRate,
+        BigDecimal baseRate,
+        String unit,
         String category,
-        Short aiConfidence
+        Short section,
+        Short chapter
 ) {}

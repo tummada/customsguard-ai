@@ -13,7 +13,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.UUID;
 
 @Service
 public class HsCodeService {
@@ -29,41 +28,41 @@ public class HsCodeService {
     }
 
     @Transactional(readOnly = true)
-    public Page<HsCodeResponse> search(UUID tenantId, String query, Pageable pageable) {
-        return hsCodeRepo.search(tenantId, query, pageable)
+    public Page<HsCodeResponse> search(String query, Pageable pageable) {
+        return hsCodeRepo.search(query, pageable)
                 .map(e -> new HsCodeResponse(
-                        e.getId(),
                         e.getCode(),
                         e.getDescriptionTh(),
                         e.getDescriptionEn(),
-                        e.getDutyRate(),
+                        e.getBaseRate(),
+                        e.getUnit(),
                         e.getCategory(),
-                        e.getAiConfidence()
+                        e.getSection(),
+                        e.getChapter()
                 ));
     }
 
     @Transactional(readOnly = true)
-    public List<SemanticSearchResponse> semanticSearch(UUID tenantId, String query, int limit) {
+    public List<SemanticSearchResponse> semanticSearch(String query, int limit) {
         float[] queryEmbedding = embeddingService.embed(query);
         String embeddingStr = GeminiEmbeddingService.toVectorString(queryEmbedding);
 
-        List<Object[]> rows = hsCodeRepo.findBySemantic(tenantId, embeddingStr, limit);
+        List<Object[]> rows = hsCodeRepo.findBySemantic(embeddingStr, limit);
 
         return rows.stream().map(row -> new SemanticSearchResponse(
-                (UUID) row[0],
+                (String) row[0],
                 (String) row[1],
                 (String) row[2],
-                (String) row[3],
-                row[4] != null ? new BigDecimal(row[4].toString()) : null,
+                row[3] != null ? new BigDecimal(row[3].toString()) : null,
+                (String) row[4],
                 (String) row[5],
-                row[6] != null ? ((Number) row[6]).shortValue() : null,
-                row[7] != null ? ((Number) row[7]).doubleValue() : null
+                row[6] != null ? ((Number) row[6]).doubleValue() : null
         )).toList();
     }
 
     @Transactional
-    public int embedAllHsCodes(UUID tenantId) {
-        List<HsCodeEntity> unembedded = hsCodeRepo.findByTenantIdAndEmbeddedFalse(tenantId);
+    public int embedAllHsCodes() {
+        List<HsCodeEntity> unembedded = hsCodeRepo.findByEmbeddedFalse();
         int count = 0;
 
         for (HsCodeEntity entity : unembedded) {
@@ -71,7 +70,7 @@ public class HsCodeService {
                 String text = buildEmbeddingText(entity);
                 float[] embedding = embeddingService.embed(text);
                 String vectorStr = GeminiEmbeddingService.toVectorString(embedding);
-                hsCodeRepo.updateEmbedding(entity.getId(), vectorStr);
+                hsCodeRepo.updateEmbedding(entity.getCode(), vectorStr);
                 count++;
 
                 if (count % 10 == 0) {
@@ -91,9 +90,8 @@ public class HsCodeService {
     }
 
     @Transactional
-    public int seedSampleHsCodes(UUID tenantId) {
-        if (hsCodeRepo.findByTenantIdAndEmbeddedFalse(tenantId).size() > 0
-                || hsCodeRepo.count() > 0) {
+    public int seedSampleHsCodes() {
+        if (hsCodeRepo.count() > 0) {
             return 0;
         }
 
@@ -122,13 +120,11 @@ public class HsCodeService {
 
         int count = 0;
         for (Object[] s : samples) {
-            HsCodeEntity e = new HsCodeEntity(tenantId);
-            e.setCode((String) s[0]);
+            HsCodeEntity e = new HsCodeEntity((String) s[0]);
             e.setDescriptionTh((String) s[1]);
             e.setDescriptionEn((String) s[2]);
-            e.setDutyRate(new BigDecimal((String) s[3]));
+            e.setBaseRate(new BigDecimal((String) s[3]));
             e.setCategory((String) s[4]);
-            e.setAiConfidence((short) 0);
             e.setEmbedded(false);
             hsCodeRepo.save(e);
             count++;

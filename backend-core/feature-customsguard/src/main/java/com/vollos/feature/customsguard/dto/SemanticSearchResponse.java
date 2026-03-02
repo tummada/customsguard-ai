@@ -1,15 +1,13 @@
 package com.vollos.feature.customsguard.dto;
 
 import java.math.BigDecimal;
-import java.util.UUID;
 
 public record SemanticSearchResponse(
-        UUID id,
         String code,
         String descriptionTh,
         String descriptionEn,
-        BigDecimal dutyRate,
+        BigDecimal baseRate,
         String category,
-        Short aiConfidence,
+        String unit,
         Double similarity
 ) {}

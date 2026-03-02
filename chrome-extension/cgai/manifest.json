@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "VOLLOS - Customs Guard AI",
-  "version": "0.1.0",
-  "description": "AI-powered customs declaration assistant for Thai customs clearance",
+  "version": "0.2.0",
+  "description": "AI-powered customs declaration assistant with RAG knowledge base and FTA alerts",
   "permissions": [
     "sidePanel",
     "storage",
@@ -13,7 +13,8 @@
   ],
   "host_permissions": [
     "https://*.customs.go.th/*",
-    "https://generativelanguage.googleapis.com/*"
+    "http://localhost/*",
+    "https://localhost/*"
   ],
   "side_panel": {
     "default_path": "src/sidepanel/index.html"

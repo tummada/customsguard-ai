@@ -34,6 +34,14 @@ class CustomsGuardDB extends Dexie {
       cgDeclarationItems:
         "++localId, declarationLocalId, hsCode, editStatus, isConfirmed",
     });
+
+    // v3: Add FTA and RAG cache tables for offline-first
+    this.version(3).stores({
+      cgDeclarationItems:
+        "++localId, declarationLocalId, hsCode, editStatus, isConfirmed",
+      cgFtaCache: "hsCode, ftaName, cachedAt",
+      cgRagCache: "++localId, query, cachedAt",
+    });
   }
 }
 

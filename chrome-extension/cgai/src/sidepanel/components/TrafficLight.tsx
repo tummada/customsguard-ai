@@ -11,6 +11,7 @@ const COLOR_MAP: Record<TrafficLightColor, { bg: string; label: string }> = {
   orange: { bg: "bg-orange-400", label: "Medium Confidence" },
   red: { bg: "bg-red-500", label: "Low Confidence" },
   blue: { bg: "bg-blue-400", label: "Edited" },
+  gold: { bg: "bg-yellow-400", label: "FTA Savings Available" },
 };
 
 export default function TrafficLight({ item }: TrafficLightProps) {
@@ -36,6 +37,9 @@ export default function TrafficLight({ item }: TrafficLightProps) {
           )}
           {color === "blue" && (
             <p className="text-blue-300 mt-1">แก้ไขโดยผู้ใช้</p>
+          )}
+          {color === "gold" && (
+            <p className="text-yellow-300 mt-1">มีสิทธิ์ FTA ประหยัดอากร</p>
           )}
         </div>
       )}

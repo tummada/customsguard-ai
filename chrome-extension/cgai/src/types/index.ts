@@ -96,21 +96,20 @@ export interface MagicFillResponse {
   error?: string;
 }
 
-// --- Feature #2: Universal Scan ---
-
-export type AiProvider = "gemini";
+// --- Feature #2: Universal Scan (via Backend API) ---
 
 export interface ScanPdfMessage {
   type: "SCAN_PDF";
   payload: {
-    pages: string[]; // Base64 data-URLs of rendered PDF pages
-    provider: AiProvider;
+    pdfDataUrl: string; // Base64 data-URL of the raw PDF file
+    declarationType: "IMPORT" | "EXPORT";
   };
 }
 
 export interface ScanPdfResponse {
   success: boolean;
   items?: ExtractedLineItem[];
+  jobId?: string;
   error?: string;
 }
 
@@ -128,21 +127,55 @@ export interface ExtractedLineItem {
   sourcePageIndex: number;
 }
 
-export interface ApiKeySetMessage {
-  type: "SET_API_KEY";
-  payload: { provider: AiProvider; key: string };
+// --- Auth (JWT via Backend) ---
+
+export interface AuthConfigMessage {
+  type: "SET_AUTH";
+  payload: { baseUrl: string; token: string; tenantId: string };
 }
 
-export interface ApiKeySetResponse {
+export interface AuthConfigResponse {
   success: boolean;
+}
+
+// --- FTA Lookup ---
+
+export interface HsLookupMessage {
+  type: "FTA_LOOKUP";
+  payload: { codes: string[]; originCountry?: string };
+}
+
+export interface HsLookupResponseMsg {
+  success: boolean;
+  results?: unknown[];
+  error?: string;
+}
+
+// --- RAG Search ---
+
+export interface RagSearchMessage {
+  type: "RAG_SEARCH";
+  payload: { query: string };
+}
+
+export interface RagSearchResponseMsg {
+  success: boolean;
+  answer?: string;
+  sources?: unknown[];
+  processingTimeMs?: number;
+  error?: string;
 }
 
 // --- Feature #5: AI Auditor Traffic Light ---
 
-export type TrafficLightColor = "green" | "orange" | "red" | "blue";
+export type TrafficLightColor = "green" | "orange" | "red" | "blue" | "gold";
 
-export function getTrafficColor(item: CgDeclarationItem): TrafficLightColor {
+export function getTrafficColor(
+  item: CgDeclarationItem,
+  ftaAvailable?: boolean
+): TrafficLightColor {
   if (item.editStatus === "EDITED") return "blue";
+  if (ftaAvailable) return "gold";
   if (item.confidence == null) return "red";
   if (item.confidence > 0.9) return "green";
   if (item.confidence >= 0.6) return "orange";
@@ -150,4 +183,8 @@ export function getTrafficColor(item: CgDeclarationItem): TrafficLightColor {
 }
 
 // Union type for all background messages
-export type BackgroundMessage = ScanPdfMessage | ApiKeySetMessage;
+export type BackgroundMessage =
+  | ScanPdfMessage
+  | AuthConfigMessage
+  | HsLookupMessage
+  | RagSearchMessage;

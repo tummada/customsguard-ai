@@ -8,7 +8,11 @@ import type { ScanPdfResponse, CgDeclarationItem } from "@/types";
 // Use declarationLocalId = 1 for the current scan session
 const CURRENT_DECLARATION_ID = 1;
 
-export default function ScanPanel() {
+interface ScanPanelProps {
+  onAuthChange?: (connected: boolean) => void;
+}
+
+export default function ScanPanel({ onAuthChange }: ScanPanelProps) {
   const [pages, setPages] = useState<string[]>([]);
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState("");
@@ -44,7 +48,7 @@ export default function ScanPanel() {
 
       const response: ScanPdfResponse = await chrome.runtime.sendMessage({
         type: "SCAN_PDF",
-        payload: { pages, provider: "gemini" },
+        payload: { pdfDataUrl: pages[0], declarationType: "IMPORT" },
       });
 
       if (response.success && response.items) {
@@ -221,7 +225,11 @@ export default function ScanPanel() {
       )}
 
       {/* Settings Dialog */}
-      <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <SettingsDialog
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        onAuthChange={onAuthChange}
+      />
     </div>
   );
 }

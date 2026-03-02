@@ -1,22 +1,27 @@
 package com.vollos.feature.customsguard.entity;
 
-import com.vollos.core.shared.BaseEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 
 import java.math.BigDecimal;
-import java.util.UUID;
+import java.time.Instant;
 
 @Entity
 @Table(name = "cg_hs_codes")
-public class HsCodeEntity extends BaseEntity {
+public class HsCodeEntity {
 
-    @Column(name = "tenant_id", nullable = false)
-    private UUID tenantId;
-
-    @Column(nullable = false, length = 12)
+    @Id
+    @Column(length = 12)
     private String code;
+
+    private Short section;
+
+    private Short chapter;
+
+    @Column(length = 6)
+    private String heading;
+
+    @Column(length = 8)
+    private String subheading;
 
     @Column(name = "description_th")
     private String descriptionTh;
@@ -24,35 +29,63 @@ public class HsCodeEntity extends BaseEntity {
     @Column(name = "description_en")
     private String descriptionEn;
 
-    @Column(name = "duty_rate", precision = 5, scale = 2)
-    private BigDecimal dutyRate;
+    @Column(name = "base_rate", precision = 6, scale = 2)
+    private BigDecimal baseRate;
+
+    @Column(length = 50)
+    private String unit;
 
     @Column(length = 100)
     private String category;
 
-    @Column(name = "ai_confidence")
-    private Short aiConfidence;
-
     @Column(name = "embedded")
     private Boolean embedded = false;
 
-    protected HsCodeEntity() {}
-    public HsCodeEntity(UUID tenantId) { this.tenantId = tenantId; }
+    @Column(name = "created_at", updatable = false)
+    private Instant createdAt;
 
-    public UUID getTenantId() { return tenantId; }
-    public void setTenantId(UUID tenantId) { this.tenantId = tenantId; }
+    @Column(name = "updated_at")
+    private Instant updatedAt;
+
+    protected HsCodeEntity() {}
+
+    public HsCodeEntity(String code) {
+        this.code = code;
+    }
+
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = Instant.now();
+        this.updatedAt = this.createdAt;
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = Instant.now();
+    }
+
     public String getCode() { return code; }
     public void setCode(String code) { this.code = code; }
+    public Short getSection() { return section; }
+    public void setSection(Short section) { this.section = section; }
+    public Short getChapter() { return chapter; }
+    public void setChapter(Short chapter) { this.chapter = chapter; }
+    public String getHeading() { return heading; }
+    public void setHeading(String heading) { this.heading = heading; }
+    public String getSubheading() { return subheading; }
+    public void setSubheading(String subheading) { this.subheading = subheading; }
     public String getDescriptionTh() { return descriptionTh; }
     public void setDescriptionTh(String descriptionTh) { this.descriptionTh = descriptionTh; }
     public String getDescriptionEn() { return descriptionEn; }
     public void setDescriptionEn(String descriptionEn) { this.descriptionEn = descriptionEn; }
-    public BigDecimal getDutyRate() { return dutyRate; }
-    public void setDutyRate(BigDecimal dutyRate) { this.dutyRate = dutyRate; }
+    public BigDecimal getBaseRate() { return baseRate; }
+    public void setBaseRate(BigDecimal baseRate) { this.baseRate = baseRate; }
+    public String getUnit() { return unit; }
+    public void setUnit(String unit) { this.unit = unit; }
     public String getCategory() { return category; }
     public void setCategory(String category) { this.category = category; }
-    public Short getAiConfidence() { return aiConfidence; }
-    public void setAiConfidence(Short aiConfidence) { this.aiConfidence = aiConfidence; }
     public Boolean getEmbedded() { return embedded; }
     public void setEmbedded(Boolean embedded) { this.embedded = embedded; }
+    public Instant getCreatedAt() { return createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
 }

@@ -1,20 +1,25 @@
 import { useState, useEffect } from "react";
 import { db } from "@/lib/db";
+import { apiClient } from "@/lib/api-client";
 import ScanPanel from "./components/ScanPanel";
+import ChatPanel from "./components/ChatPanel";
 
 type FillStatus = "idle" | "filling" | "success" | "error";
-type Tab = "magic-fill" | "scan-review";
+type Tab = "magic-fill" | "scan-review" | "chat";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>("scan-review");
   const [status, setStatus] = useState<FillStatus>("idle");
   const [message, setMessage] = useState("");
   const [dbReady, setDbReady] = useState(false);
+  const [backendConnected, setBackendConnected] = useState(false);
 
   useEffect(() => {
     db.open()
       .then(() => setDbReady(true))
       .catch((err) => console.error("[VOLLOS] DB open failed:", err));
+
+    apiClient.loadConfig().then((loaded) => setBackendConnected(loaded));
   }, []);
 
   const handleTestFill = async () => {
@@ -81,15 +86,27 @@ export default function App() {
             <h1 className="text-xl font-bold text-amber-400">VOLLOS</h1>
             <p className="text-xs text-gray-400">Customs Guard AI</p>
           </div>
-          <div className="flex items-center gap-1.5">
-            <span
-              className={`w-2 h-2 rounded-full ${
-                dbReady ? "bg-green-400" : "bg-yellow-400"
-              }`}
-            />
-            <span className="text-xs text-gray-500">
-              {dbReady ? "DB" : "..."}
-            </span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  backendConnected ? "bg-green-400" : "bg-gray-600"
+                }`}
+              />
+              <span className="text-xs text-gray-500">
+                {backendConnected ? "API" : "Offline"}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  dbReady ? "bg-green-400" : "bg-yellow-400"
+                }`}
+              />
+              <span className="text-xs text-gray-500">
+                {dbReady ? "DB" : "..."}
+              </span>
+            </div>
           </div>
         </div>
       </header>
@@ -115,6 +132,16 @@ export default function App() {
           }`}
         >
           Scan & Review
+        </button>
+        <button
+          onClick={() => setActiveTab("chat")}
+          className={`py-2 px-3 text-xs font-medium border-b-2 transition-colors ${
+            activeTab === "chat"
+              ? "border-amber-400 text-amber-400"
+              : "border-transparent text-gray-500 hover:text-gray-300"
+          }`}
+        >
+          Chat
         </button>
       </div>
 
@@ -147,7 +174,11 @@ export default function App() {
           </div>
         )}
 
-        {activeTab === "scan-review" && <ScanPanel />}
+        {activeTab === "scan-review" && (
+          <ScanPanel onAuthChange={setBackendConnected} />
+        )}
+
+        {activeTab === "chat" && <ChatPanel />}
       </div>
     </div>
   );

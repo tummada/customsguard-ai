@@ -1,5 +1,3 @@
-version: '3.9'
-
 x-logging: &default-logging
   driver: "json-file"
   options: { max-size: "10m", max-file: "3" }
@@ -15,6 +13,7 @@ services:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ai_saas_db
+    ports: ["5432:5432"]
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
       - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
@@ -30,10 +29,11 @@ services:
     image: redis:7-alpine
     container_name: saas-redis
     restart: always
+    ports: ["6379:6379"]
     command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes
     deploy:
       resources:
-        limits: { cpus: '0.2', memory: 512M }
+        limits: { cpus: '0.15', memory: 512M }
     logging: *default-logging
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
@@ -71,18 +71,22 @@ services:
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
       interval: 30s
-    pids_limit: 500
     tmpfs: /tmp
     deploy:
       resources:
-        limits: { cpus: '0.8', memory: 1536M }
+        limits: { cpus: '0.6', memory: 1536M, pids: 500 }
     logging: *default-logging
 
   n8n:
     image: n8nio/n8n:latest
     container_name: saas-n8n
+    restart: always
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
     environment:
       - N8N_MODE=queue
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_DATABASE=n8n_db
       - DB_POSTGRESDB_HOST=postgres
@@ -117,7 +121,7 @@ services:
       - N8N_WEBHOOK_URL=${APP_BASE_URL}/n8n/
     deploy:
       resources:
-        limits: { cpus: '0.3', memory: 1536M }
+        limits: { cpus: '0.25', memory: 1536M }
     logging: *default-logging
 
   marketing:
@@ -132,7 +136,7 @@ services:
       - TENANT_ID_HEADER=x-tenant-id
     deploy:
       resources:
-        limits: { cpus: '0.2', memory: 256M }
+        limits: { cpus: '0.1', memory: 256M }
     logging: *default-logging
 
   nginx:

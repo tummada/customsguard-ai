@@ -1,7 +1,6 @@
 package com.vollos.feature.customsguard.controller;
 
 import com.vollos.core.feature.RequiresFeature;
-import com.vollos.core.tenant.TenantContext;
 import com.vollos.feature.customsguard.dto.HsCodeResponse;
 import com.vollos.feature.customsguard.dto.SemanticSearchRequest;
 import com.vollos.feature.customsguard.dto.SemanticSearchResponse;
@@ -27,27 +26,24 @@ public class HsCodeController {
 
     @GetMapping
     public Page<HsCodeResponse> search(@RequestParam String query, Pageable pageable) {
-        return hsCodeService.search(TenantContext.getCurrentTenantId(), query, pageable);
+        return hsCodeService.search(query, pageable);
     }
 
     @PostMapping("/semantic")
     public List<SemanticSearchResponse> semanticSearch(
             @Valid @RequestBody SemanticSearchRequest request) {
-        return hsCodeService.semanticSearch(
-                TenantContext.getCurrentTenantId(),
-                request.query(),
-                request.limit());
+        return hsCodeService.semanticSearch(request.query(), request.limit());
     }
 
     @PostMapping("/embed-all")
     public Map<String, Object> embedAll() {
-        int count = hsCodeService.embedAllHsCodes(TenantContext.getCurrentTenantId());
+        int count = hsCodeService.embedAllHsCodes();
         return Map.of("embedded", count);
     }
 
     @PostMapping("/seed")
     public Map<String, Object> seed() {
-        int count = hsCodeService.seedSampleHsCodes(TenantContext.getCurrentTenantId());
+        int count = hsCodeService.seedSampleHsCodes();
         return Map.of("seeded", count);
     }
 }
