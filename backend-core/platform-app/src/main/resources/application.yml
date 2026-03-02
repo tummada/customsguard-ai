@@ -26,6 +26,13 @@ spring:
     serialization:
       write-dates-as-timestamps: false
 
+gemini:
+  api-key: ${GEMINI_API_KEY:}
+  embedding:
+    model: gemini-embedding-001
+    url: https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent
+    dimensions: 3072
+
 server:
   port: 8080
   shutdown: graceful

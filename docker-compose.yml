@@ -6,7 +6,7 @@ x-logging: &default-logging
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     container_name: saas-db
     restart: always
     oom_score_adj: -500
@@ -20,7 +20,7 @@ services:
       - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
     deploy:
       resources:
-        limits: { cpus: '0.4', memory: 1536M }
+        limits: { cpus: '0.5', memory: 2048M }
     logging: *default-logging
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
@@ -67,6 +67,7 @@ services:
       - MAIL_PORT=${SMTP_PORT}
       - MAIL_USERNAME=${SMTP_USER}
       - MAIL_PASSWORD=${SMTP_PASSWORD}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
       interval: 30s
@@ -74,7 +75,7 @@ services:
     tmpfs: /tmp
     deploy:
       resources:
-        limits: { cpus: '0.6', memory: 1024M }
+        limits: { cpus: '0.8', memory: 1536M }
     logging: *default-logging
 
   n8n:

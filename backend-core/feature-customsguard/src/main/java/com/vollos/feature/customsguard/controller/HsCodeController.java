@@ -3,13 +3,16 @@ package com.vollos.feature.customsguard.controller;
 import com.vollos.core.feature.RequiresFeature;
 import com.vollos.core.tenant.TenantContext;
 import com.vollos.feature.customsguard.dto.HsCodeResponse;
+import com.vollos.feature.customsguard.dto.SemanticSearchRequest;
+import com.vollos.feature.customsguard.dto.SemanticSearchResponse;
 import com.vollos.feature.customsguard.service.HsCodeService;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/v1/customsguard/hs-codes")
@@ -25,5 +28,26 @@ public class HsCodeController {
     @GetMapping
     public Page<HsCodeResponse> search(@RequestParam String query, Pageable pageable) {
         return hsCodeService.search(TenantContext.getCurrentTenantId(), query, pageable);
+    }
+
+    @PostMapping("/semantic")
+    public List<SemanticSearchResponse> semanticSearch(
+            @Valid @RequestBody SemanticSearchRequest request) {
+        return hsCodeService.semanticSearch(
+                TenantContext.getCurrentTenantId(),
+                request.query(),
+                request.limit());
+    }
+
+    @PostMapping("/embed-all")
+    public Map<String, Object> embedAll() {
+        int count = hsCodeService.embedAllHsCodes(TenantContext.getCurrentTenantId());
+        return Map.of("embedded", count);
+    }
+
+    @PostMapping("/seed")
+    public Map<String, Object> seed() {
+        int count = hsCodeService.seedSampleHsCodes(TenantContext.getCurrentTenantId());
+        return Map.of("seeded", count);
     }
 }

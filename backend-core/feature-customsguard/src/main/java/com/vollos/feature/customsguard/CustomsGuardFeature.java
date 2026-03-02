@@ -33,6 +33,6 @@ public class CustomsGuardFeature implements FeatureDefinition {
 
     @Override
     public String getMigrationLocation() {
-        return "classpath:db/migration/customsguard";
+        return "classpath:db/features/customsguard";
     }
 }

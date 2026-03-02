@@ -29,7 +29,7 @@ public class TenantConnectionInterceptor {
         if (tenantId != null) {
             try (Connection conn = dataSource.getConnection()) {
                 try (var stmt = conn.prepareStatement(
-                        "SET LOCAL app.current_tenant_id = ?")) {
+                        "SELECT set_config('app.current_tenant_id', ?, true)")) {
                     stmt.setString(1, tenantId.toString());
                     stmt.execute();
                 }

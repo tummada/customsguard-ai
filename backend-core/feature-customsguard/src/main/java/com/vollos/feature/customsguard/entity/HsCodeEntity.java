@@ -33,7 +33,11 @@ public class HsCodeEntity extends BaseEntity {
     @Column(name = "ai_confidence")
     private Short aiConfidence;
 
+    @Column(name = "embedded")
+    private Boolean embedded = false;
+
     protected HsCodeEntity() {}
+    public HsCodeEntity(UUID tenantId) { this.tenantId = tenantId; }
 
     public UUID getTenantId() { return tenantId; }
     public void setTenantId(UUID tenantId) { this.tenantId = tenantId; }
@@ -49,4 +53,6 @@ public class HsCodeEntity extends BaseEntity {
     public void setCategory(String category) { this.category = category; }
     public Short getAiConfidence() { return aiConfidence; }
     public void setAiConfidence(Short aiConfidence) { this.aiConfidence = aiConfidence; }
+    public Boolean getEmbedded() { return embedded; }
+    public void setEmbedded(Boolean embedded) { this.embedded = embedded; }
 }

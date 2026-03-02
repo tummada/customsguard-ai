@@ -46,6 +46,7 @@ public class FeatureAccessInterceptor implements HandlerInterceptor {
             return true;
         }
 
+        final String featureId = rf.value();
         UUID tenantId = TenantContext.getCurrentTenantId();
         if (tenantId == null) {
             resp.setStatus(401);
@@ -56,9 +57,9 @@ public class FeatureAccessInterceptor implements HandlerInterceptor {
             return false;
         }
 
-        String cacheKey = tenantId + ":" + rf.value();
+        String cacheKey = tenantId + ":" + featureId;
         Boolean hasAccess = accessCache.get(cacheKey, k ->
-                tenantFeatureRepo.existsByTenantIdAndFeatureIdAndActiveTrue(tenantId, rf.value()));
+                tenantFeatureRepo.existsByTenantIdAndFeatureIdAndActiveTrue(tenantId, featureId));
 
         if (!Boolean.TRUE.equals(hasAccess)) {
             resp.setStatus(403);
@@ -66,7 +67,7 @@ public class FeatureAccessInterceptor implements HandlerInterceptor {
             resp.getWriter().write("""
                     {"type":"about:blank","title":"Feature Not Subscribed","status":403,\
                     "detail":"Tenant has not subscribed to feature: %s"}"""
-                    .formatted(rf.value()));
+                    .formatted(featureId));
             return false;
         }
 

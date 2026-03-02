@@ -20,6 +20,8 @@ CREATE TABLE tenant_features (
     active BOOLEAN DEFAULT true,
     subscribed_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uq_tenant_feature UNIQUE (tenant_id, feature_id)
 );
 
