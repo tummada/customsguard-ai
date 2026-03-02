@@ -7,7 +7,7 @@ interface TrafficLightProps {
 }
 
 const COLOR_MAP: Record<TrafficLightColor, { bg: string; label: string }> = {
-  gold: { bg: "bg-amber-400", label: "High Confidence" },
+  green: { bg: "bg-green-500", label: "High Confidence" },
   orange: { bg: "bg-orange-400", label: "Medium Confidence" },
   red: { bg: "bg-red-500", label: "Low Confidence" },
   blue: { bg: "bg-blue-400", label: "Edited" },

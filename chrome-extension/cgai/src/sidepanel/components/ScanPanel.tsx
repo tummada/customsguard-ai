@@ -16,12 +16,16 @@ export default function ScanPanel() {
 
   const {
     items,
-    goldCount,
+    unconfirmedCount,
     saveExtractedItems,
     editItem,
-    confirmAllGold,
+    confirmItem,
+    confirmAll,
     clearItems,
   } = useScanItems(CURRENT_DECLARATION_ID);
+
+  const confirmedCount = items.filter((i) => i.isConfirmed).length;
+  const hasConfirmed = confirmedCount > 0;
 
   const handlePagesReady = useCallback((newPages: string[]) => {
     setPages(newPages);
@@ -57,19 +61,22 @@ export default function ScanPanel() {
     }
   };
 
-  const handleConfirmAllGold = async () => {
-    const count = await confirmAllGold();
+  const handleConfirmAll = async () => {
+    const count = await confirmAll();
     if (count > 0) {
-      console.log(`[VOLLOS] Confirmed ${count} gold items`);
+      console.log(`[VOLLOS] Confirmed ${count} items`);
     }
+  };
+
+  const handleClear = async () => {
+    await clearItems();
+    setPages([]);
+    setScanError("");
   };
 
   const handleFillToForm = async () => {
     const confirmedItems = items.filter((i) => i.isConfirmed);
-    if (confirmedItems.length === 0) {
-      alert("กรุณา Confirm รายการก่อนกรอกลงฟอร์ม");
-      return;
-    }
+    if (confirmedItems.length === 0) return;
 
     // Send the first confirmed item to fill the form
     const first = confirmedItems[0];
@@ -103,6 +110,13 @@ export default function ScanPanel() {
     [editItem]
   );
 
+  const handleConfirmItem = useCallback(
+    (localId: number) => {
+      confirmItem(localId);
+    },
+    [confirmItem]
+  );
+
   return (
     <div className="space-y-3">
       {/* Header with settings */}
@@ -110,13 +124,24 @@ export default function ScanPanel() {
         <h2 className="text-sm font-semibold text-gray-300">
           Scan & Review
         </h2>
-        <button
-          onClick={() => setSettingsOpen(true)}
-          className="text-gray-500 hover:text-gray-300 text-lg"
-          title="Settings"
-        >
-          &#9881;
-        </button>
+        <div className="flex items-center gap-2">
+          {items.length > 0 && (
+            <button
+              onClick={handleClear}
+              className="text-gray-500 hover:text-red-400 text-xs transition-colors"
+              title="ล้างข้อมูล"
+            >
+              Clear
+            </button>
+          )}
+          <button
+            onClick={() => setSettingsOpen(true)}
+            className="text-gray-500 hover:text-gray-300 text-lg"
+            title="Settings"
+          >
+            &#9881;
+          </button>
+        </div>
       </div>
 
       {/* PDF Drop Zone */}
@@ -127,7 +152,7 @@ export default function ScanPanel() {
         <button
           onClick={handleScan}
           disabled={scanning}
-          className="w-full py-2 px-4 bg-amber-500 hover:bg-amber-600 disabled:bg-gray-700 disabled:text-gray-500 text-black font-medium rounded-lg transition-colors text-sm"
+          className="w-full py-2 px-4 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-700 disabled:text-gray-500 text-white font-medium rounded-lg transition-colors text-sm"
         >
           {scanning
             ? `กำลังสแกน ${pages.length} หน้า...`
@@ -148,30 +173,48 @@ export default function ScanPanel() {
               <span className="text-xs text-gray-400">
                 {items.length} รายการ
               </span>
-              {goldCount > 0 && (
-                <span className="text-xs text-amber-400">
-                  {goldCount} Gold
-                </span>
-              )}
+              <span className="text-xs">
+                {confirmedCount > 0 && (
+                  <span className="text-green-400">{confirmedCount} confirmed</span>
+                )}
+                {confirmedCount > 0 && unconfirmedCount > 0 && " / "}
+                {unconfirmedCount > 0 && (
+                  <span className="text-gray-500">{unconfirmedCount} รอ confirm</span>
+                )}
+              </span>
             </div>
-            <LineItemTable items={items} onEditItem={handleEditItem} />
+            <LineItemTable
+              items={items}
+              onEditItem={handleEditItem}
+              onConfirmItem={handleConfirmItem}
+            />
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-2">
-            {goldCount > 0 && (
+          <div className="space-y-2">
+            {/* Confirm All */}
+            {unconfirmedCount > 0 && (
               <button
-                onClick={handleConfirmAllGold}
-                className="flex-1 py-2 text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 rounded-lg transition-colors"
+                onClick={handleConfirmAll}
+                className="w-full py-2.5 text-sm font-medium bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
               >
-                Confirm All Gold ({goldCount})
+                Confirm All ({unconfirmedCount} รายการ)
               </button>
             )}
+
+            {/* Fill to Form */}
             <button
               onClick={handleFillToForm}
-              className="flex-1 py-2 text-xs bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500/30 rounded-lg transition-colors"
+              disabled={!hasConfirmed}
+              className={`w-full py-2.5 text-sm font-medium rounded-lg transition-colors ${
+                hasConfirmed
+                  ? "bg-blue-600 hover:bg-blue-700 text-white"
+                  : "bg-gray-800 text-gray-600 cursor-not-allowed border border-gray-700"
+              }`}
             >
-              Fill to Customs Form
+              {hasConfirmed
+                ? `Fill to Customs Form (${confirmedCount} รายการ)`
+                : "Fill to Customs Form (ยังไม่มีรายการ confirm)"}
             </button>
           </div>
         </>

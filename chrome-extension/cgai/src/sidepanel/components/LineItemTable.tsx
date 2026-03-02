@@ -9,6 +9,7 @@ interface LineItemTableProps {
     field: keyof CgDeclarationItem,
     value: string
   ) => void;
+  onConfirmItem: (localId: number) => void;
 }
 
 type EditableField = "hsCode" | "descriptionEn" | "quantity" | "weight" | "unitPrice" | "cifPrice";
@@ -27,7 +28,7 @@ interface EditingCell {
   field: EditableField;
 }
 
-export default function LineItemTable({ items, onEditItem }: LineItemTableProps) {
+export default function LineItemTable({ items, onEditItem, onConfirmItem }: LineItemTableProps) {
   const [editing, setEditing] = useState<EditingCell | null>(null);
   const [editValue, setEditValue] = useState("");
 
@@ -69,6 +70,7 @@ export default function LineItemTable({ items, onEditItem }: LineItemTableProps)
                 {col.label}
               </th>
             ))}
+            <th className="py-2 px-1 w-12"></th>
           </tr>
         </thead>
         <tbody>
@@ -76,7 +78,7 @@ export default function LineItemTable({ items, onEditItem }: LineItemTableProps)
             <tr
               key={item.localId}
               className={`border-b border-gray-800 hover:bg-gray-800/50 ${
-                item.isConfirmed ? "opacity-60" : ""
+                item.isConfirmed ? "bg-green-950/30" : ""
               }`}
             >
               <td className="py-2 px-1">
@@ -101,7 +103,7 @@ export default function LineItemTable({ items, onEditItem }: LineItemTableProps)
                           if (e.key === "Escape") cancelEdit();
                         }}
                         autoFocus
-                        className="w-full bg-gray-700 border border-amber-400 rounded px-1 py-0.5 text-white text-xs outline-none"
+                        className="w-full bg-gray-700 border border-blue-400 rounded px-1 py-0.5 text-white text-xs outline-none"
                       />
                     ) : (
                       <span
@@ -112,7 +114,7 @@ export default function LineItemTable({ items, onEditItem }: LineItemTableProps)
                         className={`block truncate ${
                           item.isConfirmed
                             ? "cursor-default"
-                            : "cursor-pointer hover:text-amber-300"
+                            : "cursor-pointer hover:text-blue-300"
                         }`}
                         title={cellValue}
                       >
@@ -122,6 +124,19 @@ export default function LineItemTable({ items, onEditItem }: LineItemTableProps)
                   </td>
                 );
               })}
+              <td className="py-2 px-1 w-12 text-center">
+                {item.isConfirmed ? (
+                  <span className="text-green-500 text-sm" title="confirmed">&#10003;</span>
+                ) : (
+                  <button
+                    onClick={() => onConfirmItem(item.localId!)}
+                    className="px-1.5 py-0.5 text-[10px] bg-green-600 hover:bg-green-700 text-white rounded transition-colors"
+                    title="Confirm รายการนี้"
+                  >
+                    OK
+                  </button>
+                )}
+              </td>
             </tr>
           ))}
         </tbody>

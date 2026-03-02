@@ -13,13 +13,7 @@ export function useScanItems(declarationLocalId: number) {
     []
   );
 
-  const goldCount = items.filter(
-    (i) =>
-      i.confidence != null &&
-      i.confidence > 0.9 &&
-      i.editStatus !== "EDITED" &&
-      !i.isConfirmed
-  ).length;
+  const unconfirmedCount = items.filter((i) => !i.isConfirmed).length;
 
   async function saveExtractedItems(
     extracted: ExtractedLineItem[]
@@ -62,6 +56,9 @@ export function useScanItems(declarationLocalId: number) {
     const existing = await db.cgDeclarationItems.get(localId);
     if (!existing) return;
 
+    // ถ้าค่าเท่าเดิม ไม่ต้องเปลี่ยน editStatus
+    if (String(existing[field] ?? "") === value) return;
+
     const before = { [field]: existing[field] };
 
     await db.cgDeclarationItems.update(localId, {
@@ -80,16 +77,26 @@ export function useScanItems(declarationLocalId: number) {
     });
   }
 
-  async function confirmAllGold(): Promise<number> {
-    const goldItems = items.filter(
-      (i) =>
-        i.confidence != null &&
-        i.confidence > 0.9 &&
-        i.editStatus !== "EDITED" &&
-        !i.isConfirmed
-    );
+  async function confirmItem(localId: number): Promise<void> {
+    await db.cgDeclarationItems.update(localId, {
+      isConfirmed: true,
+      editStatus: "CONFIRMED",
+    });
 
-    const ids = goldItems.map((i) => i.localId!);
+    await db.cgAuditLogs.add({
+      declarationLocalId,
+      action: "ITEM_CONFIRMED",
+      snapshotBefore: null,
+      snapshotAfter: { localId },
+      source: "MANUAL",
+      timestamp: new Date().toISOString(),
+      syncStatus: "LOCAL_ONLY",
+    });
+  }
+
+  async function confirmAll(): Promise<number> {
+    const unconfirmed = items.filter((i) => !i.isConfirmed);
+    const ids = unconfirmed.map((i) => i.localId!);
     if (ids.length === 0) return 0;
 
     await db.cgDeclarationItems
@@ -119,10 +126,11 @@ export function useScanItems(declarationLocalId: number) {
 
   return {
     items,
-    goldCount,
+    unconfirmedCount,
     saveExtractedItems,
     editItem,
-    confirmAllGold,
+    confirmItem,
+    confirmAll,
     clearItems,
   };
 }

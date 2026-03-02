@@ -139,12 +139,12 @@ export interface ApiKeySetResponse {
 
 // --- Feature #5: AI Auditor Traffic Light ---
 
-export type TrafficLightColor = "gold" | "orange" | "red" | "blue";
+export type TrafficLightColor = "green" | "orange" | "red" | "blue";
 
 export function getTrafficColor(item: CgDeclarationItem): TrafficLightColor {
   if (item.editStatus === "EDITED") return "blue";
   if (item.confidence == null) return "red";
-  if (item.confidence > 0.9) return "gold";
+  if (item.confidence > 0.9) return "green";
   if (item.confidence >= 0.6) return "orange";
   return "red";
 }
