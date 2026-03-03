@@ -1,0 +1,19 @@
+# Raw and processed data (large files, not for git)
+data/
+*.dump
+*.sql.gz
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Environment
+.env
+
+# IDE
+.idea/
+.vscode/

@@ -1,0 +1,23 @@
+# GCP / Vertex AI
+google-cloud-aiplatform>=1.38.0
+google-cloud-storage>=2.14.0
+
+# Database
+psycopg2-binary>=2.9.9
+
+# PDF Processing
+pdfplumber>=0.10.3
+PyPDF2>=3.0.1
+Pillow>=10.0.0
+
+# Web Scraping / Data Collection
+requests>=2.31.0
+beautifulsoup4>=4.12.3
+lxml>=5.1.0
+openpyxl>=3.1.2       # Excel/XLSX parsing
+
+# Utilities
+tqdm>=4.66.0           # Progress bars
+tenacity>=8.2.3        # Retry logic
+tiktoken>=0.5.2        # Token counting for chunking
+python-dotenv>=1.0.0   # .env file support
