@@ -4,6 +4,9 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import { BentoCard } from "./BentoCard";
 import { LeadForm } from "./LeadForm";
+import { RoiShowcase } from "./RoiShowcase";
+import { BeforeAfterTable } from "./BeforeAfterTable";
+import { FaqAccordion } from "./FaqAccordion";
 import { TargetIcon, ShieldIcon, ZapIcon, UploadIcon, SearchAIIcon, SparklesIcon, EyeScanIcon, LayersIcon, ClipboardCheckIcon } from "./Icons";
 import { RadarBlueprint } from "./RadarBlueprint";
 import { TimeCollapse } from "./TimeCollapse";
@@ -51,6 +54,8 @@ export function LandingTemplate({ config }: LandingTemplateProps) {
                         <Image src="/images/logo.svg" alt="VOLLOS" width={550} height={518} className="h-14 w-auto object-contain" priority />
                     </motion.div>
                     <div className="hidden md:flex items-center gap-12 text-[13px] font-bold tracking-widest uppercase text-gray-500">
+                        <motion.a whileHover={{ scale: 0.98 }} transition={luxurySpring} href="#roi" className="hover:text-black transition">ผลลัพธ์</motion.a>
+                        <motion.a whileHover={{ scale: 0.98 }} transition={luxurySpring} href="#compare" className="hover:text-black transition">เปรียบเทียบ</motion.a>
                         <motion.a whileHover={{ scale: 0.98 }} transition={luxurySpring} href="#features" className="hover:text-black transition">ฟีเจอร์</motion.a>
                         <motion.a whileHover={{ scale: 0.98 }} transition={luxurySpring} href="#security" className="hover:text-black transition">ความปลอดภัย</motion.a>
                         <motion.a whileHover={{ scale: 0.98 }} transition={luxurySpring} href="#waitlist" className="bg-black text-white px-8 py-3 rounded-full hover:bg-neutral-800 transition shadow-luxury">{config.navbar.ctaText}</motion.a>
@@ -90,10 +95,38 @@ export function LandingTemplate({ config }: LandingTemplateProps) {
                         initial={{ opacity: 0, y: 16 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ type: "spring", stiffness: 100, damping: 40, mass: 2, delay: 0.4 }}
-                        className="text-xl font-[family-name:var(--font-prompt)] font-light text-gray-500 max-w-2xl mx-auto mb-16 leading-relaxed"
+                        className="text-xl font-[family-name:var(--font-prompt)] font-light text-gray-500 max-w-2xl mx-auto mb-6 leading-relaxed"
                     >
                         {config.hero.subheadline}
                     </motion.p>
+
+                    {/* Social Proof */}
+                    {config.hero.socialProof && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 12 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ type: "spring", stiffness: 100, damping: 40, mass: 2, delay: 0.5 }}
+                            className="mb-3"
+                        >
+                            <span className="inline-block bg-luxury-gold/10 text-luxury-gold text-sm font-bold px-6 py-2 rounded-full border border-luxury-gold/20">
+                                {config.hero.socialProof}
+                            </span>
+                        </motion.div>
+                    )}
+
+                    {/* Persona Line */}
+                    {config.hero.personaLine && (
+                        <motion.p
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ type: "spring", stiffness: 100, damping: 40, mass: 2, delay: 0.55 }}
+                            className="text-sm text-gray-400 font-medium mb-16"
+                        >
+                            {config.hero.personaLine}
+                        </motion.p>
+                    )}
+
+                    {!config.hero.socialProof && !config.hero.personaLine && <div className="mb-16" />}
 
                     {/* Video Demo Placeholder */}
                     <motion.div
@@ -159,13 +192,30 @@ export function LandingTemplate({ config }: LandingTemplateProps) {
                                     className="flex items-center gap-5 p-4 rounded-2xl bg-gray-50 border border-gray-100"
                                 >
                                     <span className="text-2xl font-black text-luxury-gold shrink-0 font-mono tracking-tight">{item.stat}</span>
-                                    <span className="text-sm text-gray-500 font-medium">{item.label}</span>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-sm text-gray-500 font-medium">{item.label}</span>
+                                        {item.solution && (
+                                            <span className="text-xs font-bold text-luxury-gold">{item.solution}</span>
+                                        )}
+                                    </div>
                                 </motion.div>
                             ))}
                         </div>
                     </motion.div>
                 </div>
             </section>
+
+            {/* ─── ROI Showcase ─── */}
+            {config.roi && (
+                <RoiShowcase
+                    kicker={config.roi.kicker}
+                    headline={config.roi.headline}
+                    cards={config.roi.cards}
+                    summaries={config.roi.summaries}
+                    totalLabel={config.roi.totalLabel}
+                    totalAmount={config.roi.totalAmount}
+                />
+            )}
 
             {/* ─── Process Steps ─── */}
             <section className="px-6 pb-64 max-w-5xl mx-auto relative z-10">
@@ -224,6 +274,16 @@ export function LandingTemplate({ config }: LandingTemplateProps) {
                     ))}
                 </div>
             </section>
+
+            {/* ─── Before/After Comparison ─── */}
+            {config.beforeAfter && (
+                <BeforeAfterTable
+                    kicker={config.beforeAfter.kicker}
+                    headline={config.beforeAfter.headline}
+                    badge={config.beforeAfter.badge}
+                    rows={config.beforeAfter.rows}
+                />
+            )}
 
             {/* Bento Grid — balanced 2-row layout */}
             <section id="features" className="px-6 pb-64 max-w-7xl mx-auto relative z-10">
@@ -315,14 +375,23 @@ export function LandingTemplate({ config }: LandingTemplateProps) {
                             </div>
                         </div>
                     </BentoCard>
-
-                    {/* ─── Row 3 ─── */}
-
-                    {/* Founder's Club Waitlist — full-width form card */}
-                    <BentoCard id="waitlist" className="md:col-span-12 shadow-luxury h-auto !p-0">
-                        <LeadForm productCategory={config.productCategory} />
-                    </BentoCard>
                 </div>
+            </section>
+
+            {/* ─── FAQ ─── */}
+            {config.faq && (
+                <FaqAccordion
+                    kicker={config.faq.kicker}
+                    headline={config.faq.headline}
+                    items={config.faq.items}
+                />
+            )}
+
+            {/* ─── Founder's Club Waitlist ─── */}
+            <section id="waitlist" className="px-6 pb-64 max-w-7xl mx-auto relative z-10">
+                <BentoCard className="shadow-luxury h-auto !p-0">
+                    <LeadForm productCategory={config.productCategory} />
+                </BentoCard>
             </section>
 
             {/* Footer */}

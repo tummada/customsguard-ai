@@ -14,8 +14,10 @@ export const hsCodeConfig: ProductConfig = {
     hero: {
         kicker: "เมื่อเวลาของคุณ... กลายเป็นมูลค่า",
         headlineMain: "หยุดนรกการคีย์ใบขน<time_collapse>ด้วยความแม่นยำระดับ AI 2026",
-        headlineHighlight: "", // handled within headlineMain via special token or just render raw HTML if needed
-        subheadline: "แม่นยำ 100% ด้วย AI วิเคราะห์พิกัดอัตโนมัติ สำหรับชิปปิ้งและ SME ไทย",
+        headlineHighlight: "",
+        subheadline: "ผู้ช่วยอัจฉริยะที่จำพิกัดได้แม่น อ่าน PDF ได้เอง คำนวณภาษีที่ประหยัดได้ใน 2 นาที",
+        socialProof: "ประหยัดภาษีนำเข้าได้ถึง ฿65,000 ต่อ shipment",
+        personaLine: "สำหรับชิปปิ้งที่ออกของ 4+ shipments/วัน",
         demoImageSrc: "https://placehold.co/1280x720/FAFAFA/D4AF37?text=VOLLOS+AI+Workflow+Demo",
         demoImageAlt: "VOLLOS AI Workflow Demo"
     },
@@ -26,10 +28,47 @@ export const hsCodeConfig: ProductConfig = {
         headline: "หยุดจ่ายค่าปรับ<br />ที่คุณไม่ได้ก่อ",
         description: "HS-Code ผิด 1 ตัว = ค่าปรับหลักแสน และเสียเวลาหลักสัปดาห์ ความผิดพลาดส่วนใหญ่เกิดจากการคีย์ซ้ำที่เหนื่อย ไม่ใช่ความประมาท\n\nกรมศุลฯ ตรวจย้อนหลังได้ 10 ปี... คุณมั่นใจแค่ไหนว่าใบขนที่คีย์เมื่อวานจะไม่กลายเป็นค่าปรับในอีก 3 ปีข้างหน้า?",
         stats: [
-            { stat: "73%", label: "ของข้อผิดพลาดมาจากการคีย์ด้วยมือ" },
-            { stat: "3 ชม.", label: "เฉลี่ยต่อใบขน 1 รายการ" },
-            { stat: "฿120K+", label: "ค่าปรับเฉลี่ยต่อครั้งจากพิกัดผิด" },
+            { stat: "73%", label: "ของข้อผิดพลาดมาจากการคีย์ด้วยมือ", solution: "AI Scan ลดเหลือ 0%" },
+            { stat: "3 ชม.", label: "เฉลี่ยต่อใบขน 1 รายการ", solution: "VOLLOS ทำเสร็จใน 2 นาที" },
+            { stat: "฿120K+", label: "ค่าปรับเฉลี่ยต่อครั้งจากพิกัดผิด", solution: "ลดโอกาสแก้ใบขน 80%" },
         ]
+    },
+    roi: {
+        kicker: "ผลลัพธ์ที่พิสูจน์ได้",
+        headline: "ประหยัดได้จริง ฿3.5 ล้านต่อปี",
+        cards: [
+            {
+                country: "ญี่ปุ่น",
+                flag: "\uD83C\uDDEF\uD83C\uDDF5",
+                agreement: "JTEPA",
+                normalRate: "20%",
+                ftaRate: "5%",
+                savingsPerShipment: "฿65,000"
+            },
+            {
+                country: "จีน",
+                flag: "\uD83C\uDDE8\uD83C\uDDF3",
+                agreement: "ACFTA",
+                normalRate: "15%",
+                ftaRate: "0%",
+                savingsPerShipment: "฿50,000"
+            },
+            {
+                country: "อาเซียน",
+                flag: "\uD83C\uDDF9\uD83C\uDDED",
+                agreement: "ATIGA",
+                normalRate: "12%",
+                ftaRate: "0%",
+                savingsPerShipment: "฿96,000"
+            }
+        ],
+        summaries: [
+            { label: "FTA Savings", amount: "฿3.12M" },
+            { label: "ลดแก้ใบขน", amount: "฿168K" },
+            { label: "เวลาที่ประหยัด", amount: "฿240K" }
+        ],
+        totalLabel: "รวมประหยัดต่อปี",
+        totalAmount: "บาท/ปี"
     },
     process: {
         kicker: "ขั้นตอนง่ายๆ 3 ขั้นตอน",
@@ -61,6 +100,19 @@ export const hsCodeConfig: ProductConfig = {
             }
         ]
     },
+    beforeAfter: {
+        kicker: "เปรียบเทียบ",
+        headline: "ก่อน vs หลังใช้ VOLLOS",
+        badge: "15x เร็วกว่าเดิม",
+        rows: [
+            { task: "อ่าน PDF", before: "พิมพ์มือ (เสี่ยงพิมพ์ผิด)", after: "AI Scan + OCR อัตโนมัติ" },
+            { task: "ค้นหา HS Code", before: "เปิดเล่มพิกัด/ค้น Keyword", after: "AI Semantic Search" },
+            { task: "ตรวจสอบ FTA", before: "เช็ค Manual ทีละฉบับ", after: "Auto-Alert + คำนวณเงินประหยัด" },
+            { task: "เรทแลกเปลี่ยน", before: "เช็ค Manual ทุกสัปดาห์", after: "ดึงเรทประกาศกรมศุลฯ อัตโนมัติ" },
+            { task: "Post-Audit", before: "จำเอกสารอ้างอิงเอง", after: "Audit Trail เก็บ Log" },
+            { task: "ระบบค้าง", before: "คีย์ใหม่ตั้งแต่ต้น", after: "Auto-Save Draft ในเครื่อง" }
+        ]
+    },
     features: {
         cards: [
             {
@@ -74,16 +126,16 @@ export const hsCodeConfig: ProductConfig = {
                 id: "efficiency-metric",
                 iconId: "zap",
                 title: "",
-                description: "ลดเวลาจัดทำเอกสารศุลกากร จากชั่วโมงเหลือนาที",
-                statValue: "98.2%",
-                statLabel: "ลดเวลาทำงาน"
+                description: "จาก 30 นาที เหลือ 2 นาที รับงานได้มากขึ้น 5-10 เท่า",
+                statValue: "15x",
+                statLabel: "เร็วกว่าวิธีเดิม"
             },
             {
                 id: "privilege-optimizer",
                 iconId: "shield",
                 title: "ทวงคืนกำไรที่หายไป",
-                description: "ระบบเช็กสิทธิ FTA และ Form E ให้อัตโนมัติ ไม่ให้คุณจ่ายภาษีเกินแม้แต่บาทเดียว",
-                badges: ["FTA Auto-Check", "Form E"]
+                description: "ระบบเช็กสิทธิ FTA ให้อัตโนมัติ ประหยัดได้ถึง ฿65,000 ต่อ shipment ไม่ให้คุณจ่ายภาษีเกินแม้แต่บาทเดียว",
+                badges: ["FTA Auto-Check", "JTEPA", "ACFTA", "ATIGA"]
             },
             {
                 id: "shadow-auditor",
@@ -118,8 +170,34 @@ export const hsCodeConfig: ProductConfig = {
             { label: "ระบบสำรอง", status: "ทำงานตลอดเวลา", statusColor: "text-green-600" }
         ]
     },
+    faq: {
+        kicker: "คำถามที่พบบ่อย",
+        headline: "มีคำถาม? เรามีคำตอบ",
+        items: [
+            {
+                question: "ข้อมูลลูกค้าผมหลุดไหม?",
+                answer: "ข้อมูลทุกบัญชีแยกกันด้วย Row-Level Security (RLS) ระดับฐานข้อมูล — แม้แต่ทีมงาน VOLLOS ก็ไม่สามารถเห็นข้อมูล Invoice ของลูกค้าคุณได้ ระบบ production จะเข้ารหัสผ่าน HTTPS และเข้ารหัสข้อมูลจัดเก็บเพิ่มเติม"
+            },
+            {
+                question: "AI ผิดแล้วใครรับผิดชอบ?",
+                answer: "VOLLOS ทำงานแบบ Human-in-the-loop — AI แนะนำพิกัดและตรวจสอบให้ แต่การยืนยันสุดท้ายเป็นของคุณเสมอ ระบบแสดงคะแนนความมั่นใจ (Confidence Score) และเอกสารอ้างอิงทุกครั้ง เพื่อให้คุณตัดสินใจได้อย่างมั่นใจ"
+            },
+            {
+                question: "เชื่อมต่อ Netbay/TIFFA ได้มั้ย?",
+                answer: "ตอนนี้ยังเชื่อมตรงไม่ได้ แต่ Chrome Extension ฉีดข้อมูลเข้าเว็บกรมศุลฯ ได้ทันทีผ่าน Magic Fill และเรากำลังพัฒนา XML Export เพื่อให้นำเข้า Netbay/TIFFA ได้ในอนาคต — สมาชิก Founder's Club จะได้ร่วมกำหนด format ที่ใช้จริง"
+            },
+            {
+                question: "ข้อมูลเก็บที่ไหน? เอาไปเทรน AI มั้ย?",
+                answer: "ข้อมูลหลัก (ฐานข้อมูล, ไฟล์ PDF) เก็บในเซิร์ฟเวอร์ของ VOLLOS โดยตรง การวิเคราะห์ AI ใช้ Google Gemini API ซึ่งข้อมูลที่ส่งไปจะไม่ถูกนำไปเทรน model ตามเงื่อนไข Google — เราไม่แชร์ข้อมูลกับบริษัทอื่นใดนอกจากนี้"
+            },
+            {
+                question: "ราคาเท่าไหร่?",
+                answer: "สมาชิก Founder's Club รับส่วนลด 50% ตลอดชีพ — จ่ายครึ่งเดียวตลอดการใช้งาน ไม่มีค่าแรกเข้า ยกเลิกได้ทุกเมื่อ จำกัดเพียง 10 บริษัทแรกเท่านั้น"
+            }
+        ]
+    },
     footer: {
         tagline: "Where Time Becomes Value",
-        copyright: "© 2026 VOLLOS Intelligence. Compliant with Customs Department standards 2026"
+        copyright: "\u00A9 2026 VOLLOS Intelligence. Compliant with Customs Department standards 2026"
     }
 };

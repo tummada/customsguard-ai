@@ -283,6 +283,9 @@ export function LeadForm({ productCategory = 'Unknown Product' }: { productCateg
                         <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
                             <div className="h-full bg-luxury-gold/30 rounded-full" style={{ width: '80%' }} />
                         </div>
+                        <p className="text-[11px] font-bold text-center text-red-500 mt-2 tracking-tight">
+                            ปิดรับรอบแรก 31 มี.ค. 2026 — เหลือเพียง 2 สิทธิ์สุดท้าย
+                        </p>
                     </div>
                 </div>
 
@@ -297,6 +300,9 @@ export function LeadForm({ productCategory = 'Unknown Product' }: { productCateg
                         <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
                             <div className="h-full bg-luxury-gold/30 rounded-full" style={{ width: '80%' }} />
                         </div>
+                        <p className="text-[11px] font-bold text-center text-red-500 mt-2 tracking-tight">
+                            ปิดรับรอบแรก 31 มี.ค. 2026 — เหลือเพียง 2 สิทธิ์สุดท้าย
+                        </p>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
