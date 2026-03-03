@@ -14,6 +14,7 @@ interface ScanPanelProps {
 
 export default function ScanPanel({ onAuthChange }: ScanPanelProps) {
   const [pages, setPages] = useState<string[]>([]);
+  const [rawPdfFile, setRawPdfFile] = useState<File | null>(null);
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -31,13 +32,14 @@ export default function ScanPanel({ onAuthChange }: ScanPanelProps) {
   const confirmedCount = items.filter((i) => i.isConfirmed).length;
   const hasConfirmed = confirmedCount > 0;
 
-  const handlePagesReady = useCallback((newPages: string[]) => {
+  const handlePagesReady = useCallback((newPages: string[], file: File) => {
     setPages(newPages);
+    setRawPdfFile(file);
     setScanError("");
   }, []);
 
   const handleScan = async () => {
-    if (pages.length === 0) return;
+    if (pages.length === 0 || !rawPdfFile) return;
 
     setScanning(true);
     setScanError("");
@@ -46,9 +48,16 @@ export default function ScanPanel({ onAuthChange }: ScanPanelProps) {
       // Clear previous items before new scan
       await clearItems();
 
+      // Convert raw PDF File to base64 data URL for sending via message
+      const buffer = await rawPdfFile.arrayBuffer();
+      const base64 = btoa(
+        new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), "")
+      );
+      const pdfDataUrl = `data:application/pdf;base64,${base64}`;
+
       const response: ScanPdfResponse = await chrome.runtime.sendMessage({
         type: "SCAN_PDF",
-        payload: { pdfDataUrl: pages[0], declarationType: "IMPORT" },
+        payload: { pdfDataUrl, declarationType: "IMPORT" },
       });
 
       if (response.success && response.items) {
@@ -75,6 +84,7 @@ export default function ScanPanel({ onAuthChange }: ScanPanelProps) {
   const handleClear = async () => {
     await clearItems();
     setPages([]);
+    setRawPdfFile(null);
     setScanError("");
   };
 

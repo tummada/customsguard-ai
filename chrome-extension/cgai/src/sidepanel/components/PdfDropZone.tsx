@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from "react";
 import { renderPdfToImages } from "@/lib/pdf-renderer";
 
 interface PdfDropZoneProps {
-  onPagesReady: (pages: string[]) => void;
+  onPagesReady: (pages: string[], rawFile: File) => void;
   disabled?: boolean;
 }
 
@@ -27,7 +27,7 @@ export default function PdfDropZone({ onPagesReady, disabled }: PdfDropZoneProps
         const buffer = await file.arrayBuffer();
         const pages = await renderPdfToImages(buffer);
         setPageCount(pages.length);
-        onPagesReady(pages);
+        onPagesReady(pages, file);
       } catch (err) {
         console.error("[VOLLOS] PDF render error:", err);
         alert("ไม่สามารถอ่านไฟล์ PDF ได้");

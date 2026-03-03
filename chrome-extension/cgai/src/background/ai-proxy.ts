@@ -22,6 +22,7 @@ export async function submitScanToBackend(
 
 /**
  * Poll backend for scan job completion.
+ * Returns extracted items from the backend response.
  */
 export async function pollScanResult(
   jobId: string,
@@ -34,7 +35,7 @@ export async function pollScanResult(
     const result = await apiClient.getJobStatus(jobId);
 
     if (result.status === "COMPLETED") {
-      return [];
+      return result.items ?? [];
     }
 
     if (result.status === "FAILED") {

@@ -51,6 +51,28 @@ export interface CgHsCodeCache {
   cachedAt: string; // ISO timestamp for cache invalidation
 }
 
+// Cached FTA rates from backend HS lookup
+export interface CgFtaCache {
+  hsCode: string; // PK
+  ftaName: string;
+  partnerCountry: string;
+  formType: string | null;
+  preferentialRate: number;
+  savingPercent: number;
+  conditions: string | null;
+  cachedAt: string; // ISO timestamp for cache invalidation
+}
+
+// Cached RAG search results
+export interface CgRagCache {
+  localId?: number; // Auto-increment PK
+  query: string; // Search query (indexed)
+  answer: string;
+  sources: unknown[];
+  processingTimeMs: number;
+  cachedAt: string; // ISO timestamp for cache invalidation
+}
+
 // Snapshot-based audit log for Liability Shield
 export interface CgAuditLog {
   localId?: number;

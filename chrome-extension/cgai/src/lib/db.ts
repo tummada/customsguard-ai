@@ -4,6 +4,8 @@ import type {
   CgDeclarationItem,
   CgHsCodeCache,
   CgAuditLog,
+  CgFtaCache,
+  CgRagCache,
   SyncState,
 } from "@/types";
 
@@ -16,6 +18,8 @@ class CustomsGuardDB extends Dexie {
   cgHsCodesCache!: EntityTable<CgHsCodeCache, "code">;
   cgAuditLogs!: EntityTable<CgAuditLog, "localId">;
   syncState!: EntityTable<SyncState, "key">;
+  cgFtaCache!: EntityTable<CgFtaCache, "hsCode">;
+  cgRagCache!: EntityTable<CgRagCache, "localId">;
 
   constructor(tenantId: string) {
     super(`CustomsGuard_${tenantId}`);

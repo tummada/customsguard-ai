@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect } from "react";
-import { apiClient } from "@/lib/api-client";
+import { apiClient, isCacheValid, RAG_CACHE_TTL_MS } from "@/lib/api-client";
+import { db } from "@/lib/db";
 
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   sources?: { sourceType: string; sourceId: string; chunkText: string; similarity: number }[];
   timestamp: Date;
+  fromCache?: boolean;
 }
 
 export default function ChatPanel() {
@@ -42,7 +44,41 @@ export default function ChatPanel() {
     setLoading(true);
 
     try {
+      // Cache-first: check Dexie for recent cached result
+      const cached = await db.cgRagCache
+        .where("query")
+        .equals(trimmed)
+        .first();
+
+      if (cached && isCacheValid(cached.cachedAt, RAG_CACHE_TTL_MS)) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: cached.answer,
+            sources: cached.sources as ChatMessage["sources"],
+            timestamp: new Date(),
+            fromCache: true,
+          },
+        ]);
+        return;
+      }
+
+      // Cache miss or expired: fetch from API
       const result = await apiClient.ragSearch(trimmed);
+
+      // Store in cache (delete old entry if exists, then add new)
+      if (cached) {
+        await db.cgRagCache.delete(cached.localId!);
+      }
+      await db.cgRagCache.add({
+        query: trimmed,
+        answer: result.answer,
+        sources: result.sources,
+        processingTimeMs: result.processingTimeMs,
+        cachedAt: new Date().toISOString(),
+      });
+
       setMessages((prev) => [
         ...prev,
         {
@@ -97,6 +133,10 @@ export default function ChatPanel() {
               }`}
             >
               <p className="whitespace-pre-wrap">{msg.content}</p>
+
+              {msg.fromCache && (
+                <p className="text-gray-600 text-[10px] mt-1">(cached)</p>
+              )}
 
               {/* Source citations */}
               {msg.sources && msg.sources.length > 0 && (

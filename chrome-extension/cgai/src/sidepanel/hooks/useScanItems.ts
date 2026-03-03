@@ -1,6 +1,7 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
-import type { CgDeclarationItem, ExtractedLineItem } from "@/types";
+import { apiClient, isCacheValid, FTA_CACHE_TTL_MS } from "@/lib/api-client";
+import type { CgDeclarationItem, CgFtaCache, ExtractedLineItem } from "@/types";
 
 export function useScanItems(declarationLocalId: number) {
   const items = useLiveQuery(
@@ -46,6 +47,55 @@ export function useScanItems(declarationLocalId: number) {
       timestamp: new Date().toISOString(),
       syncStatus: "LOCAL_ONLY",
     });
+
+    // Auto FTA lookup for extracted HS codes
+    if (apiClient.isConfigured() && extracted.length > 0) {
+      fetchAndCacheFtaRates(extracted.map((e) => e.hsCode)).catch((err) =>
+        console.warn("[VOLLOS] Auto FTA lookup failed:", err)
+      );
+    }
+  }
+
+  async function fetchAndCacheFtaRates(hsCodes: string[]): Promise<void> {
+    // Filter out codes that already have valid cache
+    const codesToFetch: string[] = [];
+    for (const code of hsCodes) {
+      const cached = await db.cgFtaCache.where("hsCode").equals(code).first();
+      if (!cached || !isCacheValid(cached.cachedAt, FTA_CACHE_TTL_MS)) {
+        codesToFetch.push(code);
+      }
+    }
+
+    if (codesToFetch.length === 0) return;
+
+    const results = await apiClient.hsLookup(codesToFetch);
+    const ftaEntries: CgFtaCache[] = [];
+    const now = new Date().toISOString();
+
+    for (const result of results) {
+      if (result.found && result.ftaAlerts) {
+        for (const alert of result.ftaAlerts) {
+          ftaEntries.push({
+            hsCode: result.code,
+            ftaName: alert.ftaName,
+            partnerCountry: alert.partnerCountry,
+            formType: alert.formType,
+            preferentialRate: alert.preferentialRate,
+            savingPercent: alert.savingPercent,
+            conditions: alert.conditions,
+            cachedAt: now,
+          });
+        }
+      }
+    }
+
+    // Clear old entries for these codes, then add new
+    for (const code of codesToFetch) {
+      await db.cgFtaCache.where("hsCode").equals(code).delete();
+    }
+    if (ftaEntries.length > 0) {
+      await db.cgFtaCache.bulkAdd(ftaEntries);
+    }
   }
 
   async function editItem(

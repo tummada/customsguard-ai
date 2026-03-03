@@ -11,6 +11,7 @@ export interface ScanJobResult {
   status: "CREATED" | "PROCESSING" | "COMPLETED" | "FAILED";
   progress: number;
   s3Key: string;
+  items?: ExtractedLineItem[];
 }
 
 export interface HsLookupResult {
