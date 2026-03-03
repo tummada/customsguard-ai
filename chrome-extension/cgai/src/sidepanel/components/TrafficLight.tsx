@@ -11,7 +11,7 @@ const COLOR_MAP: Record<TrafficLightColor, { bg: string; label: string }> = {
   orange: { bg: "bg-orange-400", label: "Medium Confidence" },
   red: { bg: "bg-red-500", label: "Low Confidence" },
   blue: { bg: "bg-blue-400", label: "Edited" },
-  gold: { bg: "bg-yellow-400", label: "FTA Savings Available" },
+  gold: { bg: "bg-brand", label: "FTA Savings Available" },
 };
 
 export default function TrafficLight({ item }: TrafficLightProps) {
@@ -30,16 +30,16 @@ export default function TrafficLight({ item }: TrafficLightProps) {
         onMouseLeave={() => setShowTooltip(false)}
       />
       {showTooltip && (
-        <div className="absolute left-5 top-1/2 -translate-y-1/2 z-50 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-xs whitespace-nowrap shadow-lg">
+        <div className="absolute left-5 top-1/2 -translate-y-1/2 z-50 bg-white border border-gray-200 rounded px-3 py-2 text-xs whitespace-nowrap shadow-lg">
           <p className="font-semibold">{label} ({confidenceText})</p>
           {color === "red" && item.aiReason && (
-            <p className="text-red-300 mt-1">{item.aiReason}</p>
+            <p className="text-red-500 mt-1">{item.aiReason}</p>
           )}
           {color === "blue" && (
-            <p className="text-blue-300 mt-1">แก้ไขโดยผู้ใช้</p>
+            <p className="text-blue-600 mt-1">แก้ไขโดยผู้ใช้</p>
           )}
           {color === "gold" && (
-            <p className="text-yellow-300 mt-1">มีสิทธิ์ FTA ประหยัดอากร</p>
+            <p className="text-brand mt-1">มีสิทธิ์ FTA ประหยัดอากร</p>
           )}
         </div>
       )}

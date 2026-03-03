@@ -135,7 +135,7 @@ export default function ScanPanel({ onAuthChange }: ScanPanelProps) {
     <div className="space-y-3">
       {/* Header with settings */}
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-gray-300">
+        <h2 className="text-sm font-semibold text-gray-700">
           Scan & Review
         </h2>
         <div className="flex items-center gap-2">
@@ -150,7 +150,7 @@ export default function ScanPanel({ onAuthChange }: ScanPanelProps) {
           )}
           <button
             onClick={() => setSettingsOpen(true)}
-            className="text-gray-500 hover:text-gray-300 text-lg"
+            className="text-gray-500 hover:text-gray-600 text-lg"
             title="Settings"
           >
             &#9881;
@@ -166,7 +166,7 @@ export default function ScanPanel({ onAuthChange }: ScanPanelProps) {
         <button
           onClick={handleScan}
           disabled={scanning}
-          className="w-full py-2 px-4 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-700 disabled:text-gray-500 text-white font-medium rounded-lg transition-colors text-sm"
+          className="w-full py-2 px-4 btn-primary rounded-2xl text-sm"
         >
           {scanning
             ? `กำลังสแกน ${pages.length} หน้า...`
@@ -176,20 +176,20 @@ export default function ScanPanel({ onAuthChange }: ScanPanelProps) {
 
       {/* Error */}
       {scanError && (
-        <p className="text-red-400 text-xs">{scanError}</p>
+        <p className="text-red-500 text-xs">{scanError}</p>
       )}
 
       {/* Line Items Table */}
       {items.length > 0 && (
         <>
-          <div className="bg-gray-900 rounded-lg border border-gray-800 p-3">
+          <div className="bg-white rounded-xl border border-brand/10 shadow-gold p-3">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-gray-400">
+              <span className="text-xs text-gray-500">
                 {items.length} รายการ
               </span>
               <span className="text-xs">
                 {confirmedCount > 0 && (
-                  <span className="text-green-400">{confirmedCount} confirmed</span>
+                  <span className="text-green-600">{confirmedCount} confirmed</span>
                 )}
                 {confirmedCount > 0 && unconfirmedCount > 0 && " / "}
                 {unconfirmedCount > 0 && (
@@ -210,7 +210,7 @@ export default function ScanPanel({ onAuthChange }: ScanPanelProps) {
             {unconfirmedCount > 0 && (
               <button
                 onClick={handleConfirmAll}
-                className="w-full py-2.5 text-sm font-medium bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+                className="w-full py-2.5 text-sm font-medium bg-green-600 hover:bg-green-700 text-white rounded-2xl transition-colors"
               >
                 Confirm All ({unconfirmedCount} รายการ)
               </button>
@@ -220,10 +220,10 @@ export default function ScanPanel({ onAuthChange }: ScanPanelProps) {
             <button
               onClick={handleFillToForm}
               disabled={!hasConfirmed}
-              className={`w-full py-2.5 text-sm font-medium rounded-lg transition-colors ${
+              className={`w-full py-2.5 text-sm font-medium rounded-2xl transition-colors ${
                 hasConfirmed
-                  ? "bg-blue-600 hover:bg-blue-700 text-white"
-                  : "bg-gray-800 text-gray-600 cursor-not-allowed border border-gray-700"
+                  ? "btn-primary"
+                  : "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
               }`}
             >
               {hasConfirmed

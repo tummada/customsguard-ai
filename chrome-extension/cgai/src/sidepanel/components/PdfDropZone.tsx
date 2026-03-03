@@ -69,8 +69,8 @@ export default function PdfDropZone({ onPagesReady, disabled }: PdfDropZoneProps
       onDrop={handleDrop}
       onClick={() => !disabled && !rendering && fileInputRef.current?.click()}
       className={`
-        border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors
-        ${isDragging ? "border-amber-400 bg-amber-400/10" : "border-gray-700 hover:border-gray-500"}
+        border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors
+        ${isDragging ? "border-brand bg-brand/5" : "border-gray-200 hover:border-brand/30"}
         ${disabled || rendering ? "opacity-50 cursor-not-allowed" : ""}
       `}
     >
@@ -83,12 +83,12 @@ export default function PdfDropZone({ onPagesReady, disabled }: PdfDropZoneProps
       />
 
       {rendering ? (
-        <div className="text-gray-400">
-          <div className="animate-spin w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full mx-auto mb-2" />
+        <div className="text-gray-500">
+          <div className="animate-spin w-8 h-8 border-2 border-brand border-t-transparent rounded-full mx-auto mb-2" />
           <p className="text-sm">กำลังอ่าน PDF...</p>
         </div>
       ) : fileName ? (
-        <div className="text-gray-300">
+        <div className="text-gray-700">
           <p className="text-sm font-medium">{fileName}</p>
           <p className="text-xs text-gray-500 mt-1">{pageCount} หน้า — คลิกเพื่อเปลี่ยนไฟล์</p>
         </div>

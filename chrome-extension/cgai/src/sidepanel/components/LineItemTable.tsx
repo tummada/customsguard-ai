@@ -63,7 +63,7 @@ export default function LineItemTable({ items, onEditItem, onConfirmItem }: Line
     <div className="overflow-x-auto">
       <table className="w-full text-xs">
         <thead>
-          <tr className="text-gray-400 border-b border-gray-700">
+          <tr className="text-gray-500 border-b border-gray-200">
             <th className="py-2 px-1 w-6"></th>
             {COLUMNS.map((col) => (
               <th key={col.key} className={`py-2 px-1 text-left ${col.width}`}>
@@ -77,8 +77,8 @@ export default function LineItemTable({ items, onEditItem, onConfirmItem }: Line
           {items.map((item) => (
             <tr
               key={item.localId}
-              className={`border-b border-gray-800 hover:bg-gray-800/50 ${
-                item.isConfirmed ? "bg-green-950/30" : ""
+              className={`border-b border-gray-100 hover:bg-gray-50 ${
+                item.isConfirmed ? "bg-green-50/50" : ""
               }`}
             >
               <td className="py-2 px-1">
@@ -103,7 +103,7 @@ export default function LineItemTable({ items, onEditItem, onConfirmItem }: Line
                           if (e.key === "Escape") cancelEdit();
                         }}
                         autoFocus
-                        className="w-full bg-gray-700 border border-blue-400 rounded px-1 py-0.5 text-white text-xs outline-none"
+                        className="w-full bg-white border border-brand rounded px-1 py-0.5 text-gray-900 text-xs outline-none"
                       />
                     ) : (
                       <span
@@ -114,7 +114,7 @@ export default function LineItemTable({ items, onEditItem, onConfirmItem }: Line
                         className={`block truncate ${
                           item.isConfirmed
                             ? "cursor-default"
-                            : "cursor-pointer hover:text-blue-300"
+                            : "cursor-pointer hover:text-brand"
                         }`}
                         title={cellValue}
                       >
@@ -126,7 +126,7 @@ export default function LineItemTable({ items, onEditItem, onConfirmItem }: Line
               })}
               <td className="py-2 px-1 w-12 text-center">
                 {item.isConfirmed ? (
-                  <span className="text-green-500 text-sm" title="confirmed">&#10003;</span>
+                  <span className="text-green-600 text-sm" title="confirmed">&#10003;</span>
                 ) : (
                   <button
                     onClick={() => onConfirmItem(item.localId!)}

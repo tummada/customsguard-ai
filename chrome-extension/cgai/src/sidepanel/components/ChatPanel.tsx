@@ -116,7 +116,7 @@ export default function ChatPanel() {
         {messages.length === 0 && (
           <div className="text-center text-gray-500 text-xs mt-8">
             <p className="mb-2">Ask about customs regulations, HS codes, or FTA rates</p>
-            <p className="text-gray-600">Powered by RAG Knowledge Base</p>
+            <p className="text-gray-400">Powered by RAG Knowledge Base</p>
           </div>
         )}
 
@@ -128,28 +128,28 @@ export default function ChatPanel() {
             <div
               className={`max-w-[85%] rounded-lg px-3 py-2 text-xs ${
                 msg.role === "user"
-                  ? "bg-amber-600/30 text-amber-100 border border-amber-700/50"
-                  : "bg-gray-800 text-gray-200 border border-gray-700"
+                  ? "bg-brand/10 text-gray-900 border border-brand/20"
+                  : "bg-gray-50 text-gray-700 border border-gray-100"
               }`}
             >
               <p className="whitespace-pre-wrap">{msg.content}</p>
 
               {msg.fromCache && (
-                <p className="text-gray-600 text-[10px] mt-1">(cached)</p>
+                <p className="text-gray-400 text-[10px] mt-1">(cached)</p>
               )}
 
               {/* Source citations */}
               {msg.sources && msg.sources.length > 0 && (
-                <div className="mt-2 pt-2 border-t border-gray-700">
+                <div className="mt-2 pt-2 border-t border-gray-200">
                   <p className="text-gray-500 text-[10px] mb-1">Sources:</p>
                   {msg.sources.map((src, j) => (
                     <div
                       key={j}
-                      className="text-[10px] text-gray-400 bg-gray-900/50 rounded px-2 py-1 mt-1"
+                      className="text-[10px] text-gray-500 bg-gray-50 rounded px-2 py-1 mt-1"
                     >
-                      <span className="text-gray-500">[{src.sourceType}]</span>{" "}
+                      <span className="text-gray-400">[{src.sourceType}]</span>{" "}
                       {src.chunkText.slice(0, 80)}...
-                      <span className="text-gray-600 ml-1">
+                      <span className="text-gray-400 ml-1">
                         ({Math.round(src.similarity * 100)}%)
                       </span>
                     </div>
@@ -162,7 +162,7 @@ export default function ChatPanel() {
 
         {loading && (
           <div className="flex justify-start">
-            <div className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-400">
+            <div className="bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-500">
               Searching knowledge base...
             </div>
           </div>
@@ -179,13 +179,13 @@ export default function ChatPanel() {
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Ask about HS codes, FTA, regulations..."
-          className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-amber-400"
+          className="flex-1 bg-white/50 border border-gray-200 rounded-xl px-3 py-2 text-xs text-gray-900 focus-gold"
           disabled={loading}
         />
         <button
           onClick={handleSend}
           disabled={!query.trim() || loading}
-          className="px-4 py-2 bg-amber-500 hover:bg-amber-600 disabled:bg-gray-700 disabled:text-gray-500 text-black text-xs font-medium rounded-lg"
+          className="px-4 py-2 btn-primary text-xs rounded-xl"
         >
           Ask
         </button>

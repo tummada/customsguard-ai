@@ -76,31 +76,31 @@ export default function SettingsDialog({ open, onClose, onAuthChange }: Settings
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-900 border border-gray-700 rounded-lg p-5 w-full max-w-sm">
-        <h3 className="text-sm font-semibold text-white mb-4">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white border border-brand/10 rounded-2xl shadow-gold p-5 w-full max-w-sm">
+        <h3 className="text-sm font-semibold text-gray-900 mb-4">
           Settings — VOLLOS Backend
         </h3>
 
         {connected ? (
           <div className="space-y-3">
-            <div className="flex items-center gap-2 bg-green-900/30 border border-green-800 rounded p-3">
+            <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded p-3">
               <span className="w-2 h-2 rounded-full bg-green-400" />
-              <span className="text-sm text-green-300">Connected</span>
+              <span className="text-sm text-green-700">Connected</span>
             </div>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-gray-500">
               Backend: {apiClient.getConfig()?.baseUrl}
             </p>
             <div className="flex gap-2">
               <button
                 onClick={onClose}
-                className="flex-1 py-2 text-sm bg-gray-700 hover:bg-gray-600 text-gray-300 rounded"
+                className="flex-1 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl"
               >
                 Close
               </button>
               <button
                 onClick={handleLogout}
-                className="flex-1 py-2 text-sm bg-red-600 hover:bg-red-700 text-white rounded"
+                className="flex-1 py-2 text-sm bg-red-600 hover:bg-red-700 text-white rounded-xl"
               >
                 Logout
               </button>
@@ -109,53 +109,53 @@ export default function SettingsDialog({ open, onClose, onAuthChange }: Settings
         ) : (
           <>
             <div className="mb-3">
-              <label className="block text-xs text-gray-400 mb-1">Backend URL</label>
+              <label className="block text-xs text-gray-500 mb-1">Backend URL</label>
               <input
                 type="url"
                 value={backendUrl}
                 onChange={(e) => setBackendUrl(e.target.value)}
                 placeholder="http://localhost:8080"
-                className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm text-white outline-none focus:border-amber-400"
+                className="w-full bg-white/50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 focus-gold"
               />
             </div>
 
             <div className="mb-3">
-              <label className="block text-xs text-gray-400 mb-1">Email</label>
+              <label className="block text-xs text-gray-500 mb-1">Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="user@example.com"
-                className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm text-white outline-none focus:border-amber-400"
+                className="w-full bg-white/50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 focus-gold"
               />
             </div>
 
             <div className="mb-3">
-              <label className="block text-xs text-gray-400 mb-1">Password</label>
+              <label className="block text-xs text-gray-500 mb-1">Password</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="password"
-                className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm text-white outline-none focus:border-amber-400"
+                className="w-full bg-white/50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 focus-gold"
               />
             </div>
 
             {error && (
-              <p className="text-red-400 text-xs mb-3">{error}</p>
+              <p className="text-red-500 text-xs mb-3">{error}</p>
             )}
 
             <div className="flex gap-2">
               <button
                 onClick={onClose}
-                className="flex-1 py-2 text-sm bg-gray-700 hover:bg-gray-600 text-gray-300 rounded"
+                className="flex-1 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl"
               >
                 Cancel
               </button>
               <button
                 onClick={handleLogin}
                 disabled={!backendUrl.trim() || !email.trim() || !password.trim() || saving}
-                className="flex-1 py-2 text-sm bg-amber-500 hover:bg-amber-600 disabled:bg-gray-700 disabled:text-gray-500 text-black font-medium rounded"
+                className="flex-1 py-2 text-sm btn-primary rounded-xl"
               >
                 {saving ? "Connecting..." : "Login"}
               </button>

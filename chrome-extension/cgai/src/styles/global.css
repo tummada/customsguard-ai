@@ -1,1 +1,85 @@
 @import "tailwindcss";
+
+/* ── VOLLOS Brand Fonts ── */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url('../fonts/Inter-Variable.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Prompt';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url('../fonts/Prompt-Light.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Prompt';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../fonts/Prompt-Regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Prompt';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../fonts/Prompt-Medium.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Prompt';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('../fonts/Prompt-SemiBold.woff2') format('woff2');
+}
+
+@theme {
+  --color-brand: #D4AF37;
+  --color-brand-hover: #B4941F;
+  --color-brand-light: #f0d060;
+  --color-brand-muted: rgba(212, 175, 55, 0.15);
+  --font-sans: 'Inter', 'Prompt', ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    font-family: 'Inter', 'Prompt', ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: -0.02em;
+    -webkit-font-smoothing: antialiased;
+    background-color: #ffffff;
+    color: #1a1a1a;
+  }
+}
+
+@layer components {
+  .shadow-gold {
+    box-shadow: 0 0 50px rgba(212, 175, 55, 0.03);
+  }
+  .focus-gold:focus {
+    border-color: rgba(212, 175, 55, 0.4);
+    box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1), inset 0 2px 6px rgba(0, 0, 0, 0.06);
+    outline: none;
+  }
+  .btn-primary {
+    background: linear-gradient(to bottom, #1a1a1a, #000000);
+    color: #ffffff;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+  .btn-primary:hover {
+    box-shadow: 0 0 20px rgba(212, 175, 55, 0.15);
+  }
+  .btn-primary:active {
+    transform: scale(0.98);
+  }
+  .btn-primary:disabled {
+    background: #f3f4f6;
+    color: #9ca3af;
+    box-shadow: none;
+    transform: none;
+  }
+}
