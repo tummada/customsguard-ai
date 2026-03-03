@@ -1,0 +1,66 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 938 >>
+stream
+BT
+/F1 12 Tf
+50 750 Td
+(COMMERCIAL INVOICE) Tj
+0 -20 Td
+(Invoice No: INV-2026-001) Tj
+0 -20 Td
+(Date: 2026-03-03) Tj
+0 -20 Td
+(Seller: Thai Export Co., Ltd.) Tj
+0 -20 Td
+(Buyer: Japan Import Corp.) Tj
+0 -40 Td
+(Item Description              HS Code     Qty   Unit Price  CIF Price) Tj
+0 -20 Td
+(--------------------------------------------------------------------) Tj
+0 -20 Td
+(Semi-milled rice 5% broken    1006.30     500   120.00      60000.00) Tj
+0 -20 Td
+(Frozen shrimps HOSO           0306.17     200   350.00      70000.00) Tj
+0 -20 Td
+(Laptop computer Dell 15inch   8471.30     50    25000.00    1250000.00) Tj
+0 -20 Td
+(Pneumatic tyres radial        4011.10     100   2500.00     250000.00) Tj
+0 -20 Td
+(Frozen chicken cuts           0207.14     300   180.00      54000.00) Tj
+0 -40 Td
+(Total CIF Value: 1,684,000.00 USD) Tj
+0 -20 Td
+(Origin: Thailand) Tj
+0 -20 Td
+(Destination: Japan) Tj
+0 -20 Td
+(Incoterms: CIF Yokohama) Tj
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000001230 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+1298
+%%EOF
