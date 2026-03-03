@@ -22,13 +22,14 @@ certs/
 # Ignore ข้อมูลใน Database และ Redis (ให้สร้างใหม่จาก Migration)
 data/postgres/*
 data/redis/*
+data/minio/
 !data/postgres/.gitkeep
 !data/redis/.gitkeep
 
 # --- Java Backend (Spring Boot) ---
 backend-core/.mvn/wrapper/maven-wrapper.jar
 backend-core/target/
-backend-core/build/
+**/build/
 backend-core/.gradle/
 backend-core/bin/
 backend-core/out/
@@ -57,6 +58,12 @@ venv/
 # --- Antigravity Brain ---
 # เก็บ Skills ไว้ แต่เลือก ignore memory ถ้ามีข้อมูลส่วนตัวผู้ใช้เยอะ
 .antigravity/memory/*.json
+
+# --- Test Results ---
+chrome-extension/cgai/test-results/
+
+# --- Claude Code ---
+claude/
 
 # --- IDEs & Editors ---
 .idea/
