@@ -336,16 +336,13 @@ describe("Edge Cases", () => {
     expect([200, 400, 403]).toContain(resp.status);
   });
 
-  it("18. Poll non-existent job → not 200", async () => {
+  it("18. Poll non-existent job → 404", async () => {
     const fakeJobId = "00000000-0000-0000-0000-000000000999";
     const resp = await fetch(
       `${BASE_URL}/v1/customsguard/scan/${fakeJobId}`,
       { headers: authHeaders(token, tenantId) }
     );
-    // Backend returns 500 instead of 404 — known gap, should be fixed to 404.
-    // For now, assert it does NOT return 200 (data leak).
-    expect(resp.status).not.toBe(200);
-    expect([404, 500]).toContain(resp.status);
+    expect(resp.status).toBe(404);
   });
 
   it("19. Semantic search with empty query → still returns 200", async () => {

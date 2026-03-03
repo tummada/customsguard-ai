@@ -9,7 +9,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import org.springframework.dao.EmptyResultDataAccessException;
+
 import java.io.IOException;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -22,10 +28,12 @@ public class ScanService {
 
     private final S3StorageService s3Service;
     private final JdbcTemplate jdbcTemplate;
+    private final ObjectMapper objectMapper;
 
-    public ScanService(S3StorageService s3Service, JdbcTemplate jdbcTemplate) {
+    public ScanService(S3StorageService s3Service, JdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
         this.s3Service = s3Service;
         this.jdbcTemplate = jdbcTemplate;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -102,16 +110,37 @@ public class ScanService {
 
     @Transactional(readOnly = true)
     public ScanJobResponse getJobStatus(UUID tenantId, UUID jobId) {
-        return jdbcTemplate.queryForObject("""
-            SELECT j.id, j.status, j.progress, j.prompt
-            FROM ai_jobs j
-            WHERE j.id = ?::uuid AND j.tenant_id = ?::uuid
-            """,
-                (rs, rowNum) -> new ScanJobResponse(
-                        UUID.fromString(rs.getString("id")),
-                        rs.getString("status"),
-                        rs.getShort("progress"),
-                        rs.getString("prompt")),
-                jobId.toString(), tenantId.toString());
+        try {
+            return jdbcTemplate.queryForObject("""
+                SELECT j.id, j.status, j.progress, j.prompt, d.items
+                FROM ai_jobs j
+                LEFT JOIN cg_declarations d ON d.ai_job_id = j.id
+                WHERE j.id = ?::uuid AND j.tenant_id = ?::uuid
+                """,
+                    (rs, rowNum) -> {
+                        String status = rs.getString("status");
+                        List<ScanJobResponse.ExtractedItem> items = null;
+                        if ("COMPLETED".equals(status)) {
+                            String itemsJson = rs.getString("items");
+                            if (itemsJson != null) {
+                                try {
+                                    items = objectMapper.readValue(itemsJson,
+                                            new TypeReference<List<ScanJobResponse.ExtractedItem>>() {});
+                                } catch (Exception e) {
+                                    log.warn("Failed to parse items JSON for job {}", jobId, e);
+                                }
+                            }
+                        }
+                        return new ScanJobResponse(
+                                UUID.fromString(rs.getString("id")),
+                                status,
+                                rs.getShort("progress"),
+                                rs.getString("prompt"),
+                                items);
+                    },
+                    jobId.toString(), tenantId.toString());
+        } catch (EmptyResultDataAccessException e) {
+            return null;
+        }
     }
 }
