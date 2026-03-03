@@ -12,4 +12,9 @@ dependencies {
     api("org.flywaydb:flyway-database-postgresql")
     api("com.github.ben-manes.caffeine:caffeine")
     runtimeOnly("org.postgresql:postgresql")
+
+    // JWT support
+    api("io.jsonwebtoken:jjwt-api:0.12.6")
+    runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.6")
+    runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.6")
 }

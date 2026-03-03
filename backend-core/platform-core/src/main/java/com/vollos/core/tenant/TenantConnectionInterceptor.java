@@ -3,6 +3,7 @@ package com.vollos.core.tenant;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
+import org.springframework.jdbc.datasource.DataSourceUtils;
 import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
@@ -12,6 +13,9 @@ import java.util.UUID;
 /**
  * AOP aspect that injects SET LOCAL app.current_tenant_id before JPA operations.
  * This ensures PostgreSQL RLS policies filter by the correct tenant.
+ *
+ * Uses DataSourceUtils.getConnection() to obtain the same connection that JPA/Hibernate
+ * uses within the current transaction, ensuring set_config() is applied correctly.
  */
 @Aspect
 @Component
@@ -27,12 +31,13 @@ public class TenantConnectionInterceptor {
     public Object setTenantContext(ProceedingJoinPoint joinPoint) throws Throwable {
         UUID tenantId = TenantContext.getCurrentTenantId();
         if (tenantId != null) {
-            try (Connection conn = dataSource.getConnection()) {
-                try (var stmt = conn.prepareStatement(
-                        "SELECT set_config('app.current_tenant_id', ?, true)")) {
-                    stmt.setString(1, tenantId.toString());
-                    stmt.execute();
-                }
+            Connection conn = DataSourceUtils.getConnection(dataSource);
+            try (var stmt = conn.prepareStatement(
+                    "SELECT set_config('app.current_tenant_id', ?, true)")) {
+                stmt.setString(1, tenantId.toString());
+                stmt.execute();
+            } finally {
+                DataSourceUtils.releaseConnection(conn, dataSource);
             }
         }
         return joinPoint.proceed();

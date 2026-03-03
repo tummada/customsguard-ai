@@ -41,6 +41,9 @@ public class HsCodeEntity {
     @Column(name = "embedded")
     private Boolean embedded = false;
 
+    @Column(name = "source_url")
+    private String sourceUrl;
+
     @Column(name = "created_at", updatable = false)
     private Instant createdAt;
 
@@ -86,6 +89,8 @@ public class HsCodeEntity {
     public void setCategory(String category) { this.category = category; }
     public Boolean getEmbedded() { return embedded; }
     public void setEmbedded(Boolean embedded) { this.embedded = embedded; }
+    public String getSourceUrl() { return sourceUrl; }
+    public void setSourceUrl(String sourceUrl) { this.sourceUrl = sourceUrl; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 }

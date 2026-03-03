@@ -22,6 +22,11 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
+    out-of-order: true
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 12MB
   jackson:
     serialization:
       write-dates-as-timestamps: false
@@ -29,19 +34,23 @@ spring:
 gemini:
   api-key: ${GEMINI_API_KEY:}
   embedding:
-    model: text-embedding-004
-    url: https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent
+    model: gemini-embedding-001
+    url: https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent
     dimensions: 768
   chat:
     model: gemini-2.5-flash
     url: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent
 
 s3:
-  access-key-id: ${AWS_ACCESS_KEY_ID:}
-  secret-access-key: ${AWS_SECRET_ACCESS_KEY:}
-  bucket-name: ${S3_BUCKET_NAME:dev-bucket}
-  endpoint: ${S3_ENDPOINT:}
+  access-key-id: ${AWS_ACCESS_KEY_ID:minioadmin}
+  secret-access-key: ${AWS_SECRET_ACCESS_KEY:minioadmin}
+  bucket-name: ${S3_BUCKET_NAME:vollos-dev}
+  endpoint: ${S3_ENDPOINT:http://localhost:9000}
   region: ${AWS_REGION:auto}
+
+jwt:
+  secret: ${JWT_SECRET:vollos-dev-secret-key-change-in-production-min-32-chars!!}
+  expiration-hours: ${JWT_EXPIRATION_HOURS:24}
 
 server:
   port: 8080

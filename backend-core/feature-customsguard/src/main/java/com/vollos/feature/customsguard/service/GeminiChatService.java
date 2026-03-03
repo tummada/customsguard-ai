@@ -11,6 +11,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
@@ -32,6 +33,56 @@ public class GeminiChatService {
         this.objectMapper = objectMapper;
         this.apiKey = apiKey;
         this.chatUrl = chatUrl;
+    }
+
+    /**
+     * Extract text from an image using Gemini Vision (for scanned PDFs without text layer).
+     */
+    public String extractTextFromImage(byte[] imageBytes, String mimeType) {
+        try {
+            String base64Image = Base64.getEncoder().encodeToString(imageBytes);
+
+            Map<String, Object> requestBody = Map.of(
+                    "contents", List.of(
+                            Map.of("parts", List.of(
+                                    Map.of("inlineData", Map.of(
+                                            "mimeType", mimeType,
+                                            "data", base64Image
+                                    )),
+                                    Map.of("text", "Extract all text from this image. Return only the extracted text, preserving the original layout as much as possible. If the text is in Thai, keep it in Thai.")
+                            ))
+                    ),
+                    "generationConfig", Map.of(
+                            "temperature", 0.1,
+                            "maxOutputTokens", 4096
+                    )
+            );
+
+            String json = objectMapper.writeValueAsString(requestBody);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(chatUrl + "?key=" + apiKey))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(json))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request,
+                    HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() != 200) {
+                log.error("Gemini vision error {}: {}", response.statusCode(), response.body());
+                return "";
+            }
+
+            JsonNode root = objectMapper.readTree(response.body());
+            return root.path("candidates").get(0)
+                    .path("content").path("parts").get(0)
+                    .path("text").asText();
+
+        } catch (Exception e) {
+            log.error("Failed to extract text from image via Gemini Vision", e);
+            return "";
+        }
     }
 
     public String generateAnswer(String query, String context) {

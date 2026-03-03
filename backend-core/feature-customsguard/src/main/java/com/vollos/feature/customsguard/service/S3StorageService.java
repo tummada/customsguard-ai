@@ -4,24 +4,23 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
-import java.io.IOException;
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.util.Base64;
 
 @Service
 public class S3StorageService {
 
     private static final Logger log = LoggerFactory.getLogger(S3StorageService.class);
 
+    private final S3Client s3Client;
     private final String bucketName;
-    private final String endpoint;
-    private final String accessKeyId;
-    private final String secretAccessKey;
-    private final String region;
 
     public S3StorageService(
             @Value("${s3.bucket-name}") String bucketName,
@@ -30,27 +29,36 @@ public class S3StorageService {
             @Value("${s3.secret-access-key:}") String secretAccessKey,
             @Value("${s3.region:auto}") String region) {
         this.bucketName = bucketName;
-        this.endpoint = endpoint;
-        this.accessKeyId = accessKeyId;
-        this.secretAccessKey = secretAccessKey;
-        this.region = region;
+
+        var builder = S3Client.builder()
+                .region(Region.of(region.equals("auto") ? "us-east-1" : region))
+                .forcePathStyle(true);
+
+        if (!accessKeyId.isBlank() && !secretAccessKey.isBlank()) {
+            builder.credentialsProvider(StaticCredentialsProvider.create(
+                    AwsBasicCredentials.create(accessKeyId, secretAccessKey)));
+        }
+
+        if (!endpoint.isBlank()) {
+            builder.endpointOverride(URI.create(endpoint));
+        }
+
+        this.s3Client = builder.build();
+        log.info("S3StorageService initialized: bucket={}, endpoint={}", bucketName,
+                endpoint.isBlank() ? "AWS default" : endpoint);
     }
 
     public String uploadPdf(byte[] data, String key) {
-        // For development: log the upload intent
-        // In production: use AWS SDK S3Client to upload
         log.info("Uploading PDF to S3: bucket={}, key={}, size={} bytes",
                 bucketName, key, data.length);
 
-        // TODO: Implement actual S3 upload with AWS SDK when S3 credentials are configured
-        // S3Client s3 = S3Client.builder()
-        //     .endpointOverride(URI.create(endpoint))
-        //     .region(Region.of(region))
-        //     .credentialsProvider(StaticCredentialsProvider.create(
-        //         AwsBasicCredentials.create(accessKeyId, secretAccessKey)))
-        //     .build();
-        // s3.putObject(PutObjectRequest.builder().bucket(bucketName).key(key).build(),
-        //     RequestBody.fromBytes(data));
+        s3Client.putObject(
+                PutObjectRequest.builder()
+                        .bucket(bucketName)
+                        .key(key)
+                        .contentType("application/pdf")
+                        .build(),
+                RequestBody.fromBytes(data));
 
         return key;
     }
@@ -58,7 +66,11 @@ public class S3StorageService {
     public byte[] downloadPdf(String key) {
         log.info("Downloading PDF from S3: bucket={}, key={}", bucketName, key);
 
-        // TODO: Implement actual S3 download
-        throw new UnsupportedOperationException("S3 download not yet implemented");
+        return s3Client.getObjectAsBytes(
+                GetObjectRequest.builder()
+                        .bucket(bucketName)
+                        .key(key)
+                        .build())
+                .asByteArray();
     }
 }

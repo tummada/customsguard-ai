@@ -21,21 +21,24 @@ public class GeminiEmbeddingService {
     private final ObjectMapper objectMapper;
     private final String apiKey;
     private final String modelUrl;
+    private final int dimensions;
 
     public GeminiEmbeddingService(
             ObjectMapper objectMapper,
             @Value("${gemini.api-key}") String apiKey,
-            @Value("${gemini.embedding.url}") String modelUrl) {
+            @Value("${gemini.embedding.url}") String modelUrl,
+            @Value("${gemini.embedding.dimensions:768}") int dimensions) {
         this.httpClient = HttpClient.newHttpClient();
         this.objectMapper = objectMapper;
         this.apiKey = apiKey;
         this.modelUrl = modelUrl;
+        this.dimensions = dimensions;
     }
 
     public float[] embed(String text) {
         try {
             String requestBody = objectMapper.writeValueAsString(
-                    new EmbedRequest(new Content(new Part[]{new Part(text)})));
+                    new EmbedRequest(new Content(new Part[]{new Part(text)}), dimensions));
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(modelUrl + "?key=" + apiKey))
@@ -76,7 +79,7 @@ public class GeminiEmbeddingService {
         return sb.append("]").toString();
     }
 
-    private record EmbedRequest(Content content) {}
+    private record EmbedRequest(Content content, int outputDimensionality) {}
     private record Content(Part[] parts) {}
     private record Part(String text) {}
 }
