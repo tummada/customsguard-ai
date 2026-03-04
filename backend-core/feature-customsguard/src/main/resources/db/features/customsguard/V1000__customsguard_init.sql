@@ -6,7 +6,8 @@
 -- Register feature in the catalog
 INSERT INTO platform_features (feature_id, display_name, description)
 VALUES ('customsguard', 'CustomsGuard - HS Code Management',
-        'AI-powered customs declaration and HS code classification');
+        'AI-powered customs declaration and HS code classification')
+ON CONFLICT (feature_id) DO NOTHING;
 
 -- HS Code reference + tenant-specific data
 CREATE TABLE cg_hs_codes (
