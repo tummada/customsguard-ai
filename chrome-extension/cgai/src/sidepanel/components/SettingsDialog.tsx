@@ -8,7 +8,7 @@ interface SettingsDialogProps {
 }
 
 export default function SettingsDialog({ open, onClose, onAuthChange }: SettingsDialogProps) {
-  const [backendUrl, setBackendUrl] = useState("http://localhost:8080");
+  const [backendUrl, setBackendUrl] = useState("https://api.vollos.ai");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [saving, setSaving] = useState(false);

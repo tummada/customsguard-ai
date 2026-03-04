@@ -101,10 +101,10 @@ services:
     tmpfs: /tmp
     deploy:
       resources:
-        limits: { cpus: '0.8', memory: 1536M, pids: 500 }
+        limits: { cpus: '0.6', memory: 1024M, pids: 500 }
     logging: *default-logging
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:8080/v1/auth/dev-token", "-X", "POST"]
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/actuator/health"]
       interval: 30s
       start_period: 60s
 
@@ -127,23 +127,12 @@ services:
     volumes:
       - ./infra/nginx/conf.d:/etc/nginx/conf.d:ro
       - ./infra/nginx/ssl:/etc/nginx/ssl:ro
-      - ./data/certbot/conf:/etc/letsencrypt:ro
-      - ./data/certbot/www:/var/www/certbot:ro
     depends_on:
       backend: { condition: service_healthy }
     deploy:
       resources:
         limits: { cpus: '0.1', memory: 128M }
     logging: *default-logging
-
-  # Auto-renew SSL certificates
-  certbot:
-    image: certbot/certbot
-    container_name: vollos-certbot
-    volumes:
-      - ./data/certbot/conf:/etc/letsencrypt
-      - ./data/certbot/www:/var/www/certbot
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
 
   # Daily DB backup at 3am
   db-backup:
@@ -159,13 +148,19 @@ services:
       PGUSER: ${DB_USER}
       PGPASSWORD: ${DB_PASSWORD}
       PGDATABASE: ${DB_NAME}
+    deploy:
+      resources:
+        limits: { cpus: '0.1', memory: 256M }
+    logging:
+      driver: "json-file"
+      options: { max-size: "10m", max-file: "3" }
     entrypoint: >
       /bin/sh -c 'while true; do
         sleep 3600;
         HOUR=$$(date +%H);
         if [ "$$HOUR" = "03" ]; then
-          pg_dump -Fc > /backups/vollos_$$(date +%Y%m%d_%H%M).dump;
-          find /backups -name "*.dump" -mtime +7 -delete;
+          pg_dump -Fc | gzip > /backups/vollos_$$(date +%Y%m%d_%H%M).dump.gz;
+          find /backups -name "*.dump.gz" -mtime +7 -delete;
           echo "[BACKUP] Done: $$(date)";
           sleep 82800;
         fi;

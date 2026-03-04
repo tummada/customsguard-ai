@@ -135,12 +135,30 @@ CustomsGuard endpoints:
 
 ---
 
+## Architecture Commandments (กฎเหล็ก)
+
+กฎที่ต้องปฏิบัติตามเสมอ — มาจาก Team Manifesto:
+
+1. **Silence is Veto** — ถ้าไม่แน่ใจว่าการเปลี่ยนแปลงจะกระทบ resource/security → ให้ถามก่อน ห้ามเดา
+2. **No Yes-Man** — ถ้าคำสั่งผู้ใช้เสี่ยงต่อเครื่อง 8GB หรือ security → ต้อง "ขัด" และเสนอทางเลือกที่ Lean กว่า
+3. **Sequential Write Rule** — ห้ามใช้ `GenerationType.AUTO` → ต้องสร้าง UUID v7 จาก Application Layer เสมอ
+4. **Audit-Ready** — ทุก destructive action ต้อง log, ทุก query ต้องผ่าน RLS (`tenant_id`)
+5. **The 1.9 Rule** — Docker CPU quota รวมต้อง ≤ 1.9 cores (เหลือ 0.1 ให้ Host OS)
+6. **Binary-Free** — ห้ามเก็บ binary ใน container filesystem → ใช้ S3/MinIO เท่านั้น
+7. **Shadow Build** — ห้าม build GraalVM native image บน production (ใช้ CI/CD)
+
+---
+
 ## Available Skills (summary only — read SKILL.md for details)
 
 - `/vollos-api-test <endpoint>` — Stateful API tester with token cache, auto-retry, skeleton response. For details: `.claude/skills/vollos-api-test/SKILL.md`
 - `/check-table <name>` — Show table schema with smart validation (auto-lists tables if no arg). For details: `~/.claude/skills/check-table/SKILL.md`
 - `/db-health` — Full system health report (DB + API + migrations). For details: `.claude/skills/db-health/SKILL.md`
 - `/hello` — Senior Dev personality greeting. For details: `~/.claude/skills/hello/SKILL.md`
+- `/review-db <file>` — ตรวจ SQL migration/schema ตามมาตรฐาน (RLS, UUID v7, index quota). For details: `.claude/skills/review-db/SKILL.md`
+- `/review-java <file>` — ตรวจ Java code ตามมาตรฐาน (Virtual Threads, HikariCP, GraalVM). For details: `.claude/skills/review-java/SKILL.md`
+- `/security-audit <scope>` — ตรวจ security (JWT, RLS, PII, S3, CORS, rate limiting). For details: `.claude/skills/security-audit/SKILL.md`
+- `/review-infra <file>` — ตรวจ Docker/resource config ตามข้อจำกัด 2CPU/8GB. For details: `.claude/skills/review-infra/SKILL.md`
 
 ## MCP Servers Available
 

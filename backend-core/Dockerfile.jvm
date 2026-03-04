@@ -19,5 +19,5 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf 
 WORKDIR /app
 COPY --from=builder /app/platform-app/build/libs/vollos-backend.jar app.jar
 EXPOSE 8080
-ENV JAVA_OPTS="-Xms256m -Xmx1024m -XX:+UseZGC"
+ENV JAVA_OPTS="-Xms512m -Xmx768m -XX:+UseSerialGC"
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

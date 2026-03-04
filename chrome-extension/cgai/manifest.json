@@ -13,6 +13,7 @@
   ],
   "host_permissions": [
     "https://*.customs.go.th/*",
+    "https://api.vollos.ai/*",
     "http://localhost/*",
     "https://localhost/*"
   ],

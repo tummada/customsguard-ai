@@ -5,6 +5,7 @@ plugins {
 
 dependencies {
     implementation(project(":platform-core"))
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
 
     // Feature modules - add one line per vertical
     runtimeOnly(project(":feature-customsguard"))

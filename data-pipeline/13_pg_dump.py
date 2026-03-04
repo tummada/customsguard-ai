@@ -14,12 +14,7 @@ import subprocess
 from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(__file__))
-
-# Cloud SQL connection info
-DB_HOST = "34.41.13.86"
-DB_PORT = "5432"
-DB_NAME = "vollos_dev"
-DB_USER = "pipeline_user"
+from config import DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
 
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "data")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -48,7 +43,7 @@ def main():
     cmd = [
         "pg_dump",
         "-h", DB_HOST,
-        "-p", DB_PORT,
+        "-p", str(DB_PORT),
         "-U", DB_USER,
         "-d", DB_NAME,
         "--no-owner",
@@ -58,7 +53,7 @@ def main():
     ] + table_args
 
     env = os.environ.copy()
-    env["PGPASSWORD"] = "CustomsGuard2026!"
+    env["PGPASSWORD"] = DB_PASSWORD
 
     print("\nRunning pg_dump...")
     with open(dump_file.replace(".gz", ""), "w") as f:
