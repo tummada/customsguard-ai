@@ -6,7 +6,12 @@
 -- First ensure the HS codes exist (some may not be seeded yet)
 INSERT INTO cg_hs_codes (code, description_th, description_en, base_rate, unit, category, embedded)
 VALUES
-    ('4011.10', 'ยางรถยนต์นั่ง', 'New pneumatic tyres of rubber for motor cars', 10.00, 'EA', 'Rubber', false)
+    ('1006.30', 'ข้าวขาว', 'Semi-milled or wholly milled rice', 30.00, 'KG', 'Cereals', false),
+    ('8471.30', 'คอมพิวเตอร์แบบพกพา', 'Portable digital computers', 0.00, 'EA', 'Machinery', false),
+    ('0306.17', 'กุ้งแช่แข็ง', 'Frozen shrimps and prawns', 5.00, 'KG', 'Seafood', false),
+    ('4011.10', 'ยางรถยนต์นั่ง', 'New pneumatic tyres of rubber for motor cars', 10.00, 'EA', 'Rubber', false),
+    ('0207.14', 'เนื้อไก่แช่แข็ง', 'Frozen cuts and offal of chickens', 40.00, 'KG', 'Meat', false),
+    ('8517.12', 'โทรศัพท์มือถือ', 'Smartphones', 0.00, 'EA', 'Electronics', false)
 ON CONFLICT (code) DO NOTHING;
 
 -- Seed FTA rates with clear savings
