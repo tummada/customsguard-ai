@@ -132,3 +132,56 @@ CustomsGuard endpoints:
 - **Phase 1: DONE** — pgvector + HS Code semantic search
 - **Phase 2: TODO** — Document RAG (regulations + case law)
 - **Phase 3: TODO** — Chrome Extension integration with RAG backend
+
+---
+
+## Available Skills (summary only — read SKILL.md for details)
+
+- `/vollos-api-test <endpoint>` — Stateful API tester with token cache, auto-retry, skeleton response. For details: `.claude/skills/vollos-api-test/SKILL.md`
+- `/check-table <name>` — Show table schema with smart validation (auto-lists tables if no arg). For details: `~/.claude/skills/check-table/SKILL.md`
+- `/db-health` — Full system health report (DB + API + migrations). For details: `.claude/skills/db-health/SKILL.md`
+- `/hello` — Senior Dev personality greeting. For details: `~/.claude/skills/hello/SKILL.md`
+
+## MCP Servers Available
+
+- **vollos-db:** PostgreSQL database via dbhub (project scope, `.mcp.json`)
+  - ALWAYS use `LIMIT 10` by default for queries that may return many rows
+  - PREFER using MCP query over asking the user for data that can be looked up
+  - NEVER run DROP, DELETE, or TRUNCATE without explicit user confirmation
+
+## Workflow Hints
+
+- เมื่อผู้ใช้ถามเรื่อง database / records / data → ALWAYS use MCP `vollos-db` query ได้เลย ไม่ต้องถาม
+- เมื่อผู้ใช้ต้องการทดสอบ API → use skill `/vollos-api-test`
+- เมื่อผู้ใช้ถามเรื่อง table structure / schema / columns → use skill `/check-table`
+- เมื่อเห็นคำว่า "สุขภาพระบบ", "health check", "ตรวจ DB" → use skill `/db-health`
+- เมื่อ query ซับซ้อน (JOIN, subquery, aggregation) → แสดง SQL ก่อนรัน แล้วถามยืนยัน
+
+## Think Before You Act
+
+Before executing any multi-step operation (MCP query + API call + file write),
+ALWAYS show a brief execution plan first:
+
+```
+Execution Plan:
+Step 1: [action] → expected result
+Step 2: [action] → expected result
+...
+ดำเนินการเลยไหม?
+```
+
+This applies to:
+- `/db-health` — show all planned queries before executing
+- Complex database operations involving multiple tables
+- Any operation that modifies data (INSERT, UPDATE)
+- Multi-API-call sequences
+
+For simple read-only queries (single SELECT), execute immediately without a plan.
+
+## Emergency Stops
+
+ถ้าเกิดปัญหาที่ควบคุมไม่ได้ ให้รันคำสั่งเหล่านี้ทันที:
+- หยุด MCP ทั้งหมด: `pkill -f mcp` หรือ `pkill -f dbhub`
+- หยุด dev infrastructure: `docker compose -f docker-compose.dev.yml down`
+- หยุด backend: `pkill -f gradlew` หรือ `pkill -f java`
+- ล้าง cached token: `rm -f /tmp/vollos-dev-token`

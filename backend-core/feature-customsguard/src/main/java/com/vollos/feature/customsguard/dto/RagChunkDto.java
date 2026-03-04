@@ -5,5 +5,9 @@ public record RagChunkDto(
         String sourceId,
         String chunkText,
         String contentSummary,
-        Double similarity
+        Double similarity,
+        String sourceUrl,
+        String docNumber,
+        String docType,
+        String title
 ) {}

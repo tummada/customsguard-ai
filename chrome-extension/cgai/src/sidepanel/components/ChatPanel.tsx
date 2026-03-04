@@ -1,16 +1,21 @@
 import { useState, useRef, useEffect } from "react";
 import { apiClient, isCacheValid, RAG_CACHE_TTL_MS } from "@/lib/api-client";
+import type { RagSource } from "@/lib/api-client";
 import { db } from "@/lib/db";
 
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
-  sources?: { sourceType: string; sourceId: string; chunkText: string; similarity: number }[];
+  sources?: RagSource[];
   timestamp: Date;
   fromCache?: boolean;
 }
 
-export default function ChatPanel() {
+interface ChatPanelProps {
+  activeHsCodes?: string[];
+}
+
+export default function ChatPanel({ activeHsCodes }: ChatPanelProps) {
   const [query, setQuery] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
@@ -65,7 +70,12 @@ export default function ChatPanel() {
       }
 
       // Cache miss or expired: fetch from API
-      const result = await apiClient.ragSearch(trimmed);
+      // Inject HS code context from scan if available
+      let contextualQuery = trimmed;
+      if (activeHsCodes && activeHsCodes.length > 0) {
+        contextualQuery = `[Context: สินค้าในใบขนนี้ HS codes: ${activeHsCodes.join(", ")}]\nคำถาม: ${trimmed}`;
+      }
+      const result = await apiClient.ragSearch(contextualQuery);
 
       // Store in cache (delete old entry if exists, then add new)
       if (cached) {
@@ -147,11 +157,35 @@ export default function ChatPanel() {
                       key={j}
                       className="text-[10px] text-gray-500 bg-gray-50 rounded px-2 py-1 mt-1"
                     >
-                      <span className="text-gray-400">[{src.sourceType}]</span>{" "}
-                      {src.chunkText.slice(0, 80)}...
-                      <span className="text-gray-400 ml-1">
-                        ({Math.round(src.similarity * 100)}%)
-                      </span>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-400">
+                          [{src.docType || src.sourceType}]
+                        </span>
+                        <span className="text-gray-400">
+                          ({Math.round(src.similarity * 100)}%)
+                        </span>
+                      </div>
+                      {src.title && (
+                        <p className="font-medium text-gray-600 mt-0.5">
+                          {src.title}
+                        </p>
+                      )}
+                      {src.docNumber && (
+                        <p className="text-gray-400">เลขที่: {src.docNumber}</p>
+                      )}
+                      <p className="mt-0.5">
+                        {src.chunkText.slice(0, 120)}...
+                      </p>
+                      {src.sourceUrl && (
+                        <a
+                          href={src.sourceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-500 hover:underline mt-0.5 block"
+                        >
+                          ดูต้นฉบับ →
+                        </a>
+                      )}
                     </div>
                   ))}
                 </div>

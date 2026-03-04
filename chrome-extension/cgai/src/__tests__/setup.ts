@@ -36,6 +36,9 @@ Object.assign(globalThis, {
   },
 });
 
+// jsdom doesn't implement scrollIntoView
+Element.prototype.scrollIntoView = vi.fn();
+
 // Reset storage between tests
 beforeEach(() => {
   store.clear();

@@ -27,6 +27,7 @@ function copyPdfWorker() {
 }
 
 export default defineConfig({
+  base: "",
   plugins: [react(), tailwindcss(), copyPdfWorker(), crx({ manifest })],
   resolve: {
     alias: {

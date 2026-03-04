@@ -1,5 +1,7 @@
 package com.vollos.feature.customsguard.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vollos.feature.customsguard.dto.RagChunkDto;
 import com.vollos.feature.customsguard.dto.RagSearchResponse;
 import com.vollos.feature.customsguard.repository.DocumentChunkRepository;
@@ -11,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -21,6 +24,9 @@ import java.util.stream.Collectors;
 public class RagService {
 
     private static final Logger log = LoggerFactory.getLogger(RagService.class);
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
 
     private final GeminiEmbeddingService embeddingService;
     private final DocumentChunkRepository chunkRepo;
@@ -33,6 +39,31 @@ public class RagService {
         this.embeddingService = embeddingService;
         this.chunkRepo = chunkRepo;
         this.chatService = chatService;
+    }
+
+    private Map<String, Object> parseMetadata(Object raw) {
+        if (raw == null) return Collections.emptyMap();
+        try {
+            String json = raw.toString();
+            return MAPPER.readValue(json, MAP_TYPE);
+        } catch (Exception e) {
+            log.warn("Failed to parse metadata JSONB: {}", e.getMessage());
+            return Collections.emptyMap();
+        }
+    }
+
+    private RagChunkDto toChunkDto(Object[] row) {
+        var meta = parseMetadata(row[6]);
+        return new RagChunkDto(
+                (String) row[1],   // source_type
+                (String) row[2],   // source_id
+                (String) row[4],   // chunk_text
+                (String) row[5],   // content_summary
+                row[7] != null ? ((Number) row[7]).doubleValue() : null,  // similarity
+                (String) meta.get("source_url"),
+                (String) meta.get("doc_number"),
+                (String) meta.get("doc_type"),
+                (String) meta.get("title"));
     }
 
     @Transactional(readOnly = true)
@@ -65,12 +96,7 @@ public class RagService {
         // 5. Map chunks to DTOs
         List<RagChunkDto> sources = chunks.stream()
                 .limit(limit)
-                .map(row -> new RagChunkDto(
-                        (String) row[1],   // source_type
-                        (String) row[2],   // source_id
-                        (String) row[4],   // chunk_text
-                        (String) row[5],   // content_summary
-                        row[7] != null ? ((Number) row[7]).doubleValue() : null))  // similarity
+                .map(this::toChunkDto)
                 .toList();
 
         long elapsed = System.currentTimeMillis() - start;
@@ -107,10 +133,7 @@ public class RagService {
                 // 3. Emit: sources (so UI can show them immediately)
                 List<RagChunkDto> sources = chunks.stream()
                         .limit(limit)
-                        .map(row -> new RagChunkDto(
-                                (String) row[1], (String) row[2],
-                                (String) row[4], (String) row[5],
-                                row[7] != null ? ((Number) row[7]).doubleValue() : null))
+                        .map(this::toChunkDto)
                         .toList();
 
                 emitter.send(SseEmitter.event().name("sources").data(sources));

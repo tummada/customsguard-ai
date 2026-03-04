@@ -11,6 +11,7 @@
     "test:watch": "vitest",
     "test:e2e:api": "vitest run --config vitest.e2e.config.ts",
     "test:e2e:ext": "npx playwright test",
+    "test:e2e:ext:manual": "npx playwright test --reporter=html",
     "test:e2e": "npm run test:e2e:api && npm run test:e2e:ext"
   },
   "dependencies": {

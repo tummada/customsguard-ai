@@ -36,8 +36,8 @@ def main():
     # 2. Tune PostgreSQL for index building
     print("\n2. Tuning PostgreSQL for index building...")
     tune_commands = [
-        "SET maintenance_work_mem = '2GB'",
-        "SET max_parallel_maintenance_workers = 4",
+        "SET maintenance_work_mem = '512MB'",
+        "SET max_parallel_maintenance_workers = 2",
     ]
     for cmd in tune_commands:
         print(f"  {cmd}")

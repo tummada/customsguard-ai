@@ -10,11 +10,53 @@ import os
 import sys
 import json
 import random
-import requests
+import requests as stdlib_requests
 
 sys.path.insert(0, os.path.dirname(__file__))
 from config import get_db_conn
-from utils.gcp_vertex_client import embed_text
+
+import google.auth
+import google.auth.transport.requests
+
+PROJECT = "customs-guard-ai"
+REGION = "us-central1"
+EMBED_URL = f"https://{REGION}-aiplatform.googleapis.com/v1beta1/projects/{PROJECT}/locations/{REGION}/publishers/google/models/gemini-embedding-001:predict"
+
+_token = None
+
+def get_token():
+    global _token
+    creds, _ = google.auth.default()
+    creds.refresh(google.auth.transport.requests.Request())
+    _token = creds.token
+    return _token
+
+def embed_text(text):
+    global _token
+    if _token is None:
+        get_token()
+    resp = stdlib_requests.post(
+        EMBED_URL,
+        headers={"Authorization": f"Bearer {_token}"},
+        json={
+            "instances": [{"content": text, "task_type": "RETRIEVAL_QUERY"}],
+            "parameters": {"outputDimensionality": 768},
+        },
+        timeout=30,
+    )
+    if resp.status_code == 401:
+        get_token()
+        resp = stdlib_requests.post(
+            EMBED_URL,
+            headers={"Authorization": f"Bearer {_token}"},
+            json={
+                "instances": [{"content": text, "task_type": "RETRIEVAL_QUERY"}],
+                "parameters": {"outputDimensionality": 768},
+            },
+            timeout=30,
+        )
+    resp.raise_for_status()
+    return resp.json()["predictions"][0]["embeddings"]["values"]
 
 # Test queries covering various customs scenarios
 TEST_QUERIES = [
@@ -124,7 +166,7 @@ def validate_provenance(conn, sample_size: int = 20) -> dict:
             for url in urls:
                 results["checked"] += 1
                 try:
-                    resp = requests.head(url, timeout=10, allow_redirects=True, headers={
+                    resp = stdlib_requests.head(url, timeout=10, allow_redirects=True, headers={
                         "User-Agent": "Mozilla/5.0 (compatible; CustomsGuard-QA/1.0)"
                     })
                     if resp.status_code < 400:

@@ -13,6 +13,7 @@ export default function App() {
   const [message, setMessage] = useState("");
   const [dbReady, setDbReady] = useState(false);
   const [backendConnected, setBackendConnected] = useState(false);
+  const [scannedHsCodes, setScannedHsCodes] = useState<string[]>([]);
 
   useEffect(() => {
     db.open()
@@ -71,9 +72,12 @@ export default function App() {
       }
     } catch (err) {
       setStatus("error");
-      setMessage(
-        err instanceof Error ? err.message : "เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ"
-      );
+      const raw = err instanceof Error ? err.message : "";
+      if (raw.includes("Receiving end does not exist") || raw.includes("Could not establish connection")) {
+        setMessage("ไม่สามารถเชื่อมต่อกับหน้าเว็บได้ — กรุณาเปิดหน้าใบขนสินค้าก่อนกดปุ่มนี้");
+      } else {
+        setMessage(raw || "เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ");
+      }
     }
   };
 
@@ -175,10 +179,10 @@ export default function App() {
         )}
 
         {activeTab === "scan-review" && (
-          <ScanPanel onAuthChange={setBackendConnected} />
+          <ScanPanel onAuthChange={setBackendConnected} onItemsChange={setScannedHsCodes} />
         )}
 
-        {activeTab === "chat" && <ChatPanel />}
+        {activeTab === "chat" && <ChatPanel activeHsCodes={scannedHsCodes} />}
       </div>
     </div>
   );

@@ -1,0 +1,23 @@
+# ============================================================
+# VOLLOS Backend — JVM Multi-stage Build
+# Optimized for CI/CD (fast build, small image)
+# ============================================================
+
+# Stage 1: Build JAR
+FROM eclipse-temurin:21-jdk-jammy AS builder
+WORKDIR /app
+COPY gradle/ gradle/
+COPY gradlew settings.gradle.kts build.gradle.kts ./
+COPY platform-core/ platform-core/
+COPY platform-app/ platform-app/
+COPY feature-customsguard/ feature-customsguard/
+RUN ./gradlew :platform-app:bootJar --no-daemon -x test
+
+# Stage 2: Runtime
+FROM eclipse-temurin:21-jre-jammy
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY --from=builder /app/platform-app/build/libs/vollos-backend.jar app.jar
+EXPOSE 8080
+ENV JAVA_OPTS="-Xms256m -Xmx1024m -XX:+UseZGC"
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

@@ -66,6 +66,9 @@ Desktop.ini
 # ==============================
 coverage/
 .nyc_output/
+e2e-results/
+playwright-report/
+test-results/
 
 # ==============================
 # Misc

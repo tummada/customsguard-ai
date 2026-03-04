@@ -6,7 +6,11 @@ export default defineConfig({
   timeout: 30_000,
   retries: 0,
   workers: 1, // Chrome extension tests must run sequentially
+  outputDir: "e2e-results",
   use: {
     headless: false, // Extension loading requires headed or --headless=new
+    video: "on",
+    screenshot: "on",
+    trace: "on",
   },
 });

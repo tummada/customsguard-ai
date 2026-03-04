@@ -9,18 +9,28 @@ natural user queries.
 Each Q&A pair becomes a new chunk in cg_document_chunks with
 source_type = 'SYNTHETIC_QA' and metadata.derived_from linking
 back to the original regulation.
+
+Embedding uses Vertex AI (billed to GCP credit, not free tier).
 """
 
 import os
 import sys
 import json
+import time
 
 sys.path.insert(0, os.path.dirname(__file__))
 from config import get_db_conn
 from utils.state_tracker import StateTracker
-from utils.gcp_vertex_client import generate_structured, embed_text
+from utils.gcp_vertex_client import generate_structured
 from utils.structured_schemas import ENRICHMENT_SCHEMA
-from tqdm import tqdm
+
+import google.auth
+import google.auth.transport.requests
+import requests as http_requests
+
+PROJECT = "customs-guard-ai"
+REGION = "us-central1"
+EMBED_URL = f"https://{REGION}-aiplatform.googleapis.com/v1beta1/projects/{PROJECT}/locations/{REGION}/publishers/google/models/gemini-embedding-001:predict"
 
 QA_PROMPT_TEMPLATE = """คุณเป็นผู้เชี่ยวชาญด้านศุลกากรไทย กรุณาอ่านเอกสารด้านล่าง
 แล้วสร้างคำถาม-คำตอบ 3-5 คู่ ที่ผู้ประกอบการนำเข้า-ส่งออกอาจถาม
@@ -41,6 +51,32 @@ QA_PROMPT_TEMPLATE = """คุณเป็นผู้เชี่ยวชา�
 ถ้ามี HS code ที่เกี่ยวข้อง ให้ระบุด้วย"""
 
 
+def get_token():
+    creds, _ = google.auth.default()
+    creds.refresh(google.auth.transport.requests.Request())
+    return creds.token
+
+
+def batch_embed(texts, token):
+    resp = http_requests.post(
+        EMBED_URL,
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "instances": [{"content": t, "task_type": "RETRIEVAL_DOCUMENT"} for t in texts],
+            "parameters": {"outputDimensionality": 768},
+        },
+        timeout=120,
+    )
+    if resp.status_code == 401:
+        raise TokenExpiredError("Token expired")
+    resp.raise_for_status()
+    return [p["embeddings"]["values"] for p in resp.json()["predictions"]]
+
+
+class TokenExpiredError(Exception):
+    pass
+
+
 def main():
     conn = get_db_conn()
     tracker = StateTracker(conn, "09_generate_synthetic_qa")
@@ -58,9 +94,11 @@ def main():
 
     print(f"Regulations to generate Q&A for: {len(regulations)}")
 
+    token = get_token()
     total_qa_chunks = 0
+    start_time = time.time()
 
-    for reg_id, doc_type, doc_number, title, content, source_url in tqdm(regulations, desc="Generating Q&A"):
+    for i, (reg_id, doc_type, doc_number, title, content, source_url) in enumerate(regulations):
         source_key = f"qa:{reg_id}"
 
         if tracker.is_processed(source_key):
@@ -84,20 +122,30 @@ def main():
                 tracker.mark_processed(source_key, "no Q&A generated")
                 continue
 
-            # Create a chunk for each Q&A pair
-            for i, qa in enumerate(qa_pairs):
+            # Build all Q&A texts for batch embedding
+            qa_texts = []
+            valid_pairs = []
+            for qi, qa in enumerate(qa_pairs):
                 question = qa.get("question", "")
                 answer = qa.get("answer", "")
-                related_hs = qa.get("related_hs_codes", [])
+                if question and answer:
+                    qa_texts.append(f"คำถาม: {question}\nคำตอบ: {answer}")
+                    valid_pairs.append((qi, qa))
 
-                if not question or not answer:
-                    continue
+            if not qa_texts:
+                tracker.mark_processed(source_key, "no valid Q&A pairs")
+                continue
 
-                # Chunk text: combine Q and A for embedding
-                chunk_text = f"คำถาม: {question}\nคำตอบ: {answer}"
+            # Batch embed all Q&A texts at once (retry on token expiry)
+            try:
+                embeddings = batch_embed(qa_texts, token)
+            except TokenExpiredError:
+                print(f"  Token expired, refreshing...", flush=True)
+                token = get_token()
+                embeddings = batch_embed(qa_texts, token)
 
-                # Embed the Q&A text
-                embedding = embed_text(chunk_text)
+            # Insert all Q&A chunks
+            for (qi, qa), chunk_text, embedding in zip(valid_pairs, qa_texts, embeddings):
                 vec_str = "[" + ",".join(str(v) for v in embedding) + "]"
 
                 metadata = {
@@ -105,9 +153,9 @@ def main():
                     "derived_from": reg_id,
                     "regulation_doc_number": doc_number or "",
                     "regulation_title": title or "",
-                    "question": question,
-                    "answer": answer,
-                    "related_hs_codes": related_hs,
+                    "question": qa.get("question", ""),
+                    "answer": qa.get("answer", ""),
+                    "related_hs_codes": qa.get("related_hs_codes", []),
                 }
 
                 with conn.cursor() as cur:
@@ -118,15 +166,23 @@ def main():
                         VALUES ('SYNTHETIC_QA', %s, %s, %s, %s::vector, %s::jsonb)
                     """, (
                         reg_id,
-                        i,
+                        qi,
                         chunk_text,
                         vec_str,
                         json.dumps(metadata, ensure_ascii=False),
                     ))
-                conn.commit()
-                total_qa_chunks += 1
+            conn.commit()
+            total_qa_chunks += len(valid_pairs)
+            tracker.mark_processed(source_key, f"{len(valid_pairs)} Q&A pairs")
 
-            tracker.mark_processed(source_key, f"{len(qa_pairs)} Q&A pairs")
+            # Progress every 50 regulations
+            if (i + 1) % 50 == 0:
+                elapsed = time.time() - start_time
+                print(f"  {i+1}/{len(regulations)} regs, {total_qa_chunks} Q&A chunks, {elapsed:.0f}s", flush=True)
+
+            # Refresh token every 100 regs (tokens expire in ~1 hour)
+            if (i + 1) % 100 == 0:
+                token = get_token()
 
         except Exception as e:
             print(f"\n  Error generating Q&A for {reg_id}: {e}")
@@ -140,10 +196,12 @@ def main():
         cur.execute("SELECT COUNT(*) FROM cg_document_chunks")
         total_all = cur.fetchone()[0]
 
+    elapsed = time.time() - start_time
     print(f"\n{'='*40}")
     print(f"New synthetic Q&A chunks: {total_qa_chunks}")
     print(f"Total Q&A chunks in DB: {total}")
     print(f"Total all chunks in DB: {total_all}")
+    print(f"Time: {elapsed:.0f}s")
     print(f"Progress: {tracker.get_progress()}")
 
     conn.close()

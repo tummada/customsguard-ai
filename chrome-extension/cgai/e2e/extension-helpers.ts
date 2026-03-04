@@ -1,7 +1,7 @@
-import { chromium, type BrowserContext } from "@playwright/test";
+import { chromium, expect, type BrowserContext, type Page } from "@playwright/test";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DIST_PATH = resolve(__dirname, "../dist");
@@ -19,6 +19,9 @@ export async function launchExtension(): Promise<BrowserContext> {
     );
   }
 
+  const videoDir = resolve(DIST_PATH, "../e2e-results/videos");
+  if (!existsSync(videoDir)) mkdirSync(videoDir, { recursive: true });
+
   const context = await chromium.launchPersistentContext("", {
     headless: false,
     args: [
@@ -28,6 +31,7 @@ export async function launchExtension(): Promise<BrowserContext> {
       "--no-sandbox",
       "--disable-gpu",
     ],
+    recordVideo: { dir: videoDir, size: { width: 1280, height: 720 } },
   });
 
   // Wait for service worker to register
@@ -67,4 +71,30 @@ export async function openSidepanel(context: BrowserContext, extId: string) {
     { waitUntil: "domcontentloaded" }
   );
   return page;
+}
+
+/**
+ * Ensure sidepanel is logged in; login if Offline.
+ */
+export async function ensureLoggedIn(page: Page, baseUrl: string): Promise<void> {
+  const offlineText = page.locator("text=Offline");
+  if (await offlineText.isVisible().catch(() => false)) {
+    await page.locator("button[title='Settings']").click();
+    await page.locator("input[type='url']").fill(baseUrl);
+    await page.locator("input[type='email']").fill("e2e@vollos.local");
+    await page.locator("input[type='password']").fill("test123");
+    await page.locator("button", { hasText: "Login" }).click();
+    await expect(page.locator("text=Connected")).toBeVisible({ timeout: 10_000 });
+    const closeBtn = page.locator("button", { hasText: "Close" });
+    if (await closeBtn.isVisible().catch(() => false)) await closeBtn.click();
+  }
+}
+
+/** Create e2e-results/manual/ directory if not exists */
+export function ensureManualDir(): string {
+  const dir = resolve(DIST_PATH, "../e2e-results/manual");
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true });
+  }
+  return dir;
 }

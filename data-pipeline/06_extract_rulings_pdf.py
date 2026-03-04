@@ -62,29 +62,53 @@ def extract_rulings_from_page(pdf_path: str, page_num: int) -> list[dict]:
         return []
 
 
+def clean_date(val):
+    """Fix bad dates from Gemini: '', 'null', '2014-XX-XX' etc."""
+    if not val or val in ("", "null", "None", "N/A", "ไม่ระบุ"):
+        return None
+    import re
+    # Must be valid YYYY-MM-DD with real month/day
+    import re
+    m = re.match(r'^(\d{4})-(\d{2})-(\d{2})$', val)
+    if m:
+        y, mo, d = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        if 1 <= mo <= 12 and 1 <= d <= 31:
+            return val
+    return None
+
+
 def insert_ruling(conn, ruling: dict, source_url: str, page_num: int):
     """Insert a ruling into cg_regulations."""
     hs_codes = ruling.get("hs_codes", [])
+    issued_date = clean_date(ruling.get("issued_date"))
+    # Truncate long fields
+    doc_number = (ruling.get("doc_number") or "")[:100] or None
+    title = (ruling.get("title") or "Untitled")[:500]
 
-    with conn.cursor() as cur:
-        cur.execute("""
-            INSERT INTO cg_regulations
-                (doc_type, doc_number, title, issuer, issued_date,
-                 content, source_url, related_hs_codes, tags,
-                 updated_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
-        """, (
-            ruling.get("doc_type", "RULING"),
-            ruling.get("doc_number"),
-            ruling.get("title", "Untitled"),
-            ruling.get("issuer", "กรมศุลกากร"),
-            ruling.get("issued_date"),
-            ruling.get("ruling_summary", ""),
-            source_url,
-            hs_codes if hs_codes else None,
-            [f"page_{page_num}", "pdf_extraction"],
-        ))
-    conn.commit()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO cg_regulations
+                    (doc_type, doc_number, title, issuer, issued_date,
+                     content, source_url, related_hs_codes, tags,
+                     updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+            """, (
+                ruling.get("doc_type", "RULING"),
+                doc_number,
+                title,
+                ruling.get("issuer", "กรมศุลกากร"),
+                issued_date,
+                ruling.get("ruling_summary", ""),
+                source_url,
+                hs_codes if hs_codes else None,
+                [f"page_{page_num}", "pdf_extraction"],
+            ))
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print(f"    Insert error: {e}")
+        raise
 
 
 def main():
@@ -140,6 +164,7 @@ def main():
                     tracker.mark_processed(source_key, "no rulings found")
 
             except Exception as e:
+                conn.rollback()
                 print(f"    Page {page_num} ERROR: {e}")
                 tracker.mark_failed(source_key, str(e))
 

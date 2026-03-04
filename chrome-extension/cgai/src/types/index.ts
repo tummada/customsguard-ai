@@ -60,6 +60,7 @@ export interface CgFtaCache {
   preferentialRate: number;
   savingPercent: number;
   conditions: string | null;
+  sourceUrl?: string | null;
   cachedAt: string; // ISO timestamp for cache invalidation
 }
 
@@ -70,6 +71,30 @@ export interface CgRagCache {
   answer: string;
   sources: unknown[];
   processingTimeMs: number;
+  cachedAt: string; // ISO timestamp for cache invalidation
+}
+
+// Cached LPI controls from backend HS lookup
+export interface CgLpiCache {
+  hsCode: string; // PK
+  controlType: string;
+  agencyCode: string;
+  agencyNameTh: string;
+  agencyNameEn: string;
+  requirementTh: string;
+  requirementEn: string;
+  appliesTo: string;
+  sourceUrl?: string | null;
+  cachedAt: string; // ISO timestamp for cache invalidation
+}
+
+// Cached exchange rates from backend
+export interface CgExchangeRateCache {
+  currencyCode: string; // PK
+  currencyName: string;
+  midRate: number;
+  effectiveDate: string;
+  source: string;
   cachedAt: string; // ISO timestamp for cache invalidation
 }
 
@@ -192,16 +217,172 @@ export interface RagSearchResponseMsg {
 
 export type TrafficLightColor = "green" | "orange" | "red" | "blue" | "gold";
 
+/** @deprecated Use computeAuditRisk() instead for multi-factor analysis */
 export function getTrafficColor(
   item: CgDeclarationItem,
   ftaAvailable?: boolean
 ): TrafficLightColor {
+  if (item.editStatus === "CONFIRMED") return "gold";
   if (item.editStatus === "EDITED") return "blue";
   if (ftaAvailable) return "gold";
   if (item.confidence == null) return "red";
   if (item.confidence > 0.9) return "green";
   if (item.confidence >= 0.6) return "orange";
   return "red";
+}
+
+// --- Feature #6: AI Audit Traffic Light (Multi-Factor) ---
+
+export type RiskFlagType =
+  | "HS_NOT_FOUND"
+  | "LOW_CONFIDENCE"
+  | "MISSING_VALUES"
+  | "LPI_REQUIRED"
+  | "HIGH_DUTY"
+  | "USER_EDITED";
+
+export interface RiskFlag {
+  type: RiskFlagType;
+  severity: "error" | "warning" | "info";
+  message: string;
+}
+
+export interface AuditRisk {
+  color: TrafficLightColor;
+  score: number; // 0.0 (safe) - 1.0 (high risk)
+  flags: RiskFlag[];
+  summary: string;
+}
+
+export interface RiskSummary {
+  red: number;
+  orange: number;
+  green: number;
+  gold: number;
+  blue: number;
+  topFlags: RiskFlag[];
+}
+
+export function computeAuditRisk(
+  item: CgDeclarationItem,
+  lpiAlerts: CgLpiCache[],
+  ftaRates: CgFtaCache[]
+): AuditRisk {
+  const flags: RiskFlag[] = [];
+
+  // Step 1: Override — CONFIRMED or EDITED
+  if (item.editStatus === "CONFIRMED" || item.isConfirmed) {
+    return { color: "gold", score: 0, flags: [], summary: "ยืนยันแล้ว" };
+  }
+  if (item.editStatus === "EDITED") {
+    return {
+      color: "blue",
+      score: 0,
+      flags: [{ type: "USER_EDITED", severity: "info", message: "แก้ไขโดยผู้ใช้" }],
+      summary: "แก้ไขโดยผู้ใช้",
+    };
+  }
+
+  // Step 2: Critical flags → RED immediately
+  const confidence = item.confidence ?? 0;
+  const hsNotFound =
+    confidence <= 0.1 && item.aiReason && item.aiReason.includes("ไม่พบ");
+
+  if (hsNotFound) {
+    flags.push({
+      type: "HS_NOT_FOUND",
+      severity: "error",
+      message: "HS Code ไม่พบในฐานข้อมูล",
+    });
+    return { color: "red", score: 1.0, flags, summary: "HS Code ไม่พบ" };
+  }
+
+  if (confidence < 0.6) {
+    flags.push({
+      type: "LOW_CONFIDENCE",
+      severity: "error",
+      message: `ความมั่นใจต่ำ (${Math.round(confidence * 100)}%)`,
+    });
+    return {
+      color: "red",
+      score: 1.0,
+      flags,
+      summary: "ความมั่นใจต่ำ",
+    };
+  }
+
+  const cifNum = item.cifPrice ? parseFloat(item.cifPrice) : 0;
+  if (cifNum <= 0 || !item.quantity || !item.weight) {
+    const missing: string[] = [];
+    if (cifNum <= 0) missing.push("CIF Price");
+    if (!item.quantity) missing.push("Quantity");
+    if (!item.weight) missing.push("Weight");
+    flags.push({
+      type: "MISSING_VALUES",
+      severity: "error",
+      message: `ข้อมูลไม่ครบ: ${missing.join(", ")}`,
+    });
+    return {
+      color: "red",
+      score: 1.0,
+      flags,
+      summary: "ข้อมูลไม่ครบ",
+    };
+  }
+
+  // Step 3: Additive scoring for non-critical
+  let score = 0;
+
+  const lpiCount = lpiAlerts.length;
+  if (lpiCount >= 2) {
+    score += 0.3;
+    flags.push({
+      type: "LPI_REQUIRED",
+      severity: "warning",
+      message: `ต้องมีใบอนุญาต ${lpiCount} หน่วยงาน`,
+    });
+  } else if (lpiCount === 1) {
+    score += 0.15;
+    flags.push({
+      type: "LPI_REQUIRED",
+      severity: "warning",
+      message: `ต้องมีใบอนุญาต (${lpiAlerts[0].agencyNameTh})`,
+    });
+  }
+
+  // Check base duty rate from FTA data
+  const maxBaseRate = ftaRates.reduce((max, r) => {
+    const base = r.preferentialRate + r.savingPercent;
+    return base > max ? base : max;
+  }, 0);
+  if (maxBaseRate >= 30) {
+    score += 0.15;
+    flags.push({
+      type: "HIGH_DUTY",
+      severity: "info",
+      message: `อัตราอากรสูง (${maxBaseRate}%) — ตรวจสอบเข้ม`,
+    });
+  }
+
+  if (confidence >= 0.6 && confidence < 0.8) {
+    score += 0.1;
+    flags.push({
+      type: "LOW_CONFIDENCE",
+      severity: "info",
+      message: `ความมั่นใจปานกลาง (${Math.round(confidence * 100)}%)`,
+    });
+  }
+
+  // Step 4: Color from score
+  const color: TrafficLightColor = score >= 0.4 ? "orange" : "green";
+  const summary =
+    color === "orange"
+      ? "ความเสี่ยงปานกลาง"
+      : flags.length > 0
+        ? "ผ่าน — มีข้อสังเกต"
+        : "ผ่าน";
+
+  return { color, score: Math.min(score, 1.0), flags, summary };
 }
 
 // Union type for all background messages

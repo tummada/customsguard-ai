@@ -1,9 +1,10 @@
 import { useState, useCallback } from "react";
-import type { CgDeclarationItem } from "@/types";
+import type { CgDeclarationItem, AuditRisk } from "@/types";
 import TrafficLight from "./TrafficLight";
 
 interface LineItemTableProps {
   items: CgDeclarationItem[];
+  riskMap?: Map<number, AuditRisk>;
   onEditItem: (
     localId: number,
     field: keyof CgDeclarationItem,
@@ -28,7 +29,7 @@ interface EditingCell {
   field: EditableField;
 }
 
-export default function LineItemTable({ items, onEditItem, onConfirmItem }: LineItemTableProps) {
+export default function LineItemTable({ items, riskMap, onEditItem, onConfirmItem }: LineItemTableProps) {
   const [editing, setEditing] = useState<EditingCell | null>(null);
   const [editValue, setEditValue] = useState("");
 
@@ -82,7 +83,7 @@ export default function LineItemTable({ items, onEditItem, onConfirmItem }: Line
               }`}
             >
               <td className="py-2 px-1">
-                <TrafficLight item={item} />
+                <TrafficLight item={item} risk={riskMap?.get(item.localId!)} />
               </td>
               {COLUMNS.map((col) => {
                 const isEditing =

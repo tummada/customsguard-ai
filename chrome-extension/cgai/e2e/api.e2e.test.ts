@@ -273,6 +273,28 @@ describe("FTA Lookup", () => {
     const first = data[0];
     expect(typeof first.baseRate).toBe("number");
   });
+
+  it("23. FTA lookup → ftaAlerts include sourceUrl field", async () => {
+    const resp = await fetch(`${BASE_URL}/v1/customsguard/hs/lookup`, {
+      method: "POST",
+      headers: {
+        ...authHeaders(token, tenantId),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ codes: ["0306.17"], originCountry: "CN" }),
+    });
+    expect(resp.status).toBe(200);
+
+    const data = await resp.json();
+    expect(data.length).toBeGreaterThan(0);
+    const first = data[0];
+    expect(first.found).toBe(true);
+    expect(first.ftaAlerts.length).toBeGreaterThan(0);
+
+    // sourceUrl key must exist (value may be null if DB has no URL yet)
+    const alert = first.ftaAlerts[0];
+    expect(alert).toHaveProperty("sourceUrl");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -294,6 +316,31 @@ describe("RAG Search", () => {
     const data = await resp.json();
     expect(data).toHaveProperty("answer");
     expect(typeof data.answer).toBe("string");
+  });
+
+  it("24. RAG search → sources include provenance fields", async () => {
+    const resp = await fetch(`${BASE_URL}/v1/customsguard/rag/search`, {
+      method: "POST",
+      headers: {
+        ...authHeaders(token, tenantId),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ query: "กุ้งแช่แข็ง อัตราอากร", limit: 5 }),
+    });
+    expect(resp.status).toBe(200);
+
+    const data = await resp.json();
+    expect(data).toHaveProperty("sources");
+    expect(Array.isArray(data.sources)).toBe(true);
+
+    // If sources exist, verify provenance keys are present (values may be null)
+    if (data.sources.length > 0) {
+      const source = data.sources[0];
+      expect(source).toHaveProperty("sourceUrl");
+      expect(source).toHaveProperty("docNumber");
+      expect(source).toHaveProperty("docType");
+      expect(source).toHaveProperty("title");
+    }
   });
 });
 

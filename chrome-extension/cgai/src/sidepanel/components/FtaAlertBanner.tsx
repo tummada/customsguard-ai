@@ -47,6 +47,16 @@ export default function FtaAlertBanner({ alerts, hsCode }: FtaAlertBannerProps) 
           {alerts[0].conditions}
         </p>
       )}
+      {alerts[0]?.sourceUrl && (
+        <a
+          href={alerts[0].sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-emerald-500 hover:underline text-[10px] mt-1 block"
+        >
+          ดูหลักฐาน →
+        </a>
+      )}
     </div>
   );
 }

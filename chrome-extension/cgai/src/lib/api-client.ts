@@ -21,6 +21,7 @@ export interface HsLookupResult {
   baseRate: number | null;
   unit: string | null;
   ftaAlerts: FtaAlert[];
+  lpiAlerts: LpiAlert[];
   found: boolean;
 }
 
@@ -31,6 +32,27 @@ export interface FtaAlert {
   preferentialRate: number;
   savingPercent: number;
   conditions: string | null;
+  sourceUrl: string | null;
+}
+
+export interface LpiAlert {
+  hsCode: string;
+  controlType: string;
+  agencyCode: string;
+  agencyNameTh: string;
+  agencyNameEn: string;
+  requirementTh: string;
+  requirementEn: string;
+  appliesTo: string;
+  sourceUrl: string | null;
+}
+
+export interface ExchangeRate {
+  currencyCode: string;
+  currencyName: string;
+  midRate: number;
+  effectiveDate: string;
+  source: string;
 }
 
 export interface RagResult {
@@ -45,11 +67,17 @@ export interface RagSource {
   chunkText: string;
   contentSummary: string | null;
   similarity: number;
+  sourceUrl: string | null;
+  docNumber: string | null;
+  docType: string | null;
+  title: string | null;
 }
 
 // Cache TTL: FTA rates change with government announcements
 const FTA_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const RAG_CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
+const LPI_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const EXCHANGE_RATE_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 /** Check if a cached entry is still valid */
 export function isCacheValid(cachedAt: string, ttlMs: number): boolean {
@@ -57,7 +85,7 @@ export function isCacheValid(cachedAt: string, ttlMs: number): boolean {
   return age < ttlMs;
 }
 
-export { FTA_CACHE_TTL_MS, RAG_CACHE_TTL_MS };
+export { FTA_CACHE_TTL_MS, RAG_CACHE_TTL_MS, LPI_CACHE_TTL_MS, EXCHANGE_RATE_CACHE_TTL_MS };
 
 class ApiClient {
   private config: ApiConfig | null = null;
@@ -211,6 +239,11 @@ class ApiClient {
       });
 
     return controller;
+  }
+
+  // Exchange rates
+  async getExchangeRates(): Promise<ExchangeRate[]> {
+    return this.request("/v1/customsguard/exchange-rates");
   }
 
   // Semantic HS search

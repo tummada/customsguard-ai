@@ -1,7 +1,7 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
-import { apiClient, isCacheValid, FTA_CACHE_TTL_MS } from "@/lib/api-client";
-import type { CgDeclarationItem, CgFtaCache, ExtractedLineItem } from "@/types";
+import { apiClient, isCacheValid, FTA_CACHE_TTL_MS, LPI_CACHE_TTL_MS } from "@/lib/api-client";
+import type { CgDeclarationItem, CgFtaCache, CgLpiCache, ExtractedLineItem } from "@/types";
 
 export function useScanItems(declarationLocalId: number) {
   const items = useLiveQuery(
@@ -48,11 +48,41 @@ export function useScanItems(declarationLocalId: number) {
       syncStatus: "LOCAL_ONLY",
     });
 
-    // Auto FTA lookup for extracted HS codes
+    // Auto FTA lookup + knowledge base enrichment for extracted HS codes
     if (apiClient.isConfigured() && extracted.length > 0) {
-      fetchAndCacheFtaRates(extracted.map((e) => e.hsCode)).catch((err) =>
+      const codes = extracted.map((e) => e.hsCode);
+      fetchAndCacheFtaRates(codes).catch((err) =>
         console.warn("[VOLLOS] Auto FTA lookup failed:", err)
       );
+      fetchAndCacheLpiControls(codes).catch((err) =>
+        console.warn("[VOLLOS] Auto LPI lookup failed:", err)
+      );
+      enrichWithKnowledgeBase(codes).catch((err) =>
+        console.warn("[VOLLOS] KB enrichment failed:", err)
+      );
+    }
+  }
+
+  async function enrichWithKnowledgeBase(hsCodes: string[]): Promise<void> {
+    const uniqueCodes = [...new Set(hsCodes)];
+    const results = await apiClient.hsLookup(uniqueCodes);
+    const foundCodes = new Set(
+      results.filter((r) => r.found).map((r) => r.code)
+    );
+
+    // Items not found in knowledge base → low confidence + warning
+    const allItems = await db.cgDeclarationItems
+      .where("declarationLocalId")
+      .equals(declarationLocalId)
+      .toArray();
+
+    for (const item of allItems) {
+      if (!foundCodes.has(item.hsCode) && item.editStatus === "AI_EXTRACTED") {
+        await db.cgDeclarationItems.update(item.localId!, {
+          confidence: 0.1,
+          aiReason: "HS Code นี้ไม่พบในฐานข้อมูล กรุณาตรวจสอบ",
+        });
+      }
     }
   }
 
@@ -83,6 +113,7 @@ export function useScanItems(declarationLocalId: number) {
             preferentialRate: alert.preferentialRate,
             savingPercent: alert.savingPercent,
             conditions: alert.conditions,
+            sourceUrl: alert.sourceUrl,
             cachedAt: now,
           });
         }
@@ -95,6 +126,51 @@ export function useScanItems(declarationLocalId: number) {
     }
     if (ftaEntries.length > 0) {
       await db.cgFtaCache.bulkAdd(ftaEntries);
+    }
+  }
+
+  async function fetchAndCacheLpiControls(hsCodes: string[]): Promise<void> {
+    // Filter out codes that already have valid cache
+    const codesToFetch: string[] = [];
+    for (const code of hsCodes) {
+      const cached = await db.cgLpiCache.where("hsCode").equals(code).first();
+      if (!cached || !isCacheValid(cached.cachedAt, LPI_CACHE_TTL_MS)) {
+        codesToFetch.push(code);
+      }
+    }
+
+    if (codesToFetch.length === 0) return;
+
+    // LPI data comes from the same /hs/lookup endpoint (embedded in response)
+    const results = await apiClient.hsLookup(codesToFetch);
+    const lpiEntries: CgLpiCache[] = [];
+    const now = new Date().toISOString();
+
+    for (const result of results) {
+      if (result.found && result.lpiAlerts) {
+        for (const alert of result.lpiAlerts) {
+          lpiEntries.push({
+            hsCode: result.code,
+            controlType: alert.controlType,
+            agencyCode: alert.agencyCode,
+            agencyNameTh: alert.agencyNameTh,
+            agencyNameEn: alert.agencyNameEn,
+            requirementTh: alert.requirementTh,
+            requirementEn: alert.requirementEn,
+            appliesTo: alert.appliesTo,
+            sourceUrl: alert.sourceUrl,
+            cachedAt: now,
+          });
+        }
+      }
+    }
+
+    // Clear old entries for these codes, then add new
+    for (const code of codesToFetch) {
+      await db.cgLpiCache.where("hsCode").equals(code).delete();
+    }
+    if (lpiEntries.length > 0) {
+      await db.cgLpiCache.bulkAdd(lpiEntries);
     }
   }
 

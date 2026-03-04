@@ -6,6 +6,8 @@ import type {
   CgAuditLog,
   CgFtaCache,
   CgRagCache,
+  CgLpiCache,
+  CgExchangeRateCache,
   SyncState,
 } from "@/types";
 
@@ -20,6 +22,8 @@ class CustomsGuardDB extends Dexie {
   syncState!: EntityTable<SyncState, "key">;
   cgFtaCache!: EntityTable<CgFtaCache, "hsCode">;
   cgRagCache!: EntityTable<CgRagCache, "localId">;
+  cgLpiCache!: EntityTable<CgLpiCache, "hsCode">;
+  cgExchangeRateCache!: EntityTable<CgExchangeRateCache, "currencyCode">;
 
   constructor(tenantId: string) {
     super(`CustomsGuard_${tenantId}`);
@@ -45,6 +49,16 @@ class CustomsGuardDB extends Dexie {
         "++localId, declarationLocalId, hsCode, editStatus, isConfirmed",
       cgFtaCache: "hsCode, ftaName, cachedAt",
       cgRagCache: "++localId, query, cachedAt",
+    });
+
+    // v4: Add LPI controls and Exchange Rate cache tables
+    this.version(4).stores({
+      cgDeclarationItems:
+        "++localId, declarationLocalId, hsCode, editStatus, isConfirmed",
+      cgFtaCache: "hsCode, ftaName, cachedAt",
+      cgRagCache: "++localId, query, cachedAt",
+      cgLpiCache: "hsCode, agencyCode, cachedAt",
+      cgExchangeRateCache: "currencyCode, cachedAt",
     });
   }
 }

@@ -71,12 +71,14 @@ def main():
             hs_codes = result.get("related_hs_codes", [])
             fta_names = result.get("related_fta_names", [])
 
-            # Validate and normalize HS codes
+            # Validate and normalize HS codes (truncate to 12 chars for DB column)
             valid_codes = []
             for code in hs_codes:
-                valid, _ = validate_hs_code(code)
-                if valid:
-                    valid_codes.append(normalize_hs_code(code))
+                normalized = normalize_hs_code(code)
+                if len(normalized) <= 12:
+                    valid, _ = validate_hs_code(code)
+                    if valid:
+                        valid_codes.append(normalized)
 
             if valid_codes:
                 with conn.cursor() as cur:
@@ -97,9 +99,9 @@ def main():
             tracker.mark_processed(source_key, f"hs={len(valid_codes)}, fta={len(fta_names)}")
 
         except Exception as e:
+            conn.rollback()
             print(f"\n  Error cross-referencing {reg_id}: {e}")
             tracker.mark_failed(source_key, str(e))
-            conn.rollback()
 
     print(f"\n{'='*40}")
     print(f"Updated: {updated} regulations with HS code references")
