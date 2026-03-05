@@ -155,7 +155,7 @@ async def scrape_fta_chapter(page, fta_name, fta_info, chapter, progress):
             return 0
 
         # Wait for full render (Vue.js + nested tables)
-        await page.wait_for_timeout(8000)
+        await page.wait_for_timeout(3000)
 
         # Extract HS codes + FTA rates from rows with nested tables
         # Each leaf HS code has a row containing nested MFN + FTA tables
@@ -333,7 +333,7 @@ async def run_scraper(headless=False):
                     print(f"  Chapter {chapter}: FAILED (will retry next run)")
 
                 # Random delay between pages
-                delay = random.uniform(2, 5)
+                delay = random.uniform(1, 2.5)
                 await page.wait_for_timeout(int(delay * 1000))
 
         await browser.close()
@@ -345,6 +345,20 @@ async def run_scraper(headless=False):
     print(f"Failed pages: {failed}")
     if failed > 0:
         print("Run again to retry failed pages.")
+
+
+def normalize_hs_code(raw_code: str) -> str:
+    """Convert 11-digit raw HS code to dotted format (e.g. 01012100000 -> 0101.21.00).
+
+    Strips trailing zeros beyond 8 significant digits, then formats as XXXX.XX.XX.
+    Falls back to 4-digit chapter code if needed.
+    """
+    digits = raw_code.replace(".", "").replace(" ", "")
+    if len(digits) >= 8:
+        return f"{digits[:4]}.{digits[4:6]}.{digits[6:8]}"
+    elif len(digits) >= 4:
+        return digits[:4]
+    return raw_code
 
 
 def insert_to_db():
@@ -377,7 +391,7 @@ def insert_to_db():
 
         inserted = 0
         for rate in rates:
-            hs_code = rate["hs_code"]
+            hs_code = normalize_hs_code(rate["hs_code"])
 
             # FK validation: HS code must exist in cg_hs_codes
             if hs_code not in valid_hs_codes:
