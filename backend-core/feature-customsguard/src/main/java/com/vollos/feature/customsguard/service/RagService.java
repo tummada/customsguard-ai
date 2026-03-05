@@ -28,6 +28,23 @@ public class RagService {
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
 
+    /**
+     * Tier 2 data topics that are not yet available.
+     * When a query matches these keywords, a disclaimer is injected
+     * instead of letting RAG hallucinate from unrelated chunks.
+     */
+    private static final Map<String, String> UNAVAILABLE_TOPICS = Map.of(
+            "anti-dumping", "ข้อมูลอากรตอบโต้การทุ่มตลาด (Anti-Dumping) กำลังอยู่ในช่วงอัปเดต กรุณาตรวจสอบที่ กรมการค้าต่างประเทศ https://www.dft.go.th",
+            "AD", "ข้อมูลอากรตอบโต้การทุ่มตลาด (Anti-Dumping) กำลังอยู่ในช่วงอัปเดต กรุณาตรวจสอบที่ กรมการค้าต่างประเทศ https://www.dft.go.th",
+            "excise", "ข้อมูลภาษีสรรพสามิต กำลังอยู่ในช่วงอัปเดต กรุณาตรวจสอบที่ กรมสรรพสามิต https://www.excise.go.th",
+            "BOI", "ข้อมูลสิทธิประโยชน์ BOI กำลังอยู่ในช่วงอัปเดต กรุณาตรวจสอบที่ สำนักงานคณะกรรมการส่งเสริมการลงทุน https://www.boi.go.th",
+            "LPI", "ข้อมูลสินค้าควบคุมการนำเข้า (LPI) กำลังอยู่ในช่วงอัปเดต กรุณาตรวจสอบที่หน่วยงานที่เกี่ยวข้อง"
+    );
+
+    private static final List<String> UNAVAILABLE_KEYWORDS_TH = List.of(
+            "ตอบโต้การทุ่มตลาด", "สรรพสามิต", "ส่งเสริมการลงทุน", "สินค้าควบคุม"
+    );
+
     private final GeminiEmbeddingService embeddingService;
     private final DocumentChunkRepository chunkRepo;
     private final GeminiChatService chatService;
@@ -66,9 +83,40 @@ public class RagService {
                 (String) meta.get("title"));
     }
 
+    /**
+     * Check if a query matches an unavailable Tier 2 topic.
+     * Returns disclaimer message or null if topic is available.
+     */
+    private String checkUnavailableTopic(String query) {
+        String q = query.toLowerCase();
+
+        for (var entry : UNAVAILABLE_TOPICS.entrySet()) {
+            if (q.contains(entry.getKey().toLowerCase())) {
+                log.info("Query matched unavailable topic: {}", entry.getKey());
+                return entry.getValue();
+            }
+        }
+
+        for (String keyword : UNAVAILABLE_KEYWORDS_TH) {
+            if (query.contains(keyword)) {
+                log.info("Query matched unavailable Thai keyword: {}", keyword);
+                return "ข้อมูลส่วนนี้กำลังอยู่ในช่วงอัปเดต โปรดตรวจสอบที่เว็บหน่วยงานโดยตรง";
+            }
+        }
+
+        return null;
+    }
+
     @Transactional(readOnly = true)
     public RagSearchResponse search(String query, int limit) {
         long start = System.currentTimeMillis();
+
+        // 0. Check for unavailable Tier 2 topics
+        String disclaimer = checkUnavailableTopic(query);
+        if (disclaimer != null) {
+            return new RagSearchResponse(disclaimer, List.of(),
+                    System.currentTimeMillis() - start);
+        }
 
         // 1. Embed the query
         float[] queryEmb = embeddingService.embed(query);
@@ -112,6 +160,15 @@ public class RagService {
     public void streamSearch(String query, int limit, SseEmitter emitter) {
         sseExecutor.execute(() -> {
             try {
+                // 0. Check for unavailable Tier 2 topics
+                String disclaimer = checkUnavailableTopic(query);
+                if (disclaimer != null) {
+                    emitter.send(SseEmitter.event().name("done")
+                            .data(Map.of("answer", disclaimer, "sources", List.of())));
+                    emitter.complete();
+                    return;
+                }
+
                 // 1. Emit: searching
                 emitter.send(SseEmitter.event().name("status").data("embedding_query"));
 
