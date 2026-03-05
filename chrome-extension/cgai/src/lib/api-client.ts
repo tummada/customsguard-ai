@@ -92,11 +92,11 @@ class ApiClient {
 
   async configure(baseUrl: string, token: string, tenantId: string) {
     this.config = { baseUrl, token, tenantId };
-    await chrome.storage.local.set({ vollosApiConfig: this.config });
+    await chrome.storage.session.set({ vollosApiConfig: this.config });
   }
 
   async loadConfig(): Promise<boolean> {
-    const result = await chrome.storage.local.get("vollosApiConfig");
+    const result = await chrome.storage.session.get("vollosApiConfig");
     if (result.vollosApiConfig) {
       this.config = result.vollosApiConfig;
       return true;
@@ -114,7 +114,7 @@ class ApiClient {
 
   async logout() {
     this.config = null;
-    await chrome.storage.local.remove("vollosApiConfig");
+    await chrome.storage.session.remove("vollosApiConfig");
   }
 
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {

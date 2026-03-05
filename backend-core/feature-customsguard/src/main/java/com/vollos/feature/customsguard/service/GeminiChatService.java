@@ -70,7 +70,7 @@ public class GeminiChatService {
                     HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() != 200) {
-                log.error("Gemini vision error {}: {}", response.statusCode(), response.body());
+                log.error("Gemini vision error: status={}", response.statusCode());
                 return "";
             }
 
@@ -120,7 +120,7 @@ public class GeminiChatService {
                     HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() != 200) {
-                log.error("Gemini chat error {}: {}", response.statusCode(), response.body());
+                log.error("Gemini chat error: status={}", response.statusCode());
                 return "ขออภัย ไม่สามารถประมวลผลคำถามได้ในขณะนี้";
             }
 

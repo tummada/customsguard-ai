@@ -15,9 +15,11 @@ RUN ./gradlew :platform-app:bootJar --no-daemon -x test
 
 # Stage 2: Runtime
 FROM eclipse-temurin:21-jre-jammy
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/* \
+    && useradd -r -s /sbin/nologin -u 1001 appuser
 WORKDIR /app
 COPY --from=builder /app/platform-app/build/libs/vollos-backend.jar app.jar
+USER appuser
 EXPOSE 8080
 ENV JAVA_OPTS="-Xms512m -Xmx768m -XX:+UseSerialGC"
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

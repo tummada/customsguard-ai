@@ -50,8 +50,8 @@ public class GeminiEmbeddingService {
                     HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() != 200) {
-                throw new RuntimeException("Gemini API error " + response.statusCode()
-                        + ": " + response.body());
+                log.error("Gemini embedding API error {}: {}", response.statusCode(), response.body());
+                throw new RuntimeException("Embedding service unavailable");
             }
 
             JsonNode root = objectMapper.readTree(response.body());

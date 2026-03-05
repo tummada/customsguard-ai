@@ -6,11 +6,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import org.springframework.context.annotation.Profile;
+
 import java.util.Map;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/v1/auth")
+@Profile("dev")
 public class AuthController {
 
     private static final UUID DEV_TENANT_ID = UUID.fromString("a0000000-0000-0000-0000-000000000001");

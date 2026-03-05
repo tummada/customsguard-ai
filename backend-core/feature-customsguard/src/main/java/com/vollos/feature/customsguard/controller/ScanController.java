@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
@@ -18,6 +19,7 @@ import java.util.UUID;
 @RequiresFeature("customsguard")
 public class ScanController {
 
+    private static final Set<String> VALID_DECLARATION_TYPES = Set.of("IMPORT", "EXPORT", "TRANSIT");
     private final ScanService scanService;
 
     public ScanController(ScanService scanService) {
@@ -29,6 +31,10 @@ public class ScanController {
             @RequestParam("file") MultipartFile file,
             @RequestParam(defaultValue = "IMPORT") String declarationType) {
         UUID tenantId = TenantContext.getCurrentTenantId();
+
+        if (!VALID_DECLARATION_TYPES.contains(declarationType)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Invalid declarationType. Allowed: IMPORT, EXPORT, TRANSIT"));
+        }
 
         try {
             ScanJobResponse job = scanService.submitScanJob(tenantId, file, declarationType);

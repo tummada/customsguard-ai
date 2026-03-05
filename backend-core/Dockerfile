@@ -19,14 +19,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
+# Create non-root user
+RUN useradd -r -s /sbin/nologin -u 1001 appuser
+
 WORKDIR /app
 
 # Copy binary from builder
 COPY --from=builder /app/platform-app/build/native/nativeCompile/platform-app /app/vollos-backend
 
-# Expose port
-EXPOSE 8080
+# Switch to non-root user
+USER appuser
 
-# Run application
+EXPOSE 8080
 ENTRYPOINT ["/app/vollos-backend"]
