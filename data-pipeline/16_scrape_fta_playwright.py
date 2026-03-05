@@ -36,28 +36,32 @@ OUTPUT_DIR = os.path.join(DATA_DIR, "fta_scraped")
 PROGRESS_FILE = os.path.join(OUTPUT_DIR, "progress.json")
 
 # FTA agreements on thailandntr.com
+# agreement_id is the <option value="X"> from the #agreements Select2 dropdown
 FTA_AGREEMENTS = {
-    "ATIGA":   {"url_key": "atiga",   "countries": ["ASEAN"], "form": "Form D"},
-    "ACFTA":   {"url_key": "acfta",   "countries": ["CHN"],   "form": "Form E"},
-    "AKFTA":   {"url_key": "akfta",   "countries": ["KOR"],   "form": "Form AK"},
-    "AJCEP":   {"url_key": "ajcep",   "countries": ["JPN"],   "form": "Form AJ"},
-    "JTEPA":   {"url_key": "jtepa",   "countries": ["JPN"],   "form": "Form JTEPA"},
-    "TAFTA":   {"url_key": "tafta",   "countries": ["AUS"],   "form": "Form TAFTA"},
-    "AANZFTA": {"url_key": "aanzfta", "countries": ["AUS", "NZL"], "form": "Form AANZ"},
-    "AIFTA":   {"url_key": "aifta",   "countries": ["IND"],   "form": "Form AI"},
-    "RCEP":    {"url_key": "rcep",    "countries": ["CHN", "JPN", "KOR", "AUS", "NZL"], "form": "Form RCEP"},
-    "TNZCEP":  {"url_key": "tnzcep",  "countries": ["NZL"],   "form": "Form TNZCEP"},
+    "ATIGA":   {"agreement_id": "24", "countries": ["ASEAN"], "form": "Form D"},
+    "ACFTA":   {"agreement_id": "2",  "countries": ["CHN"],   "form": "Form E"},
+    "AKFTA":   {"agreement_id": "6",  "countries": ["KOR"],   "form": "Form AK"},
+    "AJCEP":   {"agreement_id": "5",  "countries": ["JPN"],   "form": "Form AJ"},
+    "JTEPA":   {"agreement_id": "9",  "countries": ["JPN"],   "form": "Form JTEPA"},
+    "TAFTA":   {"agreement_id": "10", "countries": ["AUS"],   "form": "Form TAFTA"},
+    "AANZFTA": {"agreement_id": "1",  "countries": ["AUS", "NZL"], "form": "Form AANZ"},
+    "AIFTA":   {"agreement_id": "4",  "countries": ["IND"],   "form": "Form AI"},
+    "RCEP":    {"agreement_id": "20", "countries": ["CHN", "JPN", "KOR", "AUS", "NZL"], "form": "Form RCEP"},
+    "TNZCEP":  {"agreement_id": "15", "countries": ["NZL"],   "form": "Form TNZCEP"},
 }
 
 # HS chapters: 01-97
 HS_CHAPTERS = [f"{i:02d}" for i in range(1, 98)]
+
+# Current year for rate extraction
+CURRENT_YEAR = str(date.today().year)
 
 
 def normalize_hs_code_to_db(code_str):
     """
     Normalize NTR HS code to match cg_hs_codes.code format.
 
-    NTR may show: '0306.11', '0306.11.00', '03061100'
+    NTR shows: '03.06.11', '0306.11.00', '03061100'
     DB stores: '03061100000' (11 digits, zero-padded)
 
     Returns normalized code or None if invalid.
@@ -65,7 +69,7 @@ def normalize_hs_code_to_db(code_str):
     if not code_str:
         return None
     # Strip whitespace, remove dots
-    digits = re.sub(r"[.\s]", "", code_str.strip())
+    digits = re.sub(r"[\.\s]", "", code_str.strip())
     # Must be all digits
     if not digits.isdigit():
         return None
@@ -81,14 +85,16 @@ def normalize_hs_code_to_db(code_str):
 def parse_rate_text(rate_text):
     """
     Parse rate from NTR table cell text.
-    Examples: '5%', '5.00', 'Free', '0', 'Prohibited', 'W 7.95/Kg'
+    Examples: '5%', '5.00', 'Free', '0', '-', 'Prohibited', 'W 7.95/Kg'
+
+    '-' on NTR means 0% (Free/duty-free under FTA).
 
     Returns: float rate or None for non-ad-valorem/special rates.
     """
     if not rate_text:
         return None
     text = rate_text.strip().upper()
-    if text in ("FREE", "0", "0%", "0.00", "0.00%"):
+    if text in ("FREE", "0", "0%", "0.00", "0.00%", "-"):
         return 0.0
     if "PROHIBITED" in text or "PROHIBIT" in text:
         return None  # special case
@@ -116,57 +122,124 @@ def save_progress(progress):
 
 
 async def scrape_fta_chapter(page, fta_name, fta_info, chapter, progress):
-    """Scrape a single FTA+chapter page and extract rates."""
+    """
+    Scrape a single FTA+chapter page and extract preferential rates.
+
+    NTR page structure (thailandntr.com):
+    - Table 0: FTA agreement info
+    - Table 1: Main table (all HS codes + nested MFN/FTA sub-tables)
+    - Each leaf HS code row contains 2 nested tables: MFN rates + FTA year schedule
+    - FTA year table: [Year, Quota AV%, Normal AV%, Quota Specific, Normal Specific]
+    - "-" = 0% (duty-free under FTA)
+    """
     progress_key = f"{fta_name}:{chapter}"
 
     # Skip if already completed
     if progress_key in progress["completed"]:
         return progress["completed"][progress_key]
 
-    url_key = fta_info["url_key"]
-    url = f"https://www.thailandntr.com/en/goods/tariff/search?hs={chapter}&agreement={url_key}"
+    agreement_id = fta_info["agreement_id"]
+    url = f"https://www.thailandntr.com/en/goods/tariff/search?hs={chapter}&agreements%5B%5D={agreement_id}"
 
     rates = []
     try:
         await page.goto(url, wait_until="domcontentloaded", timeout=30000)
-        # Wait for Vue.js rendering — look for table data
+
+        # Wait for Vue.js rendering
         try:
             await page.wait_for_selector("table tbody tr", timeout=15000)
         except Exception:
-            # No table rows = no data for this chapter under this FTA
+            # No table rows = no data for this chapter
             progress["completed"][progress_key] = 0
             save_progress(progress)
             return 0
 
-        # Wait a bit more for full render
-        await page.wait_for_timeout(2000)
+        # Wait for full render (Vue.js + nested tables)
+        await page.wait_for_timeout(8000)
 
-        # Extract table data
-        table_data = await page.evaluate("""() => {
-            const rows = document.querySelectorAll('table tbody tr');
+        # Extract HS codes + FTA rates from rows with nested tables
+        # Each leaf HS code has a row containing nested MFN + FTA tables
+        extracted = await page.evaluate("""(currentYear) => {
+            const allTables = document.querySelectorAll('table');
+            if (allTables.length < 2) return [];
+
+            // Main table is index 1 (index 0 = FTA agreement info)
+            const mainTable = allTables[1];
+            if (!mainTable) return [];
+
             const results = [];
+            const rows = mainTable.querySelectorAll('tr');
+
             for (const row of rows) {
-                const cells = Array.from(row.querySelectorAll('td'));
-                if (cells.length >= 4) {
-                    results.push({
-                        hs_code: cells[0]?.textContent?.trim() || '',
-                        description: cells[1]?.textContent?.trim() || '',
-                        mfn_rate: cells[2]?.textContent?.trim() || '',
-                        preferential_rate: cells[3]?.textContent?.trim() || '',
-                    });
+                const nestedTables = row.querySelectorAll('table');
+                if (nestedTables.length < 2) continue;
+
+                // Extract HS code from direct td children
+                const tds = row.querySelectorAll(':scope > td');
+                let hsCode = '';
+                for (const td of tds) {
+                    const text = td.textContent.trim();
+                    const match = text.match(/(\\d{2}\\.\\d{2}(?:\\.\\d{2}(?:\\.\\d{2})?)?)/);
+                    if (match) {
+                        hsCode = match[1];
+                        break;
+                    }
+                }
+                if (!hsCode) continue;
+
+                // Find FTA year table among nested tables
+                let ftaRate = null;
+                for (const nt of nestedTables) {
+                    const firstTh = nt.querySelector('th');
+                    if (!firstTh) continue;
+                    const thText = firstTh.textContent.trim();
+                    if (thText !== 'Year' && thText !== '\\u0e1b\\u0e35') continue;
+
+                    // Found FTA table - get current year rate first
+                    const ftaRows = nt.querySelectorAll('tbody tr');
+                    for (const fr of ftaRows) {
+                        const cells = fr.querySelectorAll('td');
+                        if (cells.length >= 3) {
+                            const year = cells[0]?.textContent?.trim();
+                            if (year === currentYear) {
+                                ftaRate = cells[2]?.textContent?.trim();
+                                break;
+                            }
+                        }
+                    }
+                    // Fallback: get latest year if current year not found
+                    if (ftaRate === null && ftaRows.length > 0) {
+                        const lastRow = ftaRows[ftaRows.length - 1];
+                        if (lastRow) {
+                            const cells = lastRow.querySelectorAll('td');
+                            if (cells.length >= 3) {
+                                ftaRate = cells[2]?.textContent?.trim();
+                            }
+                        }
+                    }
+                    break;
+                }
+
+                if (hsCode && ftaRate !== null) {
+                    results.push({ hs_code: hsCode, rate: ftaRate });
                 }
             }
             return results;
-        }""")
+        }""", CURRENT_YEAR)
 
-        for row in table_data:
-            hs_code = normalize_hs_code_to_db(row["hs_code"])
+        if not extracted:
+            progress["completed"][progress_key] = 0
+            save_progress(progress)
+            return 0
+
+        for item in extracted:
+            hs_code = normalize_hs_code_to_db(item["hs_code"])
             if not hs_code:
                 continue
 
-            pref_rate = parse_rate_text(row["preferential_rate"])
+            pref_rate = parse_rate_text(item["rate"])
             if pref_rate is None:
-                continue  # skip non-ad-valorem rates
+                continue
 
             valid, msg = validate_rate(pref_rate)
             if not valid:

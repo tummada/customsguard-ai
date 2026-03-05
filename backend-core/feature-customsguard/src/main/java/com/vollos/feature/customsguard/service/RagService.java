@@ -45,6 +45,10 @@ public class RagService {
             "ตอบโต้การทุ่มตลาด", "สรรพสามิต", "ส่งเสริมการลงทุน", "สินค้าควบคุม"
     );
 
+    private static final double MIN_SIMILARITY_THRESHOLD = 0.65;
+    private static final String NO_RELEVANT_DATA_MSG =
+            "ไม่พบข้อมูลที่เกี่ยวข้องเพียงพอในฐานข้อมูล กรุณาลองถามด้วยคำอื่น หรือตรวจสอบที่ กรมศุลกากร https://www.customs.go.th";
+
     private final GeminiEmbeddingService embeddingService;
     private final DocumentChunkRepository chunkRepo;
     private final GeminiChatService chatService;
@@ -125,24 +129,33 @@ public class RagService {
         // 2. Retrieve top-K chunks from cg_document_chunks
         List<Object[]> chunks = chunkRepo.findBySemantic(embStr, limit * 2);
 
-        if (chunks.isEmpty()) {
+        // 3. Filter by similarity threshold
+        double topScore = chunks.isEmpty() ? 0 : ((Number) chunks.get(0)[7]).doubleValue();
+        List<Object[]> relevant = chunks.stream()
+                .filter(row -> row[7] != null && ((Number) row[7]).doubleValue() >= MIN_SIMILARITY_THRESHOLD)
+                .toList();
+
+        log.info("Similarity filter: query='{}', total={}, passed={}, topScore={}",
+                query, chunks.size(), relevant.size(), topScore);
+
+        if (relevant.isEmpty()) {
             return new RagSearchResponse(
-                    "ไม่พบข้อมูลที่เกี่ยวข้องในฐานข้อมูล",
+                    NO_RELEVANT_DATA_MSG,
                     List.of(),
                     System.currentTimeMillis() - start);
         }
 
-        // 3. Build RAG context from chunks
-        String context = chunks.stream()
+        // 4. Build RAG context from relevant chunks
+        String context = relevant.stream()
                 .limit(limit)
                 .map(row -> (String) row[4])  // chunk_text
                 .collect(Collectors.joining("\n---\n"));
 
-        // 4. Call Gemini chat with context + query
+        // 5. Call Gemini chat with context + query
         String answer = chatService.generateAnswer(query, context);
 
-        // 5. Map chunks to DTOs
-        List<RagChunkDto> sources = chunks.stream()
+        // 6. Map chunks to DTOs
+        List<RagChunkDto> sources = relevant.stream()
                 .limit(limit)
                 .map(this::toChunkDto)
                 .toList();
@@ -180,32 +193,41 @@ public class RagService {
 
                 List<Object[]> chunks = chunkRepo.findBySemantic(embStr, limit * 2);
 
-                if (chunks.isEmpty()) {
+                // 3. Filter by similarity threshold
+                double topScore = chunks.isEmpty() ? 0 : ((Number) chunks.get(0)[7]).doubleValue();
+                List<Object[]> relevant = chunks.stream()
+                        .filter(row -> row[7] != null && ((Number) row[7]).doubleValue() >= MIN_SIMILARITY_THRESHOLD)
+                        .toList();
+
+                log.info("Similarity filter (stream): query='{}', total={}, passed={}, topScore={}",
+                        query, chunks.size(), relevant.size(), topScore);
+
+                if (relevant.isEmpty()) {
                     emitter.send(SseEmitter.event().name("done")
-                            .data(Map.of("answer", "ไม่พบข้อมูลที่เกี่ยวข้องในฐานข้อมูล", "sources", List.of())));
+                            .data(Map.of("answer", NO_RELEVANT_DATA_MSG, "sources", List.of())));
                     emitter.complete();
                     return;
                 }
 
-                // 3. Emit: sources (so UI can show them immediately)
-                List<RagChunkDto> sources = chunks.stream()
+                // 4. Emit: sources (so UI can show them immediately)
+                List<RagChunkDto> sources = relevant.stream()
                         .limit(limit)
                         .map(this::toChunkDto)
                         .toList();
 
                 emitter.send(SseEmitter.event().name("sources").data(sources));
 
-                // 4. Emit: generating answer
+                // 5. Emit: generating answer
                 emitter.send(SseEmitter.event().name("status").data("generating_answer"));
 
-                String context = chunks.stream()
+                String context = relevant.stream()
                         .limit(limit)
                         .map(row -> (String) row[4])
                         .collect(Collectors.joining("\n---\n"));
 
                 String answer = chatService.generateAnswer(query, context);
 
-                // 5. Emit: complete answer
+                // 6. Emit: complete answer
                 emitter.send(SseEmitter.event().name("done")
                         .data(Map.of("answer", answer, "sources", sources)));
 
