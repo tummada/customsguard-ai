@@ -87,7 +87,7 @@ describe("TrafficLight", () => {
 
     await user.hover(dot);
     expect(screen.getByText(/95%/)).toBeInTheDocument();
-    expect(screen.getByText(/Safe/)).toBeInTheDocument();
+    expect(screen.getByText(/traffic\.safe/)).toBeInTheDocument();
   });
 
   it("shows risk flags sorted in tooltip on hover", async () => {

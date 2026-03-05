@@ -1,4 +1,6 @@
 import { useState, useRef, useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import { Upload, FileText } from "lucide-react";
 import { renderPdfToImages } from "@/lib/pdf-renderer";
 
 interface PdfDropZoneProps {
@@ -7,6 +9,7 @@ interface PdfDropZoneProps {
 }
 
 export default function PdfDropZone({ onPagesReady, disabled }: PdfDropZoneProps) {
+  const { t } = useTranslation();
   const [isDragging, setIsDragging] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [rendering, setRendering] = useState(false);
@@ -16,7 +19,7 @@ export default function PdfDropZone({ onPagesReady, disabled }: PdfDropZoneProps
   const processFile = useCallback(
     async (file: File) => {
       if (file.type !== "application/pdf") {
-        alert("กรุณาเลือกไฟล์ PDF เท่านั้น");
+        alert(t("scan.pdfOnly"));
         return;
       }
 
@@ -30,13 +33,13 @@ export default function PdfDropZone({ onPagesReady, disabled }: PdfDropZoneProps
         onPagesReady(pages, file);
       } catch (err) {
         console.error("[VOLLOS] PDF render error:", err);
-        alert("ไม่สามารถอ่านไฟล์ PDF ได้");
+        alert(t("scan.pdfReadError"));
         setFileName(null);
       } finally {
         setRendering(false);
       }
     },
-    [onPagesReady]
+    [onPagesReady, t]
   );
 
   const handleDrop = useCallback(
@@ -85,18 +88,21 @@ export default function PdfDropZone({ onPagesReady, disabled }: PdfDropZoneProps
       {rendering ? (
         <div className="text-gray-500">
           <div className="animate-spin w-8 h-8 border-2 border-brand border-t-transparent rounded-full mx-auto mb-2" />
-          <p className="text-sm">กำลังอ่าน PDF...</p>
+          <p className="text-sm">{t("scan.readingPdf")}</p>
         </div>
       ) : fileName ? (
         <div className="text-gray-700">
+          <FileText className="w-6 h-6 text-brand mx-auto mb-1" />
           <p className="text-sm font-medium">{fileName}</p>
-          <p className="text-xs text-gray-500 mt-1">{pageCount} หน้า — คลิกเพื่อเปลี่ยนไฟล์</p>
+          <p className="text-xs text-gray-500 mt-1">
+            {pageCount} {t("scan.pages")} — {t("scan.clickToChange")}
+          </p>
         </div>
       ) : (
         <div className="text-gray-500">
-          <p className="text-2xl mb-2">+</p>
-          <p className="text-sm">ลากไฟล์ PDF มาวางที่นี่</p>
-          <p className="text-xs mt-1">หรือคลิกเพื่อเลือกไฟล์</p>
+          <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+          <p className="text-sm">{t("scan.dropPdf")}</p>
+          <p className="text-xs mt-1">{t("scan.orClick")}</p>
         </div>
       )}
     </div>

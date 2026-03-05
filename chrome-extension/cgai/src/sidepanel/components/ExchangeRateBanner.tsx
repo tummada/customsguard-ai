@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { DollarSign } from "lucide-react";
 import type { ExchangeRate } from "@/lib/api-client";
 
 interface ExchangeRateBannerProps {
@@ -19,6 +21,8 @@ export default function ExchangeRateBanner({
   loading,
   onRefresh,
 }: ExchangeRateBannerProps) {
+  const { t } = useTranslation();
+
   if (rates.length === 0 && !loading) return null;
 
   const effectiveDate = rates[0]?.effectiveDate;
@@ -27,9 +31,9 @@ export default function ExchangeRateBanner({
     <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <span className="text-blue-600 text-sm">&#128181;</span>
+          <DollarSign className="w-4 h-4 text-blue-600" />
           <span className="text-xs font-medium text-blue-700">
-            อัตราแลกเปลี่ยน
+            {t("banner.exchangeRate")}
           </span>
         </div>
         <button
@@ -37,7 +41,7 @@ export default function ExchangeRateBanner({
           disabled={loading}
           className="text-blue-500 hover:text-blue-700 text-[10px] transition-colors disabled:opacity-50"
         >
-          {loading ? "กำลังโหลด..." : "&#8635; Refresh"}
+          {loading ? t("banner.loading") : t("banner.refresh")}
         </button>
       </div>
 
@@ -60,11 +64,11 @@ export default function ExchangeRateBanner({
       <div className="mt-2 space-y-0.5">
         {effectiveDate && (
           <p className="text-[10px] text-blue-600">
-            อ้างอิงประกาศกรมศุลกากร ประจำวันที่ {formatThaiDate(effectiveDate)}
+            {t("banner.effectiveDate")} {formatThaiDate(effectiveDate)}
           </p>
         )}
         <p className="text-[10px] text-gray-400">
-          อัตรากลาง (Mid Rate) — ใช้คำนวณอากรศุลกากร
+          {t("banner.midRateNote")}
         </p>
       </div>
     </div>

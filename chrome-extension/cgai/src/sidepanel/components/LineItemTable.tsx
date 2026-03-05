@@ -1,4 +1,6 @@
 import { useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import { CheckCircle } from "lucide-react";
 import type { CgDeclarationItem, AuditRisk } from "@/types";
 import TrafficLight from "./TrafficLight";
 
@@ -15,23 +17,24 @@ interface LineItemTableProps {
 
 type EditableField = "hsCode" | "descriptionEn" | "quantity" | "weight" | "unitPrice" | "cifPrice";
 
-const COLUMNS: { key: EditableField; label: string; width: string }[] = [
-  { key: "hsCode", label: "HS Code", width: "w-24" },
-  { key: "descriptionEn", label: "Description", width: "w-36" },
-  { key: "quantity", label: "Qty", width: "w-16" },
-  { key: "weight", label: "Weight", width: "w-16" },
-  { key: "unitPrice", label: "Unit Price", width: "w-20" },
-  { key: "cifPrice", label: "CIF", width: "w-20" },
-];
-
 interface EditingCell {
   localId: number;
   field: EditableField;
 }
 
 export default function LineItemTable({ items, riskMap, onEditItem, onConfirmItem }: LineItemTableProps) {
+  const { t } = useTranslation();
   const [editing, setEditing] = useState<EditingCell | null>(null);
   const [editValue, setEditValue] = useState("");
+
+  const COLUMNS: { key: EditableField; label: string; width: string }[] = [
+    { key: "hsCode", label: t("table.hsCode"), width: "w-24" },
+    { key: "descriptionEn", label: t("table.description"), width: "w-36" },
+    { key: "quantity", label: t("table.qty"), width: "w-16" },
+    { key: "weight", label: t("table.weight"), width: "w-16" },
+    { key: "unitPrice", label: t("table.unitPrice"), width: "w-20" },
+    { key: "cifPrice", label: t("table.cif"), width: "w-20" },
+  ];
 
   const startEdit = useCallback(
     (localId: number, field: EditableField, currentValue: string) => {
@@ -55,7 +58,7 @@ export default function LineItemTable({ items, riskMap, onEditItem, onConfirmIte
   if (items.length === 0) {
     return (
       <p className="text-gray-500 text-sm text-center py-4">
-        ยังไม่มีรายการ — สแกน PDF เพื่อสกัดข้อมูล
+        {t("scan.noItems")}
       </p>
     );
   }
@@ -78,7 +81,7 @@ export default function LineItemTable({ items, riskMap, onEditItem, onConfirmIte
           {items.map((item) => (
             <tr
               key={item.localId}
-              className={`border-b border-gray-100 hover:bg-gray-50 ${
+              className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${
                 item.isConfirmed ? "bg-green-50/50" : ""
               }`}
             >
@@ -127,12 +130,12 @@ export default function LineItemTable({ items, riskMap, onEditItem, onConfirmIte
               })}
               <td className="py-2 px-1 w-12 text-center">
                 {item.isConfirmed ? (
-                  <span className="text-green-600 text-sm" title="confirmed">&#10003;</span>
+                  <CheckCircle className="w-4 h-4 text-green-600 inline-block" />
                 ) : (
                   <button
                     onClick={() => onConfirmItem(item.localId!)}
                     className="px-1.5 py-0.5 text-[10px] bg-green-600 hover:bg-green-700 text-white rounded transition-colors"
-                    title="Confirm รายการนี้"
+                    title={t("table.confirm")}
                   >
                     OK
                   </button>

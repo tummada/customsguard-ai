@@ -1,0 +1,99 @@
+{
+  "header": {
+    "appName": "VOLLOS",
+    "subtitle": "Customs Guard AI",
+    "connected": "Connected",
+    "offline": "Offline"
+  },
+  "tabs": {
+    "magicFill": "Magic Fill",
+    "scanReview": "Scan & Review",
+    "chat": "Chat"
+  },
+  "login": {
+    "email": "Email",
+    "password": "Password",
+    "submit": "Sign In",
+    "connecting": "Connecting...",
+    "forgotPassword": "Forgot password?"
+  },
+  "scan": {
+    "title": "Scan & Review",
+    "scanning": "Scanning",
+    "pages": "pages",
+    "scanButton": "Scan with AI",
+    "items": "items",
+    "confirmed": "confirmed",
+    "waitConfirm": "awaiting",
+    "confirmAll": "Confirm All",
+    "fillToForm": "Fill to Customs Form",
+    "noConfirmed": "No confirmed items yet",
+    "clear": "Clear",
+    "dropPdf": "Drop PDF file here",
+    "orClick": "or click to select file",
+    "readingPdf": "Reading PDF...",
+    "clickToChange": "click to change file",
+    "pdfOnly": "Please select PDF files only",
+    "pdfReadError": "Cannot read PDF file",
+    "scanFailed": "Scan failed",
+    "noItems": "No items yet — scan a PDF to extract data"
+  },
+  "table": {
+    "hsCode": "HS Code",
+    "description": "Description",
+    "qty": "Qty",
+    "weight": "Weight",
+    "unitPrice": "Unit Price",
+    "cif": "CIF",
+    "confirm": "Confirm"
+  },
+  "chat": {
+    "placeholder": "Ask about HS codes, FTA, regulations...",
+    "emptyTitle": "Ask about customs regulations, HS codes, or FTA rates",
+    "emptySubtitle": "Powered by RAG Knowledge Base",
+    "searching": "Searching knowledge base...",
+    "send": "Ask",
+    "loginFirst": "Please login to VOLLOS backend first",
+    "cached": "(cached)",
+    "sources": "Sources",
+    "viewOriginal": "View original",
+    "docNumber": "Doc No."
+  },
+  "banner": {
+    "exchangeRate": "Exchange Rates",
+    "refresh": "Refresh",
+    "loading": "Loading...",
+    "effectiveDate": "Customs Department rate effective",
+    "midRateNote": "Mid Rate — used for customs duty calculation",
+    "ftaSavings": "FTA Savings",
+    "save": "save",
+    "evidence": "View evidence",
+    "lpiTitle": "Licenses / Controlled Goods (LPI)",
+    "lpiMore": "View details",
+    "auditRisk": "Audit Risk Summary"
+  },
+  "traffic": {
+    "safe": "Safe",
+    "mediumRisk": "Medium Risk",
+    "highRisk": "High Risk",
+    "edited": "Edited",
+    "confirmed": "Confirmed",
+    "readyToFill": "Confirmed — ready to fill form",
+    "passed": "Passed inspection",
+    "ai": "AI",
+    "risk": "Risk"
+  },
+  "error": {
+    "connectionFailed": "Cannot connect to server",
+    "invalidToken": "Session expired, please login again",
+    "fileTooLarge": "PDF file too large (max 10MB)",
+    "invalidCredentials": "Invalid email or password"
+  },
+  "common": {
+    "cancel": "Cancel",
+    "close": "Close",
+    "save": "Save",
+    "delete": "Delete",
+    "offline": "Offline — cannot scan"
+  }
+}

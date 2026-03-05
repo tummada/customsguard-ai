@@ -158,7 +158,8 @@ describe("FtaAlertBanner source link", () => {
         ]}
       />
     );
-    const link = screen.getByText("ดูหลักฐาน →");
+    const link = screen.getByText(/banner\.evidence/);
+
     expect(link).toBeInTheDocument();
     expect(link).toHaveAttribute(
       "href",
@@ -174,7 +175,7 @@ describe("FtaAlertBanner source link", () => {
         alerts={[makeFtaAlert({ sourceUrl: null })]}
       />
     );
-    expect(screen.queryByText("ดูหลักฐาน →")).not.toBeInTheDocument();
+    expect(screen.queryByText(/banner\.evidence/)).not.toBeInTheDocument();
   });
 
   it("renders nothing when alerts is empty", () => {
@@ -191,21 +192,21 @@ describe("ChatPanel", () => {
   it("renders without activeHsCodes (backwards compatible)", () => {
     render(<ChatPanel />);
     expect(
-      screen.getByPlaceholderText(/Ask about HS codes/)
+      screen.getByPlaceholderText(/chat\.placeholder/)
     ).toBeInTheDocument();
   });
 
   it("renders with activeHsCodes prop", () => {
     render(<ChatPanel activeHsCodes={["0306.17", "8471.30"]} />);
     expect(
-      screen.getByPlaceholderText(/Ask about HS codes/)
+      screen.getByPlaceholderText(/chat\.placeholder/)
     ).toBeInTheDocument();
   });
 
   it("shows empty state message when no messages", () => {
     render(<ChatPanel />);
     expect(
-      screen.getByText(/Ask about customs regulations/)
+      screen.getByText(/chat\.emptyTitle/)
     ).toBeInTheDocument();
   });
 });

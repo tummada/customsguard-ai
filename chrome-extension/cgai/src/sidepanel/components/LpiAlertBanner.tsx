@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { AlertTriangle } from "lucide-react";
 import type { LpiAlert } from "@/lib/api-client";
 
 interface LpiAlertBannerProps {
@@ -6,6 +8,7 @@ interface LpiAlertBannerProps {
 }
 
 export default function LpiAlertBanner({ alerts }: LpiAlertBannerProps) {
+  const { t } = useTranslation();
   const [expandedHs, setExpandedHs] = useState<Set<string>>(new Set());
 
   if (alerts.length === 0) return null;
@@ -34,9 +37,9 @@ export default function LpiAlertBanner({ alerts }: LpiAlertBannerProps) {
   return (
     <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mt-2">
       <div className="flex items-center gap-2 mb-2">
-        <span className="text-amber-600 text-sm">&#9888;</span>
+        <AlertTriangle className="w-4 h-4 text-amber-600" />
         <span className="text-xs font-medium text-amber-700">
-          ใบอนุญาต / ของต้องกำกัด (LPI)
+          {t("banner.lpiTitle")}
         </span>
       </div>
 
@@ -64,7 +67,7 @@ export default function LpiAlertBanner({ alerts }: LpiAlertBannerProps) {
                   ))}
                 </div>
                 <span className="text-amber-500 text-xs ml-1">
-                  {isExpanded ? "▲" : "▼"}
+                  {isExpanded ? "\u25B2" : "\u25BC"}
                 </span>
               </button>
 
@@ -88,7 +91,7 @@ export default function LpiAlertBanner({ alerts }: LpiAlertBannerProps) {
                           className="inline-flex items-center px-1 py-0.5 rounded bg-amber-100 hover:bg-amber-200 text-amber-700 text-[10px] transition-colors"
                           title={`Copy: ${alert.agencyCode}`}
                         >
-                          {alert.agencyCode} &#128203;
+                          {alert.agencyCode}
                         </button>
                       </div>
                       <p className="text-gray-600 text-[11px]">
@@ -105,7 +108,7 @@ export default function LpiAlertBanner({ alerts }: LpiAlertBannerProps) {
                             rel="noopener noreferrer"
                             className="text-amber-500 hover:underline text-[10px]"
                           >
-                            ดูเพิ่มเติม →
+                            {t("banner.lpiMore")} →
                           </a>
                         )}
                       </div>

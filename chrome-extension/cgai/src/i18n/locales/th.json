@@ -1,0 +1,99 @@
+{
+  "header": {
+    "appName": "VOLLOS",
+    "subtitle": "Customs Guard AI",
+    "connected": "เชื่อมต่อแล้ว",
+    "offline": "ออฟไลน์"
+  },
+  "tabs": {
+    "magicFill": "กรอกอัตโนมัติ",
+    "scanReview": "สแกน & ตรวจสอบ",
+    "chat": "แชท"
+  },
+  "login": {
+    "email": "อีเมล",
+    "password": "รหัสผ่าน",
+    "submit": "เข้าสู่ระบบ",
+    "connecting": "กำลังเชื่อมต่อ...",
+    "forgotPassword": "ลืมรหัสผ่าน?"
+  },
+  "scan": {
+    "title": "สแกน & ตรวจสอบ",
+    "scanning": "กำลังสแกน",
+    "pages": "หน้า",
+    "scanButton": "สแกนด้วย AI",
+    "items": "รายการ",
+    "confirmed": "ยืนยันแล้ว",
+    "waitConfirm": "รอยืนยัน",
+    "confirmAll": "ยืนยันทั้งหมด",
+    "fillToForm": "กรอกลงฟอร์ม",
+    "noConfirmed": "ยังไม่มีรายการยืนยัน",
+    "clear": "ล้าง",
+    "dropPdf": "ลากไฟล์ PDF มาวางที่นี่",
+    "orClick": "หรือคลิกเพื่อเลือกไฟล์",
+    "readingPdf": "กำลังอ่าน PDF...",
+    "clickToChange": "คลิกเพื่อเปลี่ยนไฟล์",
+    "pdfOnly": "กรุณาเลือกไฟล์ PDF เท่านั้น",
+    "pdfReadError": "ไม่สามารถอ่านไฟล์ PDF ได้",
+    "scanFailed": "สแกนไม่สำเร็จ",
+    "noItems": "ยังไม่มีรายการ — สแกน PDF เพื่อสกัดข้อมูล"
+  },
+  "table": {
+    "hsCode": "HS Code",
+    "description": "รายละเอียด",
+    "qty": "จำนวน",
+    "weight": "น้ำหนัก",
+    "unitPrice": "ราคาต่อหน่วย",
+    "cif": "CIF",
+    "confirm": "ยืนยัน"
+  },
+  "chat": {
+    "placeholder": "ถามเกี่ยวกับ HS codes, FTA, กฎระเบียบ...",
+    "emptyTitle": "ถามเกี่ยวกับกฎระเบียบศุลกากร, HS codes, หรืออัตรา FTA",
+    "emptySubtitle": "ขับเคลื่อนด้วย RAG Knowledge Base",
+    "searching": "กำลังค้นหาฐานความรู้...",
+    "send": "ถาม",
+    "loginFirst": "กรุณาเข้าสู่ระบบก่อนใช้งาน",
+    "cached": "(แคช)",
+    "sources": "แหล่งอ้างอิง",
+    "viewOriginal": "ดูต้นฉบับ",
+    "docNumber": "เลขที่"
+  },
+  "banner": {
+    "exchangeRate": "อัตราแลกเปลี่ยน",
+    "refresh": "รีเฟรช",
+    "loading": "กำลังโหลด...",
+    "effectiveDate": "อ้างอิงประกาศกรมศุลกากร ประจำวันที่",
+    "midRateNote": "อัตรากลาง (Mid Rate) — ใช้คำนวณอากรศุลกากร",
+    "ftaSavings": "ส่วนลด FTA",
+    "save": "ประหยัด",
+    "evidence": "ดูหลักฐาน",
+    "lpiTitle": "ใบอนุญาต / ของต้องกำกัด (LPI)",
+    "lpiMore": "ดูเพิ่มเติม",
+    "auditRisk": "สรุปความเสี่ยงตรวจสอบ"
+  },
+  "traffic": {
+    "safe": "ปลอดภัย",
+    "mediumRisk": "เสี่ยงปานกลาง",
+    "highRisk": "เสี่ยงสูง",
+    "edited": "แก้ไขแล้ว",
+    "confirmed": "ยืนยันแล้ว",
+    "readyToFill": "ยืนยันแล้ว — พร้อมกรอกฟอร์ม",
+    "passed": "ผ่านการตรวจสอบ",
+    "ai": "AI",
+    "risk": "ความเสี่ยง"
+  },
+  "error": {
+    "connectionFailed": "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้",
+    "invalidToken": "เซสชันหมดอายุ โปรดเข้าสู่ระบบใหม่",
+    "fileTooLarge": "ไฟล์ PDF ขนาดใหญ่เกินไป (สูงสุด 10MB)",
+    "invalidCredentials": "อีเมลหรือรหัสผ่านไม่ถูกต้อง"
+  },
+  "common": {
+    "cancel": "ยกเลิก",
+    "close": "ปิด",
+    "save": "บันทึก",
+    "delete": "ลบ",
+    "offline": "ออฟไลน์ — ไม่สามารถสแกนได้"
+  }
+}

@@ -79,8 +79,8 @@ async function handleSetAuth(
   sendResponse: (response: { success: boolean }) => void
 ) {
   try {
-    const { baseUrl, token, tenantId } = message.payload;
-    await apiClient.configure(baseUrl, token, tenantId);
+    const { token, tenantId } = message.payload;
+    await apiClient.configure(token, tenantId);
     console.log("[VOLLOS] Backend auth configured");
     sendResponse({ success: true });
   } catch {

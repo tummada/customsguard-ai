@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { Star } from "lucide-react";
 import type { FtaAlert } from "@/lib/api-client";
 
 interface FtaAlertBannerProps {
@@ -6,14 +8,16 @@ interface FtaAlertBannerProps {
 }
 
 export default function FtaAlertBanner({ alerts, hsCode }: FtaAlertBannerProps) {
+  const { t } = useTranslation();
+
   if (alerts.length === 0) return null;
 
   return (
     <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 mt-2">
       <div className="flex items-center gap-2 mb-2">
-        <span className="text-emerald-600 text-sm">&#9733;</span>
+        <Star className="w-4 h-4 text-emerald-600" />
         <span className="text-xs font-medium text-emerald-700">
-          FTA Savings — {hsCode}
+          {t("banner.ftaSavings")} — {hsCode}
         </span>
       </div>
       <div className="space-y-1.5">
@@ -31,12 +35,12 @@ export default function FtaAlertBanner({ alerts, hsCode }: FtaAlertBannerProps) 
                 <span className="text-gray-500 ml-1">- {alert.formType}</span>
               )}
             </div>
-            <div className="text-right">
+            <div className="text-right whitespace-nowrap">
               <span className="text-emerald-600 font-medium">
                 {alert.preferentialRate}%
               </span>
               <span className="text-gray-500 ml-1">
-                (save {alert.savingPercent}%)
+                ({t("banner.save")} {alert.savingPercent}%)
               </span>
             </div>
           </div>
@@ -54,7 +58,7 @@ export default function FtaAlertBanner({ alerts, hsCode }: FtaAlertBannerProps) 
           rel="noopener noreferrer"
           className="text-emerald-500 hover:underline text-[10px] mt-1 block"
         >
-          ดูหลักฐาน →
+          {t("banner.evidence")} →
         </a>
       )}
     </div>

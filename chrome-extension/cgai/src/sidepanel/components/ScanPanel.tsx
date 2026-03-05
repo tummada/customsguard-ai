@@ -1,8 +1,8 @@
 import { useState, useCallback, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
 import PdfDropZone from "./PdfDropZone";
 import LineItemTable from "./LineItemTable";
-import SettingsDialog from "./SettingsDialog";
 import ExchangeRateBanner from "./ExchangeRateBanner";
 import LpiAlertBanner from "./LpiAlertBanner";
 import { useScanItems } from "../hooks/useScanItems";
@@ -17,6 +17,7 @@ const CURRENT_DECLARATION_ID = 1;
 
 // --- Inline AuditSummaryBanner ---
 function AuditSummaryBanner({ summary }: { summary: RiskSummary }) {
+  const { t } = useTranslation();
   const hasRisk = summary.red > 0 || summary.orange > 0;
   const [expanded, setExpanded] = useState(hasRisk);
 
@@ -35,7 +36,7 @@ function AuditSummaryBanner({ summary }: { summary: RiskSummary }) {
         className="w-full flex items-center justify-between px-3 py-2 text-left"
       >
         <span className="text-xs font-semibold text-gray-700">
-          Audit Risk Summary
+          {t("banner.auditRisk")}
         </span>
         <div className="flex items-center gap-2 text-xs">
           {summary.red > 0 && (
@@ -91,17 +92,16 @@ function AuditSummaryBanner({ summary }: { summary: RiskSummary }) {
 }
 
 interface ScanPanelProps {
-  onAuthChange?: (connected: boolean) => void;
   onItemsChange?: (hsCodes: string[]) => void;
+  online?: boolean;
 }
 
-export default function ScanPanel({ onAuthChange, onItemsChange }: ScanPanelProps) {
+export default function ScanPanel({ onItemsChange, online = true }: ScanPanelProps) {
+  const { t } = useTranslation();
   const [pages, setPages] = useState<string[]>([]);
   const [rawPdfFile, setRawPdfFile] = useState<File | null>(null);
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState("");
-  const [settingsOpen, setSettingsOpen] = useState(false);
-
   const {
     items,
     unconfirmedCount,
@@ -183,7 +183,7 @@ export default function ScanPanel({ onAuthChange, onItemsChange }: ScanPanelProp
       if (response.success && response.items) {
         await saveExtractedItems(response.items);
       } else {
-        setScanError(response.error || "สแกนไม่สำเร็จ");
+        setScanError(response.error || t("scan.scanFailed"));
       }
     } catch (err) {
       setScanError(
@@ -256,25 +256,18 @@ export default function ScanPanel({ onAuthChange, onItemsChange }: ScanPanelProp
       {/* Header with settings */}
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-gray-700">
-          Scan & Review
+          {t("scan.title")}
         </h2>
         <div className="flex items-center gap-2">
           {items.length > 0 && (
             <button
               onClick={handleClear}
               className="text-gray-500 hover:text-red-400 text-xs transition-colors"
-              title="ล้างข้อมูล"
+              title={t("scan.clear")}
             >
-              Clear
+              {t("scan.clear")}
             </button>
           )}
-          <button
-            onClick={() => setSettingsOpen(true)}
-            className="text-gray-500 hover:text-gray-600 text-lg"
-            title="Settings"
-          >
-            &#9881;
-          </button>
         </div>
       </div>
 
@@ -285,12 +278,15 @@ export default function ScanPanel({ onAuthChange, onItemsChange }: ScanPanelProp
       {pages.length > 0 && (
         <button
           onClick={handleScan}
-          disabled={scanning}
+          disabled={scanning || !online}
           className="w-full py-2 px-4 btn-primary rounded-2xl text-sm"
+          title={!online ? t("common.offline") : undefined}
         >
           {scanning
-            ? `กำลังสแกน ${pages.length} หน้า...`
-            : `Scan with AI (${pages.length} หน้า)`}
+            ? `${t("scan.scanning")} ${pages.length} ${t("scan.pages")}...`
+            : !online
+              ? t("common.offline")
+              : `${t("scan.scanButton")} (${pages.length} ${t("scan.pages")})`}
         </button>
       )}
 
@@ -319,15 +315,15 @@ export default function ScanPanel({ onAuthChange, onItemsChange }: ScanPanelProp
           <div className="bg-white rounded-xl border border-brand/10 shadow-gold p-3">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-gray-500">
-                {items.length} รายการ
+                {items.length} {t("scan.items")}
               </span>
               <span className="text-xs">
                 {confirmedCount > 0 && (
-                  <span className="text-green-600">{confirmedCount} confirmed</span>
+                  <span className="text-green-600">{confirmedCount} {t("scan.confirmed")}</span>
                 )}
                 {confirmedCount > 0 && unconfirmedCount > 0 && " / "}
                 {unconfirmedCount > 0 && (
-                  <span className="text-gray-500">{unconfirmedCount} รอ confirm</span>
+                  <span className="text-gray-500">{unconfirmedCount} {t("scan.waitConfirm")}</span>
                 )}
               </span>
             </div>
@@ -352,7 +348,7 @@ export default function ScanPanel({ onAuthChange, onItemsChange }: ScanPanelProp
                 onClick={handleConfirmAll}
                 className="w-full py-2.5 text-sm font-medium bg-green-600 hover:bg-green-700 text-white rounded-2xl transition-colors"
               >
-                Confirm All ({unconfirmedCount} รายการ)
+                {t("scan.confirmAll")} ({unconfirmedCount} {t("scan.items")})
               </button>
             )}
 
@@ -367,19 +363,13 @@ export default function ScanPanel({ onAuthChange, onItemsChange }: ScanPanelProp
               }`}
             >
               {hasConfirmed
-                ? `Fill to Customs Form (${confirmedCount} รายการ)`
-                : "Fill to Customs Form (ยังไม่มีรายการ confirm)"}
+                ? `${t("scan.fillToForm")} (${confirmedCount} ${t("scan.items")})`
+                : `${t("scan.fillToForm")} (${t("scan.noConfirmed")})`}
             </button>
           </div>
         </>
       )}
 
-      {/* Settings Dialog */}
-      <SettingsDialog
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        onAuthChange={onAuthChange}
-      />
     </div>
   );
 }

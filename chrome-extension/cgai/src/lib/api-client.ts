@@ -87,18 +87,49 @@ export function isCacheValid(cachedAt: string, ttlMs: number): boolean {
 
 export { FTA_CACHE_TTL_MS, RAG_CACHE_TTL_MS, LPI_CACHE_TTL_MS, EXCHANGE_RATE_CACHE_TTL_MS };
 
+/** Decode JWT and check if expired (with 30s clock skew buffer) */
+export function isTokenExpired(token: string): boolean {
+  try {
+    const base64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    const payload = JSON.parse(atob(base64));
+    return (payload.exp - 30) < (Date.now() / 1000);
+  } catch {
+    return true; // corrupt/null token = expired
+  }
+}
+
 class ApiClient {
   private config: ApiConfig | null = null;
+  private onAuthExpiredCallback: (() => void) | null = null;
 
-  async configure(baseUrl: string, token: string, tenantId: string) {
+  /** Register callback for when a 401 is received or token expires */
+  setOnAuthExpired(callback: () => void) {
+    this.onAuthExpiredCallback = callback;
+  }
+
+  /** Get backend URL: devBackendUrl override > env default */
+  async getBackendUrl(): Promise<string> {
+    const stored = await chrome.storage.local.get("devBackendUrl");
+    if (stored.devBackendUrl) return stored.devBackendUrl;
+    return import.meta.env.VITE_API_URL;
+  }
+
+  async configure(token: string, tenantId: string) {
+    const baseUrl = await this.getBackendUrl();
     this.config = { baseUrl, token, tenantId };
-    await chrome.storage.session.set({ vollosApiConfig: this.config });
+    await chrome.storage.local.set({ vollosApiConfig: this.config });
   }
 
   async loadConfig(): Promise<boolean> {
-    const result = await chrome.storage.session.get("vollosApiConfig");
+    const result = await chrome.storage.local.get("vollosApiConfig");
     if (result.vollosApiConfig) {
-      this.config = result.vollosApiConfig;
+      const config = result.vollosApiConfig as ApiConfig;
+      // Check token expiry before accepting
+      if (isTokenExpired(config.token)) {
+        await this.logout();
+        return false;
+      }
+      this.config = config;
       return true;
     }
     return false;
@@ -114,7 +145,7 @@ class ApiClient {
 
   async logout() {
     this.config = null;
-    await chrome.storage.session.remove("vollosApiConfig");
+    await chrome.storage.local.remove("vollosApiConfig");
   }
 
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -131,7 +162,19 @@ class ApiClient {
       headers["Content-Type"] = "application/json";
     }
 
-    const resp = await fetch(url, { ...options, headers });
+    let resp: Response;
+    try {
+      resp = await fetch(url, { ...options, headers });
+    } catch {
+      throw new Error("NETWORK_ERROR");
+    }
+
+    if (resp.status === 401) {
+      await this.logout();
+      this.onAuthExpiredCallback?.();
+      throw new Error("SESSION_EXPIRED");
+    }
+
     if (!resp.ok) {
       const text = await resp.text();
       throw new Error(`API ${resp.status}: ${text}`);
@@ -199,6 +242,12 @@ class ApiClient {
       signal: controller.signal,
     })
       .then(async (resp) => {
+        if (resp.status === 401) {
+          await this.logout();
+          this.onAuthExpiredCallback?.();
+          onError("SESSION_EXPIRED");
+          return;
+        }
         if (!resp.ok || !resp.body) {
           onError(`API error: ${resp.status}`);
           return;
@@ -219,7 +268,6 @@ class ApiClient {
           for (const line of lines) {
             if (line.startsWith("event:")) {
               const eventName = line.slice(6).trim();
-              // Next data: line
               const dataLine = lines[lines.indexOf(line) + 1];
               if (dataLine?.startsWith("data:")) {
                 const data = JSON.parse(dataLine.slice(5).trim());

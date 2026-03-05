@@ -1,5 +1,15 @@
 import "@testing-library/jest-dom/vitest";
 
+// Mock react-i18next so components using useTranslation don't crash
+vi.mock("react-i18next", () => ({
+  useTranslation: () => ({
+    t: (key: string) => key,
+    i18n: { changeLanguage: vi.fn(), language: "th" },
+  }),
+  I18nextProvider: ({ children }: { children: React.ReactNode }) => children,
+  initReactI18next: { type: "3rdParty", init: vi.fn() },
+}));
+
 // In-memory chrome.storage.local mock
 const store = new Map<string, unknown>();
 
