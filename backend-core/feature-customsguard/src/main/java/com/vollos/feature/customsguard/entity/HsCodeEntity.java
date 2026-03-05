@@ -1,13 +1,16 @@
 package com.vollos.feature.customsguard.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
 @Table(name = "cg_hs_codes")
-public class HsCodeEntity {
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+public class HsCodeEntity implements Serializable {
 
     @Id
     @Column(length = 12)

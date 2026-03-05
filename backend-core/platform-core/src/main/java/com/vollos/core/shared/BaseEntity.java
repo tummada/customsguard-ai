@@ -1,11 +1,13 @@
 package com.vollos.core.shared;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.Column;
 import jakarta.persistence.Id;
 import jakarta.persistence.MappedSuperclass;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 
+import java.io.Serializable;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -14,7 +16,8 @@ import java.util.UUID;
  * All entities in the platform should extend this class.
  */
 @MappedSuperclass
-public abstract class BaseEntity {
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+public abstract class BaseEntity implements Serializable {
 
     @Id
     @Column(updatable = false, nullable = false)

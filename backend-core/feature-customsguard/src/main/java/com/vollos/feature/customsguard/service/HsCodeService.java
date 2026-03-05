@@ -6,6 +6,8 @@ import com.vollos.feature.customsguard.entity.HsCodeEntity;
 import com.vollos.feature.customsguard.repository.HsCodeRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -60,6 +62,10 @@ public class HsCodeService {
         )).toList();
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "hs-lookup", allEntries = true),
+            @CacheEvict(value = "hs-codes", allEntries = true)
+    })
     @Transactional
     public int embedAllHsCodes() {
         List<HsCodeEntity> unembedded = hsCodeRepo.findByEmbeddedFalse();
@@ -89,6 +95,10 @@ public class HsCodeService {
         return count;
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "hs-lookup", allEntries = true),
+            @CacheEvict(value = "hs-codes", allEntries = true)
+    })
     @Transactional
     public int seedSampleHsCodes() {
         if (hsCodeRepo.count() > 0) {
