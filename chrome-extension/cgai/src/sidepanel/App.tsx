@@ -54,7 +54,15 @@ function AppContent() {
   if (authState === "loading") return <Splash />;
   if (authState === "login") return <LoginScreen />;
 
-  const handleTestFill = async () => {
+  const handleFill = async () => {
+    // Use confirmed scanned items if available
+    const confirmedItems = scannedHsCodes.length > 0 ? scannedHsCodes : [];
+    if (confirmedItems.length === 0) {
+      setStatus("error");
+      setMessage(t("magicFill.noData"));
+      return;
+    }
+
     setStatus("filling");
     setMessage("");
 
@@ -65,24 +73,36 @@ function AppContent() {
       });
 
       if (!tab?.id) {
-        throw new Error("ไม่พบแท็บที่ใช้งานอยู่");
+        throw new Error(t("magicFill.noTab"));
       }
 
-      const mockData = {
-        declarationNumber: "A-MOCK-2026-001234",
-        hsCode: "8471.30.10",
-        cifPrice: "125750.50",
-        itemDescription: "Notebook Computer 14 inch",
-        itemQuantity: "50",
-        itemWeight: "112.500",
-      };
+      // Get first confirmed item data from Dexie
+      const items = await db.cgDeclarationItems
+        .where("declarationLocalId")
+        .equals(1)
+        .filter((i) => i.isConfirmed === true)
+        .toArray();
+
+      if (items.length === 0) {
+        setStatus("error");
+        setMessage(t("magicFill.noData"));
+        return;
+      }
+
+      const first = items[0];
+      const payload: Record<string, string> = {};
+      if (first.hsCode) payload.hsCode = first.hsCode;
+      if (first.cifPrice) payload.cifPrice = first.cifPrice;
+      if (first.descriptionEn) payload.itemDescription = first.descriptionEn;
+      if (first.quantity) payload.itemQuantity = first.quantity;
+      if (first.weight) payload.itemWeight = first.weight;
 
       if (dbReady) {
         await db.cgAuditLogs.add({
           declarationLocalId: 0,
           action: "FIELD_FILLED",
           snapshotBefore: null,
-          snapshotAfter: mockData,
+          snapshotAfter: payload,
           source: "MAGIC_FILL",
           timestamp: new Date().toISOString(),
           syncStatus: "LOCAL_ONLY",
@@ -91,23 +111,23 @@ function AppContent() {
 
       const response = await chrome.tabs.sendMessage(tab.id, {
         type: "MAGIC_FILL",
-        payload: mockData,
+        payload,
       });
 
       if (response?.success) {
         setStatus("success");
-        setMessage(`กรอกสำเร็จ ${response.filledCount} ช่อง (+ iFrame fields)`);
+        setMessage(t("magicFill.success", { count: response.filledCount }));
       } else {
         setStatus("error");
-        setMessage(response?.error || "ไม่สามารถกรอกข้อมูลได้");
+        setMessage(response?.error || t("scan.scanFailed"));
       }
     } catch (err) {
       setStatus("error");
       const raw = err instanceof Error ? err.message : "";
       if (raw.includes("Receiving end does not exist") || raw.includes("Could not establish connection")) {
-        setMessage("ไม่สามารถเชื่อมต่อกับหน้าเว็บได้ — กรุณาเปิดหน้าใบขนสินค้าก่อนกดปุ่มนี้");
+        setMessage(t("magicFill.cannotConnect"));
       } else {
-        setMessage(raw || "เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ");
+        setMessage(raw || t("scan.scanFailed"));
       }
     }
   };
@@ -173,20 +193,27 @@ function AppContent() {
         {activeTab === "magic-fill" && (
           <div className="space-y-4">
             <div className="bg-white rounded-2xl p-4 border border-brand/10 shadow-gold">
-              <h2 className="text-sm font-semibold text-gray-700 mb-3">
-                {t("tabs.magicFill")}
+              <h2 className="text-sm font-semibold text-gray-700 mb-2">
+                {t("magicFill.title")}
               </h2>
+              <p className="text-xs text-gray-500 mb-3">
+                {t("magicFill.description")}
+              </p>
               <button
-                onClick={handleTestFill}
-                disabled={status === "filling"}
-                className="w-full py-2 px-4 btn-primary rounded-2xl text-sm"
+                onClick={handleFill}
+                disabled={status === "filling" || scannedHsCodes.length === 0}
+                className={`w-full py-2.5 px-4 rounded-2xl text-sm ${
+                  scannedHsCodes.length > 0
+                    ? "btn-primary"
+                    : "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
+                }`}
               >
-                {status === "filling" ? "กำลังกรอก..." : "Test Fill on Mock"}
+                {status === "filling" ? t("magicFill.filling") : t("magicFill.button")}
               </button>
 
               {message && (
                 <p
-                  className={`mt-2 text-sm ${
+                  className={`mt-2 text-xs ${
                     status === "success" ? "text-green-600" : "text-red-500"
                   }`}
                 >

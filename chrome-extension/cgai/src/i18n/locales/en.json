@@ -10,6 +10,16 @@
     "scanReview": "Scan & Review",
     "chat": "Chat"
   },
+  "magicFill": {
+    "title": "Magic Fill",
+    "description": "Confirm items from the \"Scan\" tab, then press the button below to auto-fill the customs form.",
+    "button": "Fill Customs Form",
+    "filling": "Filling...",
+    "success": "Filled {{count}} fields successfully",
+    "noData": "No confirmed items yet — go to the \"Scan\" tab to scan and confirm items first.",
+    "noTab": "No active tab found — please open a customs declaration page first.",
+    "cannotConnect": "Cannot connect to the web page — please open a customs declaration page first."
+  },
   "login": {
     "email": "Email",
     "password": "Password",
@@ -57,7 +67,11 @@
     "cached": "(cached)",
     "sources": "Sources",
     "viewOriginal": "View original",
-    "docNumber": "Doc No."
+    "docNumber": "Doc No.",
+    "greeting": "Hello! I'm VOLLOS AI, your customs assistant.\n\nI can help with:\n• HS Code classification\n• MFN / FTA duty rates\n• Import-export regulations\n• Licenses / controlled goods\n\nFeel free to ask!",
+    "thanksReply": "You're welcome! Feel free to ask anything else.",
+    "chitchatReply": "I specialize in customs topics. Try asking about HS Codes, duty rates, FTA, or import-export regulations!",
+    "lowRelevanceHidden": "{{count}} low-relevance sources hidden"
   },
   "banner": {
     "exchangeRate": "Exchange Rates",

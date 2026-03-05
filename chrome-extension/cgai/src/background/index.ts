@@ -51,6 +51,10 @@ async function handleScanPdf(
   sendResponse: (response: ScanPdfResponse) => void
 ) {
   try {
+    // Reload config from storage in case service worker restarted
+    if (!apiClient.isConfigured()) {
+      await apiClient.loadConfig();
+    }
     if (!apiClient.isConfigured()) {
       sendResponse({
         success: false,
@@ -93,6 +97,7 @@ async function handleFtaLookup(
   sendResponse: (response: unknown) => void
 ) {
   try {
+    if (!apiClient.isConfigured()) await apiClient.loadConfig();
     const results = await apiClient.hsLookup(
       message.payload.codes,
       message.payload.originCountry
@@ -111,6 +116,7 @@ async function handleRagSearch(
   sendResponse: (response: unknown) => void
 ) {
   try {
+    if (!apiClient.isConfigured()) await apiClient.loadConfig();
     const result = await apiClient.ragSearch(message.payload.query);
     sendResponse({ success: true, ...result });
   } catch (err) {

@@ -71,6 +71,12 @@ export default function LoginScreen() {
       <div className="w-full max-w-xs space-y-6">
         {/* Logo */}
         <div className="text-center" onClick={handleLogoTap}>
+          <img
+            src="/icon-128.png"
+            alt="VOLLOS"
+            className="w-16 h-16 mx-auto mb-2 select-none pointer-events-none"
+            draggable={false}
+          />
           <h1 className="text-3xl font-bold text-brand select-none cursor-default">VOLLOS</h1>
           <p className="text-xs text-gray-400 mt-1">{t("header.subtitle")}</p>
         </div>
