@@ -39,7 +39,10 @@ public class ScanWorkerService {
         this.objectMapper = objectMapper;
     }
 
-    @Scheduled(fixedDelay = 10_000, initialDelay = 30_000)
+    private static final int MAX_RETRIES = 3;
+    private static final long RETRY_DELAY_MS = 15_000;
+
+    @Scheduled(fixedDelay = 15_000, initialDelay = 30_000)
     public void pollAndProcess() {
         // Pick one CREATED job (oldest first)
         List<Map<String, Object>> jobs = jdbcTemplate.queryForList("""
@@ -88,9 +91,24 @@ public class ScanWorkerService {
                 WHERE id = ?::uuid
                 """, jobId);
 
-            // 4. Send to Gemini for HS code classification
-            String itemsJson = classifyWithGemini(extractedText);
+            // 4. Send to Gemini for HS code classification (with retry for rate limits)
+            String itemsJson = null;
+            for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+                itemsJson = classifyWithGemini(extractedText);
+                if (!"[]".equals(itemsJson)) break;
+
+                if (attempt < MAX_RETRIES) {
+                    log.warn("Gemini returned empty (attempt {}/{}), retrying in {}s...",
+                            attempt, MAX_RETRIES, RETRY_DELAY_MS / 1000);
+                    Thread.sleep(RETRY_DELAY_MS);
+                }
+            }
             log.info("Gemini classification result: {} chars", itemsJson.length());
+
+            // If still empty after retries, mark as FAILED
+            if ("[]".equals(itemsJson)) {
+                throw new RuntimeException("Gemini returned empty result after " + MAX_RETRIES + " retries");
+            }
 
             jdbcTemplate.update("""
                 UPDATE ai_jobs SET progress = 80, updated_at = NOW()
