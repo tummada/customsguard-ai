@@ -25,10 +25,35 @@ const chromeStorageLocal = {
   }),
 };
 
+// Session storage uses the same implementation (separate store)
+const sessionStore = new Map<string, unknown>();
+
+const chromeStorageSession = {
+  get: vi.fn(async (keys: string | string[]) => {
+    const result: Record<string, unknown> = {};
+    const keyList = typeof keys === "string" ? [keys] : keys;
+    for (const key of keyList) {
+      if (sessionStore.has(key)) result[key] = sessionStore.get(key);
+    }
+    return result;
+  }),
+  set: vi.fn(async (items: Record<string, unknown>) => {
+    for (const [key, value] of Object.entries(items)) {
+      sessionStore.set(key, value);
+    }
+  }),
+  remove: vi.fn(async (keys: string | string[]) => {
+    const keyList = typeof keys === "string" ? [keys] : keys;
+    for (const key of keyList) {
+      sessionStore.delete(key);
+    }
+  }),
+};
+
 // Assign global chrome mock
 Object.assign(globalThis, {
   chrome: {
-    storage: { local: chromeStorageLocal },
+    storage: { local: chromeStorageLocal, session: chromeStorageSession },
     runtime: {
       sendMessage: vi.fn(),
       onMessage: { addListener: vi.fn(), removeListener: vi.fn() },
@@ -42,5 +67,6 @@ Element.prototype.scrollIntoView = vi.fn();
 // Reset storage between tests
 beforeEach(() => {
   store.clear();
+  sessionStore.clear();
   vi.clearAllMocks();
 });

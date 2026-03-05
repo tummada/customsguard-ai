@@ -50,9 +50,9 @@ describe("ApiClient", () => {
     expect(client.isConfigured()).toBe(false);
   });
 
-  it("configure() stores config and calls chrome.storage.local.set", async () => {
+  it("configure() stores config and calls chrome.storage.session.set", async () => {
     await client.configure("http://localhost:8080", "tok123", "tenant-1");
-    expect(chrome.storage.local.set).toHaveBeenCalledWith({
+    expect(chrome.storage.session.set).toHaveBeenCalledWith({
       vollosApiConfig: {
         baseUrl: "http://localhost:8080",
         token: "tok123",
