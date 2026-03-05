@@ -97,19 +97,14 @@ export default function LpiAlertBanner({ alerts }: LpiAlertBannerProps) {
                       <p className="text-gray-600 text-[11px]">
                         {alert.requirementTh}
                       </p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[10px] text-gray-400">
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">
                           {alert.controlType}
                         </span>
                         {alert.sourceUrl && (
-                          <a
-                            href={alert.sourceUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-amber-500 hover:underline text-[10px]"
-                          >
-                            {t("banner.lpiMore")} →
-                          </a>
+                          <span className="text-[10px] text-gray-400">
+                            {t("banner.lpiAgency")}: {new URL(alert.sourceUrl).hostname.replace("www.", "")}
+                          </span>
                         )}
                       </div>
                     </div>

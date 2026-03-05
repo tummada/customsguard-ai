@@ -46,7 +46,8 @@
     "pdfOnly": "Please select PDF files only",
     "pdfReadError": "Cannot read PDF file",
     "scanFailed": "Scan failed",
-    "noItems": "No items yet — scan a PDF to extract data"
+    "noItems": "No items yet — scan a PDF to extract data",
+    "goToMagicFill": "Confirmed — go to \"Magic Fill\" tab to fill the form"
   },
   "table": {
     "hsCode": "HS Code",
@@ -84,6 +85,7 @@
     "evidence": "View evidence",
     "lpiTitle": "Licenses / Controlled Goods (LPI)",
     "lpiMore": "View details",
+    "lpiAgency": "Agency",
     "auditRisk": "Audit Risk Summary"
   },
   "traffic": {

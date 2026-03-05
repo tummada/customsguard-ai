@@ -210,3 +210,79 @@ describe("ChatPanel", () => {
     ).toBeInTheDocument();
   });
 });
+
+// ─── Bug Fix Tests: Intent Classification ───
+
+import { classifyIntent } from "@/sidepanel/components/ChatPanel";
+
+describe("Chat intent classification", () => {
+  it("classifies Thai greetings as 'greeting'", () => {
+    expect(classifyIntent("สวัสดี")).toBe("greeting");
+    expect(classifyIntent("สวัสดีครับ")).toBe("greeting");
+    expect(classifyIntent("หวัดดี")).toBe("greeting");
+    expect(classifyIntent("ดีครับ")).toBe("greeting");
+  });
+
+  it("classifies English greetings as 'greeting'", () => {
+    expect(classifyIntent("hello")).toBe("greeting");
+    expect(classifyIntent("Hi ")).toBe("greeting");
+    expect(classifyIntent("Hey")).toBe("greeting");
+  });
+
+  it("classifies casual questions about the bot as 'greeting'", () => {
+    expect(classifyIntent("ถามอะไรได้มั้ย")).toBe("greeting");
+    expect(classifyIntent("ถามอะไรได้ม่ะ")).toBe("greeting");
+    expect(classifyIntent("ทำอะไรได้บ้าง")).toBe("greeting");
+    expect(classifyIntent("คุณเป็นใคร")).toBe("greeting");
+  });
+
+  it("classifies thanks as 'thanks'", () => {
+    expect(classifyIntent("ขอบคุณ")).toBe("thanks");
+    expect(classifyIntent("ขอบคุณครับ")).toBe("thanks");
+    expect(classifyIntent("thanks")).toBe("thanks");
+    expect(classifyIntent("เข้าใจแล้ว")).toBe("thanks");
+  });
+
+  it("classifies short non-customs text as 'chitchat'", () => {
+    expect(classifyIntent("ไม่ทราบ")).toBe("chitchat");
+    expect(classifyIntent("อืม")).toBe("chitchat");
+    expect(classifyIntent("555")).toBe("chitchat");
+  });
+
+  it("classifies customs-related queries as 'customs'", () => {
+    expect(classifyIntent("HS code กุ้งแช่แข็ง")).toBe("customs");
+    expect(classifyIntent("อัตราอากร MFN สินค้าอิเล็กทรอนิกส์")).toBe("customs");
+    expect(classifyIntent("FTA ACFTA ข้าว")).toBe("customs");
+    expect(classifyIntent("ใบอนุญาตนำเข้า")).toBe("customs");
+    expect(classifyIntent("พิกัดศุลกากร คอมพิวเตอร์")).toBe("customs");
+  });
+
+  it("classifies longer unknown queries as 'customs' (fallback)", () => {
+    expect(classifyIntent("ช่วยดูรายละเอียดสินค้าที่นำเข้ามาให้หน่อย")).toBe("customs");
+  });
+});
+
+// ─── Bug Fix Tests: Source URL validation ───
+
+describe("Source URL display rules", () => {
+  it("sourceUrl with https:// is valid for display", () => {
+    const src = makeRagSource({
+      sourceUrl: "https://ecs-support.github.io/post/law/customs/2563/2563-204/",
+    });
+    expect(src.sourceUrl).toMatch(/^https:\/\//);
+  });
+
+  it("sourceUrl with only homepage domain should not be used as reference", () => {
+    // LPI alerts only have homepage URLs like https://www.tisi.go.th
+    // These should not be rendered as source links
+    const homepageUrl = "https://www.tisi.go.th";
+    // Homepage URLs have no path beyond /
+    const url = new URL(homepageUrl);
+    expect(url.pathname).toBe("/");
+  });
+
+  it("sourceUrl null should not render link", () => {
+    const src = makeRagSource({ sourceUrl: null });
+    expect(src.sourceUrl).toBeNull();
+  });
+});

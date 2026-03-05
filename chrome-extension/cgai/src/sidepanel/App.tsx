@@ -188,9 +188,15 @@ function AppContent() {
         ))}
       </div>
 
-      {/* Tab Content */}
-      <div className="p-4">
-        {activeTab === "magic-fill" && (
+      {/* Tab Content — use hidden instead of unmount to preserve state */}
+      <div className={`p-4 ${activeTab === "scan-review" ? "" : "hidden"}`}>
+        <ScanPanel onItemsChange={setScannedHsCodes} online={online} />
+      </div>
+      <div className={`p-4 ${activeTab === "chat" ? "" : "hidden"}`}>
+        <ChatPanel activeHsCodes={scannedHsCodes} />
+      </div>
+      {activeTab === "magic-fill" && (
+        <div className="p-4">
           <div className="space-y-4">
             <div className="bg-white rounded-2xl p-4 border border-brand/10 shadow-gold">
               <h2 className="text-sm font-semibold text-gray-700 mb-2">
@@ -222,14 +228,8 @@ function AppContent() {
               )}
             </div>
           </div>
-        )}
-
-        {activeTab === "scan-review" && (
-          <ScanPanel onItemsChange={setScannedHsCodes} online={online} />
-        )}
-
-        {activeTab === "chat" && <ChatPanel activeHsCodes={scannedHsCodes} />}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

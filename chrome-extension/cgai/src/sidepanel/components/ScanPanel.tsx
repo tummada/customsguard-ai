@@ -208,35 +208,6 @@ export default function ScanPanel({ onItemsChange, online = true }: ScanPanelPro
     setScanError("");
   };
 
-  const handleFillToForm = async () => {
-    const confirmedItems = items.filter((i) => i.isConfirmed);
-    if (confirmedItems.length === 0) return;
-
-    // Send the first confirmed item to fill the form
-    const first = confirmedItems[0];
-    const payload: Record<string, string> = {};
-    if (first.hsCode) payload.hsCode = first.hsCode;
-    if (first.cifPrice) payload.cifPrice = first.cifPrice;
-    if (first.descriptionEn) payload.itemDescription = first.descriptionEn;
-    if (first.quantity) payload.itemQuantity = first.quantity;
-    if (first.weight) payload.itemWeight = first.weight;
-
-    try {
-      const [tab] = await chrome.tabs.query({
-        active: true,
-        currentWindow: true,
-      });
-      if (tab?.id) {
-        await chrome.tabs.sendMessage(tab.id, {
-          type: "MAGIC_FILL",
-          payload,
-        });
-      }
-    } catch (err) {
-      console.error("[VOLLOS] Fill error:", err);
-    }
-  };
-
   const handleEditItem = useCallback(
     (localId: number, field: keyof CgDeclarationItem, value: string) => {
       editItem(localId, field, value);
@@ -352,20 +323,12 @@ export default function ScanPanel({ onItemsChange, online = true }: ScanPanelPro
               </button>
             )}
 
-            {/* Fill to Form */}
-            <button
-              onClick={handleFillToForm}
-              disabled={!hasConfirmed}
-              className={`w-full py-2.5 text-sm font-medium rounded-2xl transition-colors ${
-                hasConfirmed
-                  ? "btn-primary"
-                  : "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
-              }`}
-            >
-              {hasConfirmed
-                ? `${t("scan.fillToForm")} (${confirmedCount} ${t("scan.items")})`
-                : `${t("scan.fillToForm")} (${t("scan.noConfirmed")})`}
-            </button>
+            {/* Hint to use Magic Fill tab */}
+            {hasConfirmed && (
+              <p className="text-xs text-center text-gray-400">
+                {t("scan.goToMagicFill")}
+              </p>
+            )}
           </div>
         </>
       )}

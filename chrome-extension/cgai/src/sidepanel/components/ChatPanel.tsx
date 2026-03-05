@@ -47,7 +47,7 @@ const CUSTOMS_KEYWORDS = [
   "aeo", "green lane", "red line",
 ];
 
-function classifyIntent(text: string): Intent {
+export function classifyIntent(text: string): Intent {
   const lower = text.toLowerCase().trim();
 
   // Check greetings (exact or starts-with)
