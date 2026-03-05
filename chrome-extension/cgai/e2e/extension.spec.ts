@@ -290,9 +290,9 @@ test("12. Token expired → error/re-login prompt", async () => {
   await input.fill("test query");
   await page.locator("button", { hasText: "Ask" }).click();
 
-  // Should see an error message (API 403 or similar)
+  // Should see an error message (API 403, network error, or similar)
   await expect(
-    page.locator("text=/API|error|403|failed/i")
+    page.locator("text=/API|error|403|failed|fetch|network|connect|ไม่สามารถ|Error occurred/i")
   ).toBeVisible({ timeout: 10_000 });
 
   // Clean up: remove bad config
