@@ -88,11 +88,14 @@ deploy-production:
     - echo "$SSH_KNOWN_HOSTS" >> ~/.ssh/known_hosts
   script:
     - |
-      ssh $SSH_USER@$SSH_HOST << 'DEPLOY_SCRIPT'
+      ssh $SSH_USER@$SSH_HOST << DEPLOY_SCRIPT
         cd /opt/vollos
 
         # Login to GitLab Container Registry
         docker login -u gitlab-ci-token -p $CI_REGISTRY_PASSWORD $CI_REGISTRY 2>/dev/null || true
+
+        # Backup current image before deploy
+        docker tag vollos-backend:latest vollos-backend:backup-before-deploy 2>/dev/null || true
 
         # Pull latest image
         docker pull $BACKEND_IMAGE_LATEST || true
@@ -102,9 +105,10 @@ deploy-production:
 
         # Wait for health
         echo "Waiting for backend..."
-        for i in $(seq 1 20); do
-          if docker exec vollos-backend curl -sf http://localhost:8080/v1/auth/dev-token -X POST > /dev/null 2>&1; then
+        for i in \$(seq 1 20); do
+          if docker exec vollos-backend curl -sf http://localhost:8080/actuator/health > /dev/null 2>&1; then
             echo "Deploy OK!"
+            docker image prune -f
             exit 0
           fi
           sleep 5
