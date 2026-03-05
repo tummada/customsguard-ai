@@ -47,8 +47,20 @@ const CUSTOMS_KEYWORDS = [
   "aeo", "green lane", "red line",
 ];
 
+// Thai character range: \u0E00-\u0E7F
+const THAI_RE = /[\u0E00-\u0E7F]/;
+const ENGLISH_WORD_RE = /[a-z]{2,}/i;
+
+/** Check if text contains meaningful language (Thai or English words) */
+function hasMeaningfulText(text: string): boolean {
+  return THAI_RE.test(text) || ENGLISH_WORD_RE.test(text);
+}
+
 export function classifyIntent(text: string): Intent {
   const lower = text.toLowerCase().trim();
+
+  // Gibberish / random keysmash → chitchat
+  if (!hasMeaningfulText(lower)) return "chitchat";
 
   // Check greetings (exact or starts-with)
   for (const g of GREETING_PATTERNS) {
@@ -65,11 +77,14 @@ export function classifyIntent(text: string): Intent {
     if (lower.includes(kw.toLowerCase())) return "customs";
   }
 
-  // Short generic messages (< 8 chars) without customs keywords → chitchat
-  if (lower.length < 8) return "chitchat";
+  // Short generic messages (< 12 chars) without customs keywords → chitchat
+  if (lower.length < 12) return "chitchat";
 
-  // Longer messages without keywords → still try RAG (might be relevant)
-  return "customs";
+  // Has Thai text but no customs keywords → still try RAG
+  if (THAI_RE.test(lower)) return "customs";
+
+  // English text without customs keywords → chitchat
+  return "chitchat";
 }
 
 export default function ChatPanel({ activeHsCodes }: ChatPanelProps) {
@@ -221,11 +236,11 @@ export default function ChatPanel({ activeHsCodes }: ChatPanelProps) {
               )}
 
               {/* Source citations — only show high-relevance sources */}
-              {msg.sources && msg.sources.length > 0 && (
+              {msg.sources && msg.sources.filter((s) => s.similarity >= 0.75).length > 0 && (
                 <div className="mt-2 pt-2 border-t border-gray-200">
                   <p className="text-gray-500 text-[10px] mb-1">{t("chat.sources")}:</p>
                   {msg.sources
-                    .filter((src) => src.similarity >= 0.65)
+                    .filter((src) => src.similarity >= 0.75)
                     .slice(0, 3)
                     .map((src, j) => (
                     <div
@@ -268,10 +283,10 @@ export default function ChatPanel({ activeHsCodes }: ChatPanelProps) {
                       )}
                     </div>
                   ))}
-                  {msg.sources.filter((s) => s.similarity < 0.65).length > 0 && (
+                  {msg.sources.filter((s) => s.similarity < 0.75).length > 0 && (
                     <p className="text-gray-400 text-[10px] mt-1 italic">
                       {t("chat.lowRelevanceHidden", {
-                        count: msg.sources.filter((s) => s.similarity < 0.65).length,
+                        count: msg.sources.filter((s) => s.similarity < 0.75).length,
                       })}
                     </p>
                   )}

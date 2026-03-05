@@ -243,7 +243,14 @@ describe("Chat intent classification", () => {
     expect(classifyIntent("เข้าใจแล้ว")).toBe("thanks");
   });
 
-  it("classifies short non-customs text as 'chitchat'", () => {
+  it("classifies gibberish as 'chitchat'", () => {
+    expect(classifyIntent("asdfasd")).toBe("chitchat");
+    expect(classifyIntent("qwerty123")).toBe("chitchat");
+    expect(classifyIntent("!!!???")).toBe("chitchat");
+    expect(classifyIntent("12345678")).toBe("chitchat");
+  });
+
+  it("classifies short non-customs Thai text as 'chitchat'", () => {
     expect(classifyIntent("ไม่ทราบ")).toBe("chitchat");
     expect(classifyIntent("อืม")).toBe("chitchat");
     expect(classifyIntent("555")).toBe("chitchat");
