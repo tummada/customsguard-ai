@@ -85,6 +85,51 @@ public class GeminiChatService {
         }
     }
 
+    /**
+     * Send a raw prompt to Gemini (no system prompt wrapping).
+     * Used by ScanWorkerService for HS code classification.
+     */
+    public String rawPrompt(String prompt) {
+        try {
+            Map<String, Object> requestBody = Map.of(
+                    "contents", List.of(
+                            Map.of("role", "user", "parts", List.of(
+                                    Map.of("text", prompt)
+                            ))
+                    ),
+                    "generationConfig", Map.of(
+                            "temperature", 0.1,
+                            "maxOutputTokens", 8192
+                    )
+            );
+
+            String json = objectMapper.writeValueAsString(requestBody);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(chatUrl + "?key=" + apiKey))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(json))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request,
+                    HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() != 200) {
+                log.error("Gemini rawPrompt error: status={}, body={}", response.statusCode(), response.body());
+                return "";
+            }
+
+            JsonNode root = objectMapper.readTree(response.body());
+            return root.path("candidates").get(0)
+                    .path("content").path("parts").get(0)
+                    .path("text").asText();
+
+        } catch (Exception e) {
+            log.error("Failed to call Gemini rawPrompt", e);
+            return "";
+        }
+    }
+
     public String generateAnswer(String query, String context) {
         try {
             String systemPrompt = """
