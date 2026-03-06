@@ -50,7 +50,7 @@ public class GeminiEmbeddingService {
                     HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() != 200) {
-                log.error("Gemini embedding API error {}: {}", response.statusCode(), response.body());
+                log.error("Gemini embedding API error: status={}", response.statusCode());
                 throw new RuntimeException("Embedding service unavailable");
             }
 

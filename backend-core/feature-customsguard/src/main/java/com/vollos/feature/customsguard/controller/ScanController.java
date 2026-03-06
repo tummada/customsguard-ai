@@ -50,7 +50,11 @@ public class ScanController {
 
     @GetMapping("/{jobId}")
     public ResponseEntity<ScanJobResponse> getJobStatus(@PathVariable UUID jobId) {
-        ScanJobResponse job = scanService.getJobStatus(TenantContext.getCurrentTenantId(), jobId);
+        UUID tenantId = TenantContext.getCurrentTenantId();
+        if (tenantId == null) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        ScanJobResponse job = scanService.getJobStatus(tenantId, jobId);
         if (job == null) {
             return ResponseEntity.notFound().build();
         }

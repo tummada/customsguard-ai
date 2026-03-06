@@ -64,8 +64,10 @@ public class ScanWorkerService {
         log.info("Processing scan job: jobId={}, s3Key={}", jobId, s3Key);
 
         try {
-            // Set tenant context for RLS
-            jdbcTemplate.execute("SELECT set_config('app.current_tenant_id', '" + tenantId + "', false)");
+            // Set tenant context for RLS (parameterized to prevent SQL injection)
+            jdbcTemplate.queryForObject(
+                    "SELECT set_config('app.current_tenant_id', ?, false)",
+                    String.class, tenantId);
 
             // 1. Update status → PROCESSING
             jdbcTemplate.update("""
@@ -135,7 +137,9 @@ public class ScanWorkerService {
             log.error("Scan job FAILED: jobId={}", jobId, e);
 
             try {
-                jdbcTemplate.execute("SELECT set_config('app.current_tenant_id', '" + tenantId + "', false)");
+                jdbcTemplate.queryForObject(
+                        "SELECT set_config('app.current_tenant_id', ?, false)",
+                        String.class, tenantId);
                 jdbcTemplate.update("""
                     UPDATE ai_jobs SET status = 'FAILED', progress = 0, updated_at = NOW()
                     WHERE id = ?::uuid

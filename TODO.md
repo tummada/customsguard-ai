@@ -102,3 +102,12 @@ Updated: 2026-03-06
 - [x] CORS restrict origins, non-root Docker, no-new-privileges
 - [x] Nginx HSTS, rate limit auth 5r/m, modern ciphers
 - [x] Secrets rotated on VPS, Gemini error masking
+
+### Pre-Production Security Audit (2026-03-06)
+- [x] Fix SQL Injection — `ScanWorkerService.java` `set_config()` string concat → parameterized query (2 จุด)
+- [x] Fix AuthController — `@Profile("dev")` class-level ป้องกัน /login + /dev-token บน production
+- [x] Mask Gemini logs — ลบ `response.body()` จาก error log ใน `GeminiChatService` + `GeminiEmbeddingService`
+- [x] Correlation ID — `RequestTraceFilter.java` (MDC traceId + X-Request-Id header) + log pattern
+- [x] IDOR defense-in-depth — `ScanController` เพิ่ม tenantId null guard
+- [ ] .env permission บน VPS — `chmod 600 /opt/vollos/.env.production` (manual SSH)
+- [ ] Backup restore test บน VPS — จำลอง restore แล้วตรวจ pgvector + RLS (manual SSH)

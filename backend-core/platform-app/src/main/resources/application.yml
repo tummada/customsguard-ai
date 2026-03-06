@@ -64,6 +64,14 @@ jwt:
   secret: ${JWT_SECRET:vollos-dev-secret-key-change-in-production-min-32-chars!!}
   expiration-hours: ${JWT_EXPIRATION_HOURS:24}
 
+customsguard:
+  chat-guard:
+    max-requests-per-minute: ${CHATGUARD_RATE_LIMIT:20}
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{traceId:-}] %-5level %logger{36} - %msg%n"
+
 server:
   port: 8080
   shutdown: graceful
