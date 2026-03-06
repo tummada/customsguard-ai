@@ -1,59 +1,31 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Loader2, Mail, Lock } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 
 export default function LoginScreen() {
   const { t } = useTranslation();
-  const { login } = useAuth();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const { loginWithGoogle } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Hidden dev mode: tap logo 5 times
-  const [tapCount, setTapCount] = useState(0);
-  const [showDevUrl, setShowDevUrl] = useState(false);
-  const [devUrl, setDevUrl] = useState("");
-
-  const handleLogoTap = useCallback(() => {
-    const next = tapCount + 1;
-    if (next >= 5) {
-      setShowDevUrl(true);
-      setTapCount(0);
-      // Load stored dev URL
-      chrome.storage.local.get("devBackendUrl").then((result) => {
-        if (result.devBackendUrl) setDevUrl(result.devBackendUrl);
-      });
-    } else {
-      setTapCount(next);
-    }
-  }, [tapCount]);
-
-  const handleSaveDevUrl = async () => {
-    const trimmed = devUrl.trim();
-    if (trimmed) {
-      await chrome.storage.local.set({ devBackendUrl: trimmed });
-    }
-  };
-
-  const handleResetDevUrl = async () => {
-    await chrome.storage.local.remove("devBackendUrl");
-    setDevUrl("");
-  };
-
-  const handleLogin = async () => {
-    if (!email.trim() || !password.trim() || loading) return;
+  const handleGoogleLogin = async () => {
+    if (loading) return;
     setLoading(true);
     setError("");
 
     try {
-      await login(email, password);
+      await loginWithGoogle();
     } catch (err) {
-      if (err instanceof TypeError && err.message === "Failed to fetch") {
-        setError(t("error.connectionFailed"));
-      } else if (err instanceof Error && err.message === "INVALID_CREDENTIALS") {
-        setError(t("error.invalidCredentials"));
+      if (err instanceof Error) {
+        if (err.message === "USER_CANCELLED") {
+          // User closed the popup — not an error
+          setError("");
+        } else if (err.message === "INVALID_CREDENTIALS") {
+          setError(t("error.invalidCredentials"));
+        } else {
+          setError(t("error.connectionFailed"));
+        }
       } else {
         setError(t("error.connectionFailed"));
       }
@@ -62,15 +34,11 @@ export default function LoginScreen() {
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") handleLogin();
-  };
-
   return (
     <div className="min-h-screen bg-white flex items-center justify-center p-6 animate-fadeIn">
       <div className="w-full max-w-xs space-y-6">
         {/* Logo */}
-        <div className="text-center" onClick={handleLogoTap}>
+        <div className="text-center">
           <img
             src="/icon-128.png"
             alt="VOLLOS"
@@ -81,41 +49,12 @@ export default function LoginScreen() {
           <p className="text-xs text-gray-400 mt-1">{t("header.subtitle")}</p>
         </div>
 
-        {/* Login Form */}
+        {/* Google Login */}
         <div className="space-y-3">
-          <div className="relative">
-            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={t("login.email")}
-              className="w-full pl-10 pr-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 focus-gold"
-              disabled={loading}
-            />
-          </div>
-          <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={t("login.password")}
-              className="w-full pl-10 pr-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 focus-gold"
-              disabled={loading}
-            />
-          </div>
-
-          {error && (
-            <p className="text-red-500 text-xs text-center animate-fadeIn">{error}</p>
-          )}
-
           <button
-            onClick={handleLogin}
-            disabled={!email.trim() || !password.trim() || loading}
-            className="w-full py-2.5 btn-primary rounded-xl text-sm flex items-center justify-center gap-2"
+            onClick={handleGoogleLogin}
+            disabled={loading}
+            className="w-full py-2.5 px-4 bg-white border border-gray-300 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center gap-3 disabled:opacity-50"
           >
             {loading ? (
               <>
@@ -123,44 +62,26 @@ export default function LoginScreen() {
                 {t("login.connecting")}
               </>
             ) : (
-              t("login.submit")
+              <>
+                <svg className="w-4 h-4" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+                {t("login.google")}
+              </>
             )}
           </button>
 
-          <p className="text-center">
-            <span className="text-xs text-gray-400 cursor-pointer hover:text-gray-500">
-              {t("login.forgotPassword")}
-            </span>
+          {error && (
+            <p className="text-red-500 text-xs text-center animate-fadeIn">{error}</p>
+          )}
+
+          <p className="text-center text-[10px] text-gray-400 leading-relaxed">
+            {t("login.terms")}
           </p>
         </div>
-
-        {/* Hidden Dev URL Override */}
-        {showDevUrl && (
-          <div className="border border-dashed border-gray-300 rounded-xl p-3 space-y-2 animate-slideUp">
-            <label className="text-[10px] text-gray-500 uppercase tracking-wider">Dev URL Override</label>
-            <input
-              type="url"
-              value={devUrl}
-              onChange={(e) => setDevUrl(e.target.value)}
-              placeholder="http://localhost:8080"
-              className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-900 focus-gold"
-            />
-            <div className="flex gap-2">
-              <button
-                onClick={handleSaveDevUrl}
-                className="flex-1 py-1.5 text-[10px] bg-gray-900 text-white rounded-lg hover:bg-gray-700"
-              >
-                Save
-              </button>
-              <button
-                onClick={handleResetDevUrl}
-                className="flex-1 py-1.5 text-[10px] bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200"
-              >
-                Reset to Default
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

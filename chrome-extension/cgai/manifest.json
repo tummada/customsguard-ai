@@ -10,7 +10,8 @@
     "unlimitedStorage",
     "tabs",
     "scripting",
-    "activeTab"
+    "activeTab",
+    "identity"
   ],
   "host_permissions": [
     "https://*.customs.go.th/*",

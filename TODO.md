@@ -9,12 +9,12 @@ Updated: 2026-03-06
 
 ### Data Pipeline — RAG quality plateau (eval ~90%, LLM flaky ~10%)
 
-**สถานะ:** Persistent failures แก้ครบ 4/4 แล้ว remaining ~10% fails เป็น LLM non-determinism (ไม่ผ่านบ้าง ผ่านบ้าง)
+**สถานะ:** Done — ปรับ 3 ด้านเพื่อลด flaky failures
 
-**สิ่งที่อาจทำต่อ (optional — ไม่ urgent):**
-- [ ] Tune Gemini prompt ให้ตอบ groundedness ดีขึ้น (ลด flaky)
-- [ ] เพิ่ม data: อาหารสุนัข, ข้อมูลภาษีฝั่งจีน (ks_009, ks_multi_005)
-- [ ] ปรับ similarity threshold (ปัจจุบัน 0.65 document, 0.60 HS code)
+**สิ่งที่ทำแล้ว:**
+- [x] Tune Gemini prompt — เพิ่มกฎ "ห้ามใช้สินค้าอื่นตอบแทน" + กฎเปรียบเทียบ FTA, ลด temperature 0.2→0.1, เพิ่ม maxOutputTokens 1024→1536
+- [x] เพิ่ม data: ks_009 (อาหารสุนัข) + ks_multi_005 (ข้าวหอมมะลิจีน) ผ่าน eval แล้ว, เพิ่ม FTA rates ใน HS code context (ก่อนหน้าไม่ส่ง FTA ให้ LLM)
+- [x] ปรับ threshold: HS code 0.60→0.55, context limit 5→8, switch จาก semantic-only เป็น hybrid search (full-text + semantic RRF)
 
 ---
 
@@ -51,14 +51,17 @@ Updated: 2026-03-06
 
 **ทำไปทำไม:** ปิด `/login` บน production แล้ว → Extension login ไม่ได้ ต้องทำ login จริง + ระบบ package เพื่อรับลูกค้า
 
-**แผนเสร็จแล้ว:** `.claude/plans/wiggly-doodling-snail.md` — พร้อมเริ่มทำ
+**สิ่งที่เสร็จแล้ว:**
+- [x] DB Migration V8 — users, subscription_plans (FREE/PRO), tenant_subscriptions, tenant_usage
+- [x] Google OAuth — `POST /v1/auth/google` verify Google ID token, auto-create tenant+user+FREE plan
+- [x] Chrome Extension — Login with Google (`chrome.identity.launchWebAuthFlow`), ลบ email/password
+- [x] ลบ AuthController (dev email/password) — ใช้ Google OAuth ทั้ง dev + prod
+- [x] VPS `.env.production` — เพิ่ม GOOGLE_CLIENT_ID
 
-**Scope:**
-- [ ] DB Migration — users, subscription_plans (FREE/PRO), tenant_subscriptions, tenant_usage, audit_logs
-- [ ] Google OAuth — verify ด้วย JWKS, auto-create tenant+user+FREE plan on first login
+**สิ่งที่ต้องทำ (เรียงตามลำดับ):**
 - [ ] Usage Quota — atomic increment, Caffeine cache, 429 + upsell message
 - [ ] Admin upgrade API — manual upgrade หลังลูกค้าโอนเงิน
-- [ ] Chrome Extension — Login with Google, QuotaExceededModal, Chat prompt suggestions + remaining count
+- [ ] Chrome Extension — QuotaExceededModal, Chat prompt suggestions + remaining count
 - [ ] Marketing Site — Pricing page (2 plans: FREE / PRO 990 บาท)
 
 **Pricing:** FREE (10 scan + 3 chat) / PRO 990 บาท (100 ครั้งรวม) / เกินติดต่อ custom

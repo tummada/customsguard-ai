@@ -21,11 +21,9 @@
     "cannotConnect": "Cannot connect to the web page — please open a customs declaration page first."
   },
   "login": {
-    "email": "Email",
-    "password": "Password",
-    "submit": "Sign In",
+    "google": "Sign in with Google",
     "connecting": "Connecting...",
-    "forgotPassword": "Forgot password?"
+    "terms": "By signing in, you agree to our Terms of Service and Privacy Policy."
   },
   "scan": {
     "title": "Scan & Review",
@@ -104,7 +102,7 @@
     "connectionFailed": "Cannot connect to server",
     "invalidToken": "Session expired, please login again",
     "fileTooLarge": "PDF file too large (max 10MB)",
-    "invalidCredentials": "Invalid email or password"
+    "invalidCredentials": "Authentication failed, please try again"
   },
   "common": {
     "cancel": "Cancel",

@@ -4,7 +4,9 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vollos.feature.customsguard.dto.RagChunkDto;
 import com.vollos.feature.customsguard.dto.RagSearchResponse;
+import com.vollos.feature.customsguard.entity.FtaRateEntity;
 import com.vollos.feature.customsguard.repository.DocumentChunkRepository;
+import com.vollos.feature.customsguard.repository.FtaRateRepository;
 import com.vollos.feature.customsguard.repository.HsCodeRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,50 +57,63 @@ public class RagService {
             "ลองระบุชื่อสินค้าให้ชัดเจนขึ้น เช่น \"พิกัดกุ้งแช่แข็ง\" หรือ \"อัตราอากรคอมพิวเตอร์\" " +
             "หรือตรวจสอบเพิ่มเติมที่ กรมศุลกากร https://www.customs.go.th";
 
-    private static final int HS_CODE_CONTEXT_LIMIT = 5;
-    private static final double HS_CODE_SIMILARITY_THRESHOLD = 0.60;
+    private static final int HS_CODE_CONTEXT_LIMIT = 8;
+    private static final double HS_CODE_SIMILARITY_THRESHOLD = 0.55;
     // Matches HS code patterns: 0101, 0306.17, 0306.17.00, etc.
     private static final Pattern HS_CODE_IN_QUERY = Pattern.compile("\\b(\\d{4})(?:\\.\\d{2}(?:\\.\\d{2})?)?\\b");
 
     private final GeminiEmbeddingService embeddingService;
     private final DocumentChunkRepository chunkRepo;
     private final HsCodeRepository hsCodeRepo;
+    private final FtaRateRepository ftaRateRepo;
     private final GeminiChatService chatService;
     private final ExecutorService sseExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
     public RagService(GeminiEmbeddingService embeddingService,
                       DocumentChunkRepository chunkRepo,
                       HsCodeRepository hsCodeRepo,
+                      FtaRateRepository ftaRateRepo,
                       GeminiChatService chatService) {
         this.embeddingService = embeddingService;
         this.chunkRepo = chunkRepo;
         this.hsCodeRepo = hsCodeRepo;
+        this.ftaRateRepo = ftaRateRepo;
         this.chatService = chatService;
     }
 
     /**
-     * Search cg_hs_codes by vector similarity and format as context text.
+     * Hybrid search cg_hs_codes (full-text + semantic RRF) and format as context text.
+     * Also enriches each code with active FTA rates for comparison queries.
      */
-    private String buildHsCodeContext(String embStr) {
-        List<Object[]> hsResults = hsCodeRepo.findBySemantic(embStr, HS_CODE_CONTEXT_LIMIT * 2);
+    private String buildHsCodeContext(String query, String embStr) {
+        List<Object[]> hsResults = hsCodeRepo.hybridSearch(query, embStr, HS_CODE_CONTEXT_LIMIT * 2);
 
         List<String> lines = new ArrayList<>();
         for (Object[] row : hsResults) {
-            double sim = row[6] != null ? ((Number) row[6]).doubleValue() : 0;
-            if (sim < HS_CODE_SIMILARITY_THRESHOLD) break;
-
             String code = (String) row[0];
             String descTh = row[1] != null ? (String) row[1] : "";
             String descEn = row[2] != null ? (String) row[2] : "";
             String rate = row[3] != null ? row[3].toString() + "%" : "N/A";
             String desc = !descTh.isEmpty() ? descTh : descEn;
 
-            lines.add("HS Code %s: %s (อัตราอากร: %s)".formatted(code, desc, rate));
+            StringBuilder line = new StringBuilder(
+                    "HS Code %s: %s (อัตราอากร MFN: %s)".formatted(code, desc, rate));
+
+            // Enrich with FTA rates
+            List<FtaRateEntity> ftaRates = ftaRateRepo.findActiveByHsCode(code);
+            if (!ftaRates.isEmpty()) {
+                String ftaInfo = ftaRates.stream()
+                        .map(f -> "%s(%s): %s%%".formatted(f.getFtaName(), f.getPartnerCountry(), f.getPreferentialRate()))
+                        .collect(Collectors.joining(", "));
+                line.append(" | FTA: ").append(ftaInfo);
+            }
+
+            lines.add(line.toString());
             if (lines.size() >= HS_CODE_CONTEXT_LIMIT) break;
         }
 
         if (lines.isEmpty()) return null;
-        log.info("HS code context: {} codes found above threshold {}", lines.size(), HS_CODE_SIMILARITY_THRESHOLD);
+        log.info("HS code hybrid context: {} codes found", lines.size());
         return "=== ข้อมูลพิกัดศุลกากร (HS Code) ===\n" + String.join("\n", lines);
     }
 
@@ -205,8 +220,8 @@ public class RagService {
                 .filter(row -> row[7] != null && ((Number) row[7]).doubleValue() >= MIN_SIMILARITY_THRESHOLD)
                 .toList();
 
-        // 3.5 Also search HS codes for complementary context
-        String hsContext = buildHsCodeContext(embStr);
+        // 3.5 Hybrid search HS codes (full-text + semantic) for complementary context
+        String hsContext = buildHsCodeContext(query, embStr);
         // 3.6 If query mentions a specific HS code, look up by prefix
         String prefixContext = buildCodePrefixContext(query);
 
@@ -285,8 +300,8 @@ public class RagService {
                         .filter(row -> row[7] != null && ((Number) row[7]).doubleValue() >= MIN_SIMILARITY_THRESHOLD)
                         .toList();
 
-                // 3.5 Also search HS codes
-                String hsContext = buildHsCodeContext(embStr);
+                // 3.5 Hybrid search HS codes
+                String hsContext = buildHsCodeContext(query, embStr);
                 String prefixContext = buildCodePrefixContext(query);
 
                 log.info("Similarity filter (stream): query='{}', chunks={}/{}, topScore={}, hsContext={}, prefixContext={}",
