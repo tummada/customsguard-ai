@@ -7,20 +7,22 @@ Updated: 2026-03-06
 
 ## สิ่งที่เหลือต้องทำ
 
-### Data Pipeline — เติมข้อมูล HS Code ที่ยังขาด
+### Data Pipeline — ปรับ RAG quality ต่อ (eval 92%, เหลือ 11 fails)
 
-**ทำไปทำไม:** RAG eval ผ่าน 84% แต่ fail 16 ข้อเพราะ DB ไม่มีข้อมูลหมวดเหล่านี้ เติมครบน่าจะดัน → 90%+
+**ทำไปทำไม:** eval ยังเหลือ 11 fails — ส่วนใหญ่เป็น RAG groundedness (ตอบไม่ตรงคำถาม)
 
-**Priority สูง (user ถามบ่อย):**
-- [ ] คอมพิวเตอร์/อิเล็กทรอนิกส์ — คอมพิวเตอร์, กล่องหมึกเครื่องพิมพ์ (heading 8471, 8443)
-- [ ] ยานยนต์/ชิ้นส่วน — ยางรถยนต์, เครื่องเกียร์, วงล้อ (heading 4011, 8708)
-
-**Priority ปกติ:**
-- [ ] สัตว์มีชีวิต — ม้า, ลา, ล่อ, แกะ, แพะ, สุกรทำพันธุ์, โคตัวผู้ตอน, ไก่ (heading 0101-0105)
-- [ ] สิ่งทอ/เฟอร์นิเจอร์ — ม่าน (heading 6303, 6304)
-- [ ] เคมีภัณฑ์ — สารลดแรงตึงผิว (heading 3402)
-
-**เสร็จแล้วรัน:** `python 20_rag_eval_pipeline.py run` แล้ว `baseline` เพื่ออัพเดท baseline
+**Remaining Failures:**
+- [ ] ui_004: HS 0306.17.00 (กุ้ง) — RAG ไม่ดึง context ที่ตรง
+- [ ] ks_009: พิกัดอาหารสุนัข — ไม่มี data
+- [ ] ks_multi_003: เปรียบเทียบ MFN vs ACFTA เหล็กแผ่น — multi-step reasoning
+- [ ] ks_multi_005: ภาษีฝั่งจีนสำหรับข้าว — out of scope (ไม่มี data ฝั่งจีน)
+- [ ] scan_002: HS code ถูกไหม — scan context issue
+- [ ] ai_003: โคตัวผู้ตอน HS Code — RAG ไม่ match
+- [ ] ai_006: แกะ/แพะ HS Code — RAG ไม่ match
+- [ ] ai_007: ม่าน HS Code — RAG ไม่ match
+- [ ] ai_020: HS 0105.11.10 คือสินค้าประเภทใด — RAG ไม่ match
+- [ ] ai_031: สารลดแรงตึงผิว — off-topic guard blocked (false positive?)
+- [ ] ai_045: HS 0101 + sub-codes — RAG ไม่ match
 
 ---
 
@@ -50,6 +52,25 @@ Updated: 2026-03-06
   - `token-refresh` — auto-refresh social API tokens ก่อนหมดอายุ
   - `lead-nurture` — ส่ง email series ให้ lead ใหม่ (SendGrid)
 - [ ] **ทดสอบ end-to-end** — สร้าง content ชุดแรก → review ใน Sheets → publish blog → โพส social → ตรวจว่าขึ้นทุก platform
+
+---
+
+### Production Auth + Subscription — Google OAuth + ระบบ Package/Pricing
+
+**ทำไปทำไม:** ปิด `/login` บน production แล้ว → Extension login ไม่ได้ ต้องทำ login จริง + ระบบ package เพื่อรับลูกค้า
+
+**แผนเสร็จแล้ว:** `.claude/plans/wiggly-doodling-snail.md` — พร้อมเริ่มทำ
+
+**Scope:**
+- [ ] DB Migration — users, subscription_plans (FREE/PRO), tenant_subscriptions, tenant_usage, audit_logs
+- [ ] Google OAuth — verify ด้วย JWKS, auto-create tenant+user+FREE plan on first login
+- [ ] Usage Quota — atomic increment, Caffeine cache, 429 + upsell message
+- [ ] Admin upgrade API — manual upgrade หลังลูกค้าโอนเงิน
+- [ ] Chrome Extension — Login with Google, QuotaExceededModal, Chat prompt suggestions + remaining count
+- [ ] Marketing Site — Pricing page (2 plans: FREE / PRO 990 บาท)
+
+**Pricing:** FREE (10 scan + 3 chat) / PRO 990 บาท (100 ครั้งรวม) / เกินติดต่อ custom
+**Payment Phase 1:** Manual — LINE OA + PromptPay (ยังไม่มีบริษัท)
 
 ---
 
@@ -85,6 +106,13 @@ Updated: 2026-03-06
 - [x] GUARD_BLOCK structured log (category, keyword, tenant, query_prefix)
 - [x] Hardening v2 — eval 141 cases, overall **89%**, Red Team 93%, false_positive 100%
   - Smoke test 5/5 PASS, GUARD_BLOCK log verified
+- [x] Hardening v3 — 4 fixes: diacritic stripping, "ข้อมูลลับ"/"confidential" block, "customs official" keyword, "สูตร" off-topic + customs bypass
+  - Red Team **100%** (was 93%), adversarial_offtopic **100%** (was 75%), obfuscation **100%** (was 67%)
+
+### Data Pipeline — fix heading-level description_th (2026-03-06)
+- [x] Fix 1,230 heading-level HS codes: description_th was empty, Thai text was in description_en column
+- [x] RAG eval improved: **89% → 92%** (+3%), 7 previously failing cases now pass
+  - Fixed: ม้า/ลา/ล่อ, โคกระบือ, เครื่องเกียร์, ม่าน, เครื่องสำอาง, แบตเตอรี่, รถยนต์ไฟฟ้า FTA
 
 ### RAG / Data Pipeline — ระบบค้นหากฎระเบียบศุลกากรด้วย AI
 - [x] Phase 1: pgvector + HS Code semantic search (13,308 codes, hit rate 96.7%)

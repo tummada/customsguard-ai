@@ -131,7 +131,7 @@ public class ChatGuardService {
             "แต่งเพลง", "write a song", "compose music",
             "แต่งกลอน", "write a poem",
             "เล่าเรื่อง", "tell me a story", "tell a joke", "เล่ามุก",
-            "ทำอาหาร", "recipe", "สูตรอาหาร",
+            "ทำอาหาร", "recipe", "สูตรอาหาร", "สูตร",
             "translate this to", "แปลภาษา",
             // Subtle off-topic (customs-adjacent but not actionable)
             "history of", "socio-economic", "philosophical", "geopolitical",
@@ -192,9 +192,11 @@ public class ChatGuardService {
             "system diagnostic", "system logs", "full log",
             // Role impersonation
             "senior administrator", "lead developer",
-            "customs official conducting", "customs officer conducting",
+            "customs official", "customs officer",
             "from the ceo", "as per the new directive",
             "internal audit", "คำสั่งด่วน", "ปิดระบบกรอง",
+            // Classified data extraction
+            "ข้อมูลลับ", "confidential",
             // System-specific impersonation
             "vollos", "customsguard", "customs guard",
             "developer of vollos", "lead developer of customsguard"
@@ -269,6 +271,9 @@ public class ChatGuardService {
      */
     private static String normalizeInput(String input) {
         String result = Normalizer.normalize(input, Normalizer.Form.NFKC);
+        // Strip diacritics: NFD decompose then remove combining marks (á→a, é→e)
+        String nfd = Normalizer.normalize(result, Normalizer.Form.NFD);
+        result = nfd.replaceAll("\\p{InCombiningDiacriticalMarks}", "");
         if (result.length() > MAX_QUERY_LENGTH) {
             result = result.substring(0, MAX_QUERY_LENGTH);
         }
@@ -484,6 +489,10 @@ public class ChatGuardService {
     }
 
     private Optional<String> checkOffTopic(String query) {
+        // Bypass if query also contains customs domain keywords (e.g. "สูตรคำนวณภาษี")
+        if (hasCustomsKeyword(query)) {
+            return Optional.empty();
+        }
         String q = query.toLowerCase();
         for (String keyword : OFF_TOPIC_KEYWORDS) {
             if (q.contains(keyword.toLowerCase())) {
