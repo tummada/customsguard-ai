@@ -11,9 +11,13 @@ public record HsLookupResponse(
         String unit,
         List<FtaAlertDto> ftaAlerts,
         List<LpiAlertDto> lpiAlerts,
+        List<AdDutyDto> adDuties,
+        List<BoiPrivilegeDto> boiPrivileges,
+        List<ExciseRateDto> exciseRates,
         boolean found
 ) {
     public static HsLookupResponse notFound(String code) {
-        return new HsLookupResponse(code, null, null, null, null, List.of(), List.of(), false);
+        return new HsLookupResponse(code, null, null, null, null,
+                List.of(), List.of(), List.of(), List.of(), List.of(), false);
     }
 }

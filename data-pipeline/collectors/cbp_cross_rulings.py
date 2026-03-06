@@ -49,7 +49,7 @@ PRIORITY_CHAPTERS = [
 ]
 
 
-def search_rulings(hs_chapter: str, page: int = 1, per_page: int = 50) -> dict | None:
+def search_rulings(hs_chapter: str, page: int = 1, page_size: int = 50) -> dict | None:
     """Search CBP CROSS rulings by HS chapter."""
     try:
         resp = SESSION.get(
@@ -57,8 +57,9 @@ def search_rulings(hs_chapter: str, page: int = 1, per_page: int = 50) -> dict |
             params={
                 "term": hs_chapter,
                 "collection": "ALL",
-                "page": page,
-                "per_page": per_page,
+                "sortBy": "RELEVANCE",
+                "pageSize": page_size,
+                "page": page,  # 1-based; page=0 returns HTTP 500
             },
             timeout=30,
         )
@@ -107,23 +108,26 @@ def collect():
             if not result:
                 break
 
-            rulings = result.get("results", result.get("data", []))
+            rulings = result.get("rulings", [])
             if not rulings:
                 break
 
             for ruling in rulings:
-                ruling_num = ruling.get("rulingNumber", ruling.get("ruling_number", ""))
+                ruling_num = ruling.get("rulingNumber", "")
+                tariffs = ruling.get("tariffs", [])
                 chapter_rulings.append({
                     "ruling_number": ruling_num,
-                    "hs_code": ruling.get("tariffNumber", ruling.get("hs_code", "")),
+                    "hs_codes": tariffs,
                     "subject": ruling.get("subject", ""),
-                    "date": ruling.get("date", ""),
-                    "status": ruling.get("status", ""),
+                    "date": ruling.get("rulingDate", ""),
+                    "collection": ruling.get("collection", ""),
+                    "categories": ruling.get("categories", ""),
                     "source_url": f"https://rulings.cbp.gov/ruling/{ruling_num}",
                 })
 
             # Check if more pages
-            total_pages = result.get("totalPages", result.get("total_pages", 1))
+            total_hits = result.get("totalHits", 0)
+            total_pages = (total_hits + 49) // 50  # ceil(totalHits / pageSize)
             if page >= total_pages or page >= 10:  # Cap at 10 pages per chapter
                 break
             page += 1

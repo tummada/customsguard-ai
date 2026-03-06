@@ -11,6 +11,7 @@ Provenance: source_url = https://www.dft.go.th/...
 import os
 import sys
 import json
+import hashlib
 import requests
 from bs4 import BeautifulSoup
 
@@ -94,6 +95,10 @@ def download_pdfs(pdfs: list[dict], output_dir: str):
         filename = os.path.basename(pdf_info["url"]).split("?")[0]
         if not filename.endswith(".pdf"):
             filename += ".pdf"
+        # Fix: URL-encoded Thai filenames can exceed OS limit (255 bytes)
+        if len(filename.encode("utf-8")) > 200:
+            ext = os.path.splitext(filename)[1]
+            filename = hashlib.md5(filename.encode()).hexdigest()[:16] + ext
         filepath = os.path.join(pdf_dir, filename)
 
         if os.path.exists(filepath):
