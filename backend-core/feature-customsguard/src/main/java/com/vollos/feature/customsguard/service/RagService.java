@@ -41,14 +41,11 @@ public class RagService {
      */
     private static final Map<String, String> UNAVAILABLE_TOPICS = Map.of(
             "anti-dumping", "ข้อมูลอากรตอบโต้การทุ่มตลาด (Anti-Dumping) กำลังอยู่ในช่วงอัปเดต กรุณาตรวจสอบที่ กรมการค้าต่างประเทศ https://www.dft.go.th",
-            "อากร ad", "ข้อมูลอากรตอบโต้การทุ่มตลาด (Anti-Dumping) กำลังอยู่ในช่วงอัปเดต กรุณาตรวจสอบที่ กรมการค้าต่างประเทศ https://www.dft.go.th",
-            "excise", "ข้อมูลภาษีสรรพสามิต กำลังอยู่ในช่วงอัปเดต กรุณาตรวจสอบที่ กรมสรรพสามิต https://www.excise.go.th",
-            "BOI", "ข้อมูลสิทธิประโยชน์ BOI กำลังอยู่ในช่วงอัปเดต กรุณาตรวจสอบที่ สำนักงานคณะกรรมการส่งเสริมการลงทุน https://www.boi.go.th",
-            "LPI", "ข้อมูลสินค้าควบคุมการนำเข้า (LPI) กำลังอยู่ในช่วงอัปเดต กรุณาตรวจสอบที่หน่วยงานที่เกี่ยวข้อง"
+            "อากร ad", "ข้อมูลอากรตอบโต้การทุ่มตลาด (Anti-Dumping) กำลังอยู่ในช่วงอัปเดต กรุณาตรวจสอบที่ กรมการค้าต่างประเทศ https://www.dft.go.th"
     );
 
     private static final List<String> UNAVAILABLE_KEYWORDS_TH = List.of(
-            "ตอบโต้การทุ่มตลาด", "สรรพสามิต", "ส่งเสริมการลงทุน", "สินค้าควบคุม"
+            "ตอบโต้การทุ่มตลาด"
     );
 
     private static final double MIN_SIMILARITY_THRESHOLD = 0.65;

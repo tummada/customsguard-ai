@@ -1,11 +1,54 @@
 # TODO — VOLLOS Backlog
 
 Shared backlog visible to all AI tools and humans.
-Updated: 2026-03-06
+Updated: 2026-03-07
 
 ---
 
 ## สิ่งที่เหลือต้องทำ
+
+### Data Pipeline Tier 2 — Collectors 5 ตัวที่เหลือ (ข้อมูลเสริม)
+
+**ทำไปทำไม:** เพิ่ม coverage ให้ RAG — AD/CVD duty, ใบอนุญาตนำเข้า, BOI สิทธิพิเศษ, สรรพสามิต, คำวินิจฉัยจาก US CBP
+
+**สถานะ:** In Progress — code เขียนเสร็จ, รอ sync แก้ bug + รัน parse
+
+**Step 1: ทดสอบ collectors — DONE (2026-03-06)**
+- [x] รัน `antidumping_dft.py` — ⚠️ Partial: 3 HTML tables + 1 PDF (3 PDFs ชื่อไฟล์ยาวเกิน)
+- [x] รัน `nsw_lpi_controls.py` — ⚠️ Partial: DFT 222KB + FDA/TISI เล็ก, พบ 13 PDFs
+- [x] รัน `boi_privileges.py` — ❌ Failed: เว็บเป็น SPA (JS-rendered) ได้แค่ HTML เปล่า
+- [x] รัน `excise_tax.py` — ❌ Failed: เว็บ excise.go.th เปลี่ยน structure
+- [x] รัน `cbp_cross_rulings.py` — ❌ Failed: API response format เปลี่ยน ได้ 0 rulings
+
+**Step 2: DB Migration + Processing Scripts — DONE (2026-03-06)**
+- [x] `V1012__supplementary_tenant_rls.sql` — เพิ่ม tenant_id + RLS ให้ tables ที่มีอยู่แล้ว (V1008-V1011 ถูกใช้ไปแล้ว)
+- [x] `06b_parse_antidumping.py` — parse HTML tables + PDFs → `cg_ad_duties` + `cg_regulations` (06 มีอยู่แล้ว)
+- [x] `07b_parse_licenses.py` — parse NSW + agency data → `cg_lpi_controls` (07 มีอยู่แล้ว)
+- [x] `09b_parse_supplementary.py` — parse BOI + Excise + CBP → tables + `cg_regulations` (09 มีอยู่แล้ว)
+- [x] `10_embed_supplementary.py` — chunk + embed ข้อมูลใหม่เข้า `cg_document_chunks`
+
+**Step 3: Java Backend — DONE (2026-03-06)**
+- [x] สร้าง Entity: `ImportLicenseEntity`, `BoiPrivilegeEntity`, `ExciseRateEntity` + DTOs
+- [x] สร้าง Repository: `ImportLicenseRepository`, `BoiPrivilegeRepository`, `ExciseRateRepository`
+- [x] แก้ `RagService` — ลบ BOI/LPI/Excise ออกจาก UNAVAILABLE_TOPICS (มี data แล้ว)
+- [x] แก้ `HsLookupService` — return licenses/BOI/excise ควบคู่กับ FTA rates
+
+**Step 4: Eval Cases — DONE (2026-03-06)**
+- [x] เขียน `eval_supplementary_suite.json` — 18 cases (5 หมวด: AD 5, license 4, BOI 3, excise 3, cross-cutting 3)
+
+**Step 5: Sync + แก้ bug + ทดสอบ (TODO)**
+- [ ] **แก้ Schema Mismatch** — `ImportLicenseEntity` ชี้ `cg_import_licenses` แต่ table จริงชื่อ `cg_lpi_controls` → ต้องปรับ Entity + columns ให้ตรง
+- [ ] **แก้ collectors ที่ fail:**
+  - [ ] `cbp_cross_rulings.py` — แก้ API response parsing (field names เปลี่ยน)
+  - [ ] `boi_privileges.py` — เปลี่ยนเป็น headless browser (Playwright/Selenium) สำหรับ SPA
+  - [ ] `excise_tax.py` — หา URL ใหม่หรือเปลี่ยนเป็น headless browser
+  - [ ] `antidumping_dft.py` — แก้ bug ชื่อไฟล์ PDF ยาวเกิน (truncate filename)
+- [ ] **รัน parse + embed** เฉพาะ data ที่ scrape ได้ (Anti-Dumping + NSW/LPI)
+- [ ] **Boot backend ทดสอบ compile** — Hibernate validate ต้องผ่าน
+- [ ] **รัน eval** ดูว่า accuracy ดีขึ้นจาก ~92% ไหม
+- [ ] ทดสอบ end-to-end บน dev แล้วค่อย deploy production
+
+---
 
 ### Data Pipeline — RAG quality plateau (eval ~90%, LLM flaky ~10%)
 
@@ -57,6 +100,10 @@ Updated: 2026-03-06
 - [x] Chrome Extension — Login with Google (`chrome.identity.launchWebAuthFlow`), ลบ email/password
 - [x] ลบ AuthController (dev email/password) — ใช้ Google OAuth ทั้ง dev + prod
 - [x] VPS `.env.production` — เพิ่ม GOOGLE_CLIENT_ID
+
+**รอทดสอบ (backend ไม่ว่าง — AI อีกตัวรัน eval pipeline อยู่):**
+- [ ] ทดสอบ Google OAuth บน dev — kill backend เก่า → start ใหม่ → ลอง login จาก Extension
+- [ ] ทดสอบ Google OAuth บน production — push + deploy + ลอง login
 
 **สิ่งที่ต้องทำ (เรียงตามลำดับ):**
 - [ ] Usage Quota — atomic increment, Caffeine cache, 429 + upsell message
