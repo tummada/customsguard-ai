@@ -78,6 +78,7 @@ export interface ProductConfig {
         headline: string;
         description: string;
         stats: PainPointStat[];
+        footnote?: string;
     };
     roi?: {
         kicker: string;
@@ -86,6 +87,7 @@ export interface ProductConfig {
         summaries: RoiSummary[];
         totalLabel: string;
         totalAmount: string;
+        footnote?: string;
     };
     process: {
         kicker: string;

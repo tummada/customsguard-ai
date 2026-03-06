@@ -36,17 +36,29 @@ Updated: 2026-03-07
 **Step 4: Eval Cases — DONE (2026-03-06)**
 - [x] เขียน `eval_supplementary_suite.json` — 18 cases (5 หมวด: AD 5, license 4, BOI 3, excise 3, cross-cutting 3)
 
-**Step 5: Sync + แก้ bug + ทดสอบ (TODO)**
-- [ ] **แก้ Schema Mismatch** — `ImportLicenseEntity` ชี้ `cg_import_licenses` แต่ table จริงชื่อ `cg_lpi_controls` → ต้องปรับ Entity + columns ให้ตรง
-- [ ] **แก้ collectors ที่ fail:**
-  - [ ] `cbp_cross_rulings.py` — แก้ API response parsing (field names เปลี่ยน)
-  - [ ] `boi_privileges.py` — เปลี่ยนเป็น headless browser (Playwright/Selenium) สำหรับ SPA
-  - [ ] `excise_tax.py` — หา URL ใหม่หรือเปลี่ยนเป็น headless browser
-  - [ ] `antidumping_dft.py` — แก้ bug ชื่อไฟล์ PDF ยาวเกิน (truncate filename)
-- [ ] **รัน parse + embed** เฉพาะ data ที่ scrape ได้ (Anti-Dumping + NSW/LPI)
-- [ ] **Boot backend ทดสอบ compile** — Hibernate validate ต้องผ่าน
+**Step 5: Sync + แก้ bug — DONE (2026-03-07)**
+- [x] **แก้ Schema Mismatch** — ลบ `ImportLicenseEntity` (ซ้ำกับ `cg_lpi_controls`), แก้ `BoiPrivilegeEntity` + `ExciseRateEntity` columns ให้ตรง V1006, สร้าง `AdDutyEntity` ใหม่
+- [x] **แก้ collectors ที่ fail:**
+  - [x] `cbp_cross_rulings.py` — แก้ API params + response parsing → **19,897 rulings**
+  - [x] `boi_privileges.py` — Playwright headed + stealth bypass Incapsula → **6 pages + 35 PDFs**
+  - [x] `excise_tax.py` — หา URL ใหม่ `/excise2017/` + known PDFs → **187 PDFs (418 MB)**
+  - [x] `antidumping_dft.py` — hash ชื่อไฟล์ยาว → **2 PDFs + 3 tables**
+
+**Step 6: รัน pipeline + ทดสอบ (TODO)** — รอ OAuth test เสร็จก่อนค่อยทำต่อ
+- [x] **Boot backend ทดสอบ compile** — Flyway 21 migrations validated, Hibernate ORM 6.6.15 ผ่าน, entities ตรง DB schema
+- **รัน parse + embed:**
+  - [x] CBP Rulings → **19,806 records** เข้า `cg_regulations`
+  - [x] Anti-Dumping → 0 (collector ดาวน์โหลดผิดไฟล์ — ดูด้านล่าง)
+  - [x] NSW/LPI → 0 (collector ได้แค่ homepage — ดูด้านล่าง)
+  - [x] BOI → 35 PDFs processed แต่ได้ 0 records (PDFs เป็น forms/ประกาศ IT ไม่มี structured privileges)
+  - [x] Excise → 187 PDFs processed → **41 excise rates** (5 failed JSON parse)
+- [ ] **รัน embed** — `10_embed_supplementary.py` chunk + embed records ใหม่เข้า `cg_document_chunks`
 - [ ] **รัน eval** ดูว่า accuracy ดีขึ้นจาก ~92% ไหม
 - [ ] ทดสอบ end-to-end บน dev แล้วค่อย deploy production
+
+**Backlog — ต้องแก้ collector ก่อนถึงจะ parse ได้ (ทำทีหลัง):**
+- [ ] `antidumping_dft.py` — collector โหลดผิดไฟล์ (ได้ privacy policy แทนประกาศ AD/CVD) → ต้องหา URL ที่ถูกต้องของประกาศจาก dft.go.th
+- [ ] `nsw_lpi_controls.py` — collector ได้แค่ homepage (ไม่มี structured HS code ↔ ใบอนุญาต) → ต้อง scrape ลึกกว่า homepage หรือหาแหล่ง data อื่น
 
 ---
 
@@ -87,6 +99,53 @@ Updated: 2026-03-07
   - `token-refresh` — auto-refresh social API tokens ก่อนหมดอายุ
   - `lead-nurture` — ส่ง email series ให้ lead ใหม่ (SendGrid)
 - [ ] **ทดสอบ end-to-end** — สร้าง content ชุดแรก → review ใน Sheets → publish blog → โพส social → ตรวจว่าขึ้นทุก platform
+
+---
+
+### Marketing Site Content & Asset Audit — แก้ข้อความเท็จ + เพิ่มรูป/วีดีโอ
+
+**ทำไปทำไม:** Landing page มีข้อความเกินจริง/เท็จ 10+ จุด (อ้าง feature ที่ไม่มี, ตัวเลข 100%/0% ที่เป็นไปไม่ได้, ISO-27001 ที่ไม่มี) + รูปภาพ placeholder ทั้ง 5 จุด + ไม่มี OG image + ไม่มีวีดีโอ
+
+**สถานะ:** Phase 1 DONE (2026-03-06)
+
+**ไฟล์หลัก:** `marketing-site/src/config/products/hs-code.ts` (ข้อความทั้งหมด)
+
+**Phase 1: แก้ข้อความเท็จ — DONE (2026-03-06)**
+- [x] แก้ "AI Scan ลดเหลือ 0%" → "ลดข้อผิดพลาดได้กว่า 80%"
+- [x] แก้ "แม่นยำ 100%" ใน Magic Fill → "ลดการพิมพ์ซ้ำและข้อผิดพลาดจากการคัดลอกด้วยมือ"
+- [x] แก้ "ป้องกัน...100%" ใน RegTech → ลบ 100% ออก
+- [x] แก้ "ไม่เปิดเผย...100%" ใน Security → ลบ 100% ออก
+- [x] แทน **Shadow Auditor** (feature ไม่มีจริง) → ด้วย "ถาม AI เรื่องศุลกากร" (RAG Chat ที่มีจริง)
+- [x] แทน **Smart Grouping** (feature ไม่มีจริง) → เป็น "เร็วๆ นี้" + badge ROADMAP
+- [x] แก้ **RegTech Permit Guard** → เป็น "(Beta)" เพราะยังไม่มีข้อมูล LPI
+- [x] แก้ Security labels: "AES-256 ENCRYPTED" → "HTTPS ENCRYPTED", "ISO-27001 READY" → "SECURITY BY DESIGN"
+- [x] แก้ Footer: "Compliant with Customs Department standards" → "อ้างอิงข้อมูลจากกรมศุลกากร"
+- [x] แก้ ROI headline: "ประหยัดได้จริง" → "ประหยัดได้สูงสุด" + เพิ่ม disclaimer footnote
+- [x] แก้ ATIGA flag: Thai flag → globe emoji (ไม่มี ASEAN flag emoji)
+- [x] แก้ Process Step 2: ลบ "Form E" (ระบบไม่ได้สร้าง Form E)
+- [x] เพิ่ม footnote "*ตัวเลขเป็นค่าประมาณจากข้อมูลอุตสาหกรรม" ใน pain section + ROI
+
+**Phase 2: Layout Fixes**
+- [ ] เพิ่ม ROADMAP badge styling สีต่างจาก badge ปกติ (`LandingTemplate.tsx`)
+- [ ] เพิ่ม Footer link ไป `/privacy`
+- [ ] (Optional) เพิ่ม Mobile hamburger menu
+
+**Phase 3: รูปภาพ (ทำใน 1 สัปดาห์)**
+- [ ] สร้าง OG Image 1200x630px (`/public/og-default.jpg`) — Canva/Figma สีทอง #D4AF37
+- [ ] ถ่าย product screenshot จาก Chrome Extension จริง 4 รูป (hero, step 1-3)
+- [ ] สร้าง/หารูป pain section (AI-generated หรือ stock)
+- [ ] อัพเดท paths ใน `hs-code.ts` ให้ชี้ไปรูปจริงแทน placehold.co
+
+**Phase 4: Demo Video (ทำใน 1-3 เดือน)**
+- [ ] ถ่าย screen recording 60-90 วินาที (OBS/Loom): Upload PDF → AI Scan → FTA → Magic Fill → Chat
+- [ ] ใส่คำบรรยายไทย + background music royalty-free
+- [ ] เปลี่ยน hero image เป็น `<video>` ใน `LandingTemplate.tsx`
+
+**เรื่อง AES-256 Encryption at Rest:**
+- ยังไม่ต้องทำตอนนี้ — HTTPS (encryption in transit) + RLS + backup เพียงพอสำหรับ startup ช่วงแรก
+- AES-256 at rest กิน CPU เพิ่มแค่ ~2-5% (ไม่เกิน budget 2 CPU) แต่ PostgreSQL 16 ยังไม่มี built-in TDE
+- **ทำเมื่อ:** มีลูกค้าจ่ายเงินจริง หรือ ลูกค้าองค์กรขอ compliance document — ตอนนั้นค่อยเปิด LUKS disk encryption บน VPS
+- ระหว่างนี้เปลี่ยน label marketing เป็น "HTTPS ENCRYPTED" เพื่อไม่อ้างเกินจริง
 
 ---
 

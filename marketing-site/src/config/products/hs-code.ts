@@ -28,14 +28,15 @@ export const hsCodeConfig: ProductConfig = {
         headline: "หยุดจ่ายค่าปรับ<br />ที่คุณไม่ได้ก่อ",
         description: "HS-Code ผิด 1 ตัว = ค่าปรับหลักแสน และเสียเวลาหลักสัปดาห์ ความผิดพลาดส่วนใหญ่เกิดจากการคีย์ซ้ำที่เหนื่อย ไม่ใช่ความประมาท\n\nกรมศุลฯ ตรวจย้อนหลังได้ 10 ปี... คุณมั่นใจแค่ไหนว่าใบขนที่คีย์เมื่อวานจะไม่กลายเป็นค่าปรับในอีก 3 ปีข้างหน้า?",
         stats: [
-            { stat: "73%", label: "ของข้อผิดพลาดมาจากการคีย์ด้วยมือ", solution: "AI Scan ลดเหลือ 0%" },
-            { stat: "3 ชม.", label: "เฉลี่ยต่อใบขน 1 รายการ", solution: "VOLLOS ทำเสร็จใน 2 นาที" },
-            { stat: "฿120K+", label: "ค่าปรับเฉลี่ยต่อครั้งจากพิกัดผิด", solution: "ลดโอกาสแก้ใบขน 80%" },
-        ]
+            { stat: "73%", label: "ของข้อผิดพลาดมาจากการคีย์ด้วยมือ*", solution: "AI Scan ลดข้อผิดพลาดได้กว่า 80%" },
+            { stat: "3 ชม.", label: "เฉลี่ยต่อใบขน 1 รายการ*", solution: "VOLLOS ทำเสร็จใน 2 นาที" },
+            { stat: "฿120K+", label: "ค่าปรับเฉลี่ยต่อครั้งจากพิกัดผิด*", solution: "ลดโอกาสแก้ใบขน 80%" },
+        ],
+        footnote: "*ตัวเลขเป็นค่าประมาณจากข้อมูลอุตสาหกรรม"
     },
     roi: {
         kicker: "ผลลัพธ์ที่พิสูจน์ได้",
-        headline: "ประหยัดได้จริง ฿3.5 ล้านต่อปี",
+        headline: "ประหยัดได้สูงสุด ฿3.5 ล้านต่อปี",
         cards: [
             {
                 country: "ญี่ปุ่น",
@@ -55,7 +56,7 @@ export const hsCodeConfig: ProductConfig = {
             },
             {
                 country: "อาเซียน",
-                flag: "\uD83C\uDDF9\uD83C\uDDED",
+                flag: "\uD83C\uDF10",
                 agreement: "ATIGA",
                 normalRate: "12%",
                 ftaRate: "0%",
@@ -68,7 +69,8 @@ export const hsCodeConfig: ProductConfig = {
             { label: "เวลาที่ประหยัด", amount: "฿240K" }
         ],
         totalLabel: "รวมประหยัดต่อปี",
-        totalAmount: "บาท/ปี"
+        totalAmount: "บาท/ปี",
+        footnote: "*ตัวเลขเป็นค่าประมาณจากข้อมูลอุตสาหกรรม"
     },
     process: {
         kicker: "ขั้นตอนง่ายๆ 3 ขั้นตอน",
@@ -86,7 +88,7 @@ export const hsCodeConfig: ProductConfig = {
                 iconId: "search-ai",
                 step: "02",
                 title: "AI ตรวจพิกัด",
-                desc: "AI เลือก HS-Code ที่ปลอดภัยและประหยัดที่สุด พร้อมเช็กสิทธิ FTA และ Form E ให้อัตโนมัติ",
+                desc: "AI เลือก HS-Code ที่ปลอดภัยและประหยัดที่สุด พร้อมเช็กสิทธิ FTA ให้อัตโนมัติ",
                 imgSrc: "https://placehold.co/600x400/FAFAFA/D4AF37?text=AI+HS-Code+Analysis",
                 imgAlt: "AI HS-Code Analysis",
             },
@@ -94,7 +96,7 @@ export const hsCodeConfig: ProductConfig = {
                 iconId: "sparkles",
                 step: "03",
                 title: "Magic Fill",
-                desc: "ไม่ต้อง Alt-Tab อีกต่อไป: ฉีดข้อมูลจาก Invoice เข้าเว็บกรมศุลฯ โดยตรง แม่นยำ 100% แม้เอกสารจะอ่านยาก",
+                desc: "ไม่ต้อง Alt-Tab อีกต่อไป: ฉีดข้อมูลจาก Invoice เข้าเว็บกรมศุลฯ โดยตรง ลดการพิมพ์ซ้ำและข้อผิดพลาดจากการคัดลอกด้วยมือ",
                 imgSrc: "https://placehold.co/600x400/FAFAFA/D4AF37?text=Chrome+Extension+Demo",
                 imgAlt: "Magic Fill — Chrome Extension",
             }
@@ -138,35 +140,35 @@ export const hsCodeConfig: ProductConfig = {
                 badges: ["FTA Auto-Check", "JTEPA", "ACFTA", "ATIGA"]
             },
             {
-                id: "shadow-auditor",
-                iconId: "eye-scan",
-                title: "Shadow Auditor",
-                description: "จำลองการตรวจสอบล่วงหน้าด้วยฐานข้อมูลราคาตลาดโลก (Market Price) ระบุจุดเสี่ยงทันทีหากราคาหรือพิกัดของคุณมีโอกาสถูกเพิกถอนหรือเรียกเก็บภาษีย้อนหลัง",
-                badges: ["สุ่มตรวจย้อนหลัง", "Market Check"]
+                id: "ai-customs-chat",
+                iconId: "message-circle",
+                title: "ถาม AI เรื่องศุลกากร",
+                description: "ถามคำถามเรื่องพิกัด กฎระเบียบ FTA หรือใบอนุญาตได้ทันที AI ค้นหาจากฐานข้อมูลกฎหมายศุลกากรและตอบพร้อมแหล่งอ้างอิง",
+                badges: ["RAG Chat", "แหล่งอ้างอิง"]
             },
             {
                 id: "smart-grouping",
                 iconId: "layers",
                 title: "Smart Grouping & Fee Saver",
-                description: "ยุบรวมรายการสินค้าพิกัดเดียวกันอัตโนมัติด้วย AI ลดความซับซ้อนของเอกสารใบขน และประหยัดค่าธรรมเนียมต่อรายการ (Entry Fee) ได้สูงสุด 40%",
-                badges: ["Group Item", "ลดค่าธรรมเนียม 40%"]
+                description: "ยุบรวมรายการสินค้าพิกัดเดียวกันอัตโนมัติด้วย AI ลดความซับซ้อนของเอกสารใบขน และประหยัดค่าธรรมเนียมต่อรายการ (Entry Fee)",
+                badges: ["ROADMAP", "Group Item"]
             },
             {
                 id: "regtech-permit-guard",
                 iconId: "clipboard-check",
-                title: "RegTech Permit Guard",
-                description: "วิเคราะห์พิกัดและแสดงรายการใบอนุญาตที่ต้องใช้ (LPI) ทันทีที่อัปโหลดไฟล์ (มอก./อย./สมอ.) ป้องกันปัญหาสินค้าติดด่านและค่าโกดังค้างส่ง 100%",
-                badges: ["LPI Check", "มอก. / อย."]
+                title: "RegTech Permit Guard (Beta)",
+                description: "วิเคราะห์พิกัดและแสดงรายการใบอนุญาตที่ต้องใช้ (LPI) ทันทีที่อัปโหลดไฟล์ (มอก./อย./สมอ.) ช่วยลดปัญหาสินค้าติดด่านและค่าโกดังค้างส่ง",
+                badges: ["Beta", "LPI Check", "มอก. / อย."]
             }
         ]
     },
     security: {
         headline: "ความปลอดภัยและการรักษาความลับ",
-        description: "เราดูแลข้อมูลของคุณเหมือนเป็นสมบัติของตัวเอง. สำรองข้อมูลบัญชีให้พร้อมใช้เสมอ และไม่เปิดเผยข้อมูลการค้าใน Invoice ของคุณให้ใครเห็น 100%",
-        labels: ["AES-256 ENCRYPTED", "ISO-27001 READY", "PDPA COMPLIANT"],
+        description: "เราดูแลข้อมูลของคุณเหมือนเป็นสมบัติของตัวเอง สำรองข้อมูลบัญชีให้พร้อมใช้เสมอ และไม่เปิดเผยข้อมูลการค้าใน Invoice ของคุณให้ใครเห็น",
+        labels: ["HTTPS ENCRYPTED", "SECURITY BY DESIGN", "PDPA COMPLIANT"],
         statusLines: [
             { label: "การเชื่อมต่อ", status: "ปลอดภัยสูงสุด", statusColor: "text-green-600" },
-            { label: "ข้อมูลการค้า", status: "เป็นส่วนตัว 100%", statusColor: "text-green-600" },
+            { label: "ข้อมูลการค้า", status: "เป็นส่วนตัว", statusColor: "text-green-600" },
             { label: "ระบบสำรอง", status: "ทำงานตลอดเวลา", statusColor: "text-green-600" }
         ]
     },
@@ -198,6 +200,6 @@ export const hsCodeConfig: ProductConfig = {
     },
     footer: {
         tagline: "Where Time Becomes Value",
-        copyright: "\u00A9 2026 VOLLOS Intelligence. Compliant with Customs Department standards 2026"
+        copyright: "\u00A9 2026 VOLLOS Intelligence. อ้างอิงข้อมูลจากกรมศุลกากร"
     }
 };

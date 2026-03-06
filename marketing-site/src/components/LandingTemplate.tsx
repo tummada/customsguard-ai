@@ -201,6 +201,9 @@ export function LandingTemplate({ config }: LandingTemplateProps) {
                                 </motion.div>
                             ))}
                         </div>
+                        {config.pain.footnote && (
+                            <p className="text-xs text-gray-400 mt-3">{config.pain.footnote}</p>
+                        )}
                     </motion.div>
                 </div>
             </section>
@@ -214,6 +217,7 @@ export function LandingTemplate({ config }: LandingTemplateProps) {
                     summaries={config.roi.summaries}
                     totalLabel={config.roi.totalLabel}
                     totalAmount={config.roi.totalAmount}
+                    footnote={config.roi.footnote}
                 />
             )}
 

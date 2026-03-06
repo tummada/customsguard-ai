@@ -31,9 +31,10 @@ interface RoiShowcaseProps {
     summaries: RoiSummary[];
     totalLabel: string;
     totalAmount: string;
+    footnote?: string;
 }
 
-export function RoiShowcase({ kicker, headline, cards, summaries, totalLabel, totalAmount }: RoiShowcaseProps) {
+export function RoiShowcase({ kicker, headline, cards, summaries, totalLabel, totalAmount, footnote }: RoiShowcaseProps) {
     return (
         <section id="roi" className="px-6 pb-40 max-w-6xl mx-auto relative z-10">
             <motion.div
@@ -114,6 +115,9 @@ export function RoiShowcase({ kicker, headline, cards, summaries, totalLabel, to
                     </div>
                 </div>
             </motion.div>
+            {footnote && (
+                <p className="text-xs text-gray-400 mt-4 text-center">{footnote}</p>
+            )}
         </section>
     );
 }
