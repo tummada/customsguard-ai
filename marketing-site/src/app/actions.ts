@@ -1,61 +1,26 @@
 'use server';
 
-import { z } from 'zod';
-import { queryWithTenant } from '@/lib/db';
-import { generateUUIDv7 } from '@/lib/uuid';
+import { insertLead } from '@/lib/leads';
 
-const leadSchema = z.object({
-    name: z.string().min(1, "กรุณาระบุชื่อ-นามสกุล"),
-    company: z.string().min(1, "กรุณาระบุชื่อบริษัท"),
-    email: z.string().email("กรุณาระบุอีเมลธุรกิจที่ถูกต้อง"),
-    phone: z.string().regex(/^[0-9]{10}$/, "กรุณาระบุเบอร์โทรศัพท์ 10 หลัก"),
-    category: z.string().min(1, "กรุณาเลือกประเภทธุรกิจ"),
-});
-
-// Mock DEFAULT_TENANT_ID as per VOLLOS Multi-tenant rule
-const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000001';
-
-export async function submitLead(_prevState: unknown, formData: FormData) {
-    // Honeypot: if a bot filled the hidden 'website' field, silently succeed
-    const honeypot = formData.get('website');
-    if (honeypot) {
-        return { success: true as const, message: "Thank you!" };
-    }
-
-    const rawData = {
-        name: formData.get('name'),
-        company: formData.get('company'),
-        email: formData.get('email'),
-        phone: formData.get('phone'),
-        category: formData.get('category'),
-    };
-
-    const validation = leadSchema.safeParse(rawData);
-
-    if (!validation.success) {
-        return { success: false, errors: validation.error.flatten().fieldErrors };
-    }
-
-    const { name, company, email, phone, category } = validation.data;
-    const leadId = generateUUIDv7();
-    const tenantId = DEFAULT_TENANT_ID;
-
-    try {
-        if (process.env.DATABASE_URL) {
-            await queryWithTenant(
-                `INSERT INTO marketing_leads (id, tenant_id, name, company, email, phone, metadata) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-                [leadId, tenantId, name, company, email, phone, JSON.stringify({ source: 'VOLLOS-Next-Marketing', category })],
-                tenantId
-            );
-        } else {
-            console.log('⚠️ Running in UI-Only / Mock Mode');
-            await new Promise(resolve => setTimeout(resolve, 800));
+export async function saveSocialLead(provider: string, credential: string) {
+    if (provider === 'google') {
+        const res = await fetch(
+            `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`
+        );
+        if (!res.ok) {
+            return { success: false, message: 'การยืนยันตัวตนล้มเหลว' };
         }
 
-        return { success: true, message: 'Value Secured' };
-    } catch (error: any) {
-        console.error('Lead Capture Error:', error.message);
-        return { success: false, message: 'ขออภัย ไม่สามารถดำเนินการได้ในขณะนี้ กรุณาตรวจสอบข้อมูลหรือลองใหม่อีกครั้ง' };
+        const data = await res.json();
+        if (data.aud !== process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID) {
+            return { success: false, message: 'Token ไม่ถูกต้อง' };
+        }
+
+        const email: string = data.email;
+        const name: string = data.name || email.split('@')[0];
+
+        return await insertLead(email, name, 'google');
     }
+
+    return { success: false, message: 'Unknown provider' };
 }

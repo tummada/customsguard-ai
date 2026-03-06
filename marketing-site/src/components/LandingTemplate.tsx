@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { BentoCard } from "./BentoCard";
-import { LeadForm } from "./LeadForm";
+import { SocialLoginForm } from "./SocialLoginForm";
 import { RoiShowcase } from "./RoiShowcase";
 import { BeforeAfterTable } from "./BeforeAfterTable";
 import { FaqAccordion } from "./FaqAccordion";
@@ -390,7 +390,7 @@ export function LandingTemplate({ config }: LandingTemplateProps) {
             {/* ─── Founder's Club Waitlist ─── */}
             <section id="waitlist" className="px-6 pb-64 max-w-7xl mx-auto relative z-10">
                 <BentoCard className="shadow-luxury h-auto !p-0">
-                    <LeadForm productCategory={config.productCategory} />
+                    <SocialLoginForm />
                 </BentoCard>
             </section>
 
