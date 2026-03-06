@@ -45,6 +45,15 @@ public interface HsCodeRepository extends JpaRepository<HsCodeEntity, String> {
     @Query(value = """
         SELECT h.code, h.description_th, h.description_en, h.base_rate, h.category, h.unit
         FROM cg_hs_codes h
+        WHERE h.code LIKE :prefix || '%'
+        ORDER BY h.code
+        LIMIT :limit
+        """, nativeQuery = true)
+    List<Object[]> findByCodePrefix(@Param("prefix") String prefix, @Param("limit") int limit);
+
+    @Query(value = """
+        SELECT h.code, h.description_th, h.description_en, h.base_rate, h.category, h.unit
+        FROM cg_hs_codes h
         WHERE h.search_vector @@ plainto_tsquery('simple', :query)
         ORDER BY ts_rank(h.search_vector, plainto_tsquery('simple', :query)) DESC
         LIMIT :limit

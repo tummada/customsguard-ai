@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vollos.feature.customsguard.dto.RagChunkDto;
 import com.vollos.feature.customsguard.dto.RagSearchResponse;
 import com.vollos.feature.customsguard.repository.DocumentChunkRepository;
+import com.vollos.feature.customsguard.repository.HsCodeRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -13,11 +14,14 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
@@ -35,7 +39,7 @@ public class RagService {
      */
     private static final Map<String, String> UNAVAILABLE_TOPICS = Map.of(
             "anti-dumping", "ข้อมูลอากรตอบโต้การทุ่มตลาด (Anti-Dumping) กำลังอยู่ในช่วงอัปเดต กรุณาตรวจสอบที่ กรมการค้าต่างประเทศ https://www.dft.go.th",
-            "AD", "ข้อมูลอากรตอบโต้การทุ่มตลาด (Anti-Dumping) กำลังอยู่ในช่วงอัปเดต กรุณาตรวจสอบที่ กรมการค้าต่างประเทศ https://www.dft.go.th",
+            "อากร ad", "ข้อมูลอากรตอบโต้การทุ่มตลาด (Anti-Dumping) กำลังอยู่ในช่วงอัปเดต กรุณาตรวจสอบที่ กรมการค้าต่างประเทศ https://www.dft.go.th",
             "excise", "ข้อมูลภาษีสรรพสามิต กำลังอยู่ในช่วงอัปเดต กรุณาตรวจสอบที่ กรมสรรพสามิต https://www.excise.go.th",
             "BOI", "ข้อมูลสิทธิประโยชน์ BOI กำลังอยู่ในช่วงอัปเดต กรุณาตรวจสอบที่ สำนักงานคณะกรรมการส่งเสริมการลงทุน https://www.boi.go.th",
             "LPI", "ข้อมูลสินค้าควบคุมการนำเข้า (LPI) กำลังอยู่ในช่วงอัปเดต กรุณาตรวจสอบที่หน่วยงานที่เกี่ยวข้อง"
@@ -51,17 +55,81 @@ public class RagService {
             "ลองระบุชื่อสินค้าให้ชัดเจนขึ้น เช่น \"พิกัดกุ้งแช่แข็ง\" หรือ \"อัตราอากรคอมพิวเตอร์\" " +
             "หรือตรวจสอบเพิ่มเติมที่ กรมศุลกากร https://www.customs.go.th";
 
+    private static final int HS_CODE_CONTEXT_LIMIT = 5;
+    private static final double HS_CODE_SIMILARITY_THRESHOLD = 0.60;
+    // Matches HS code patterns: 0101, 0306.17, 0306.17.00, etc.
+    private static final Pattern HS_CODE_IN_QUERY = Pattern.compile("\\b(\\d{4})(?:\\.\\d{2}(?:\\.\\d{2})?)?\\b");
+
     private final GeminiEmbeddingService embeddingService;
     private final DocumentChunkRepository chunkRepo;
+    private final HsCodeRepository hsCodeRepo;
     private final GeminiChatService chatService;
     private final ExecutorService sseExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
     public RagService(GeminiEmbeddingService embeddingService,
                       DocumentChunkRepository chunkRepo,
+                      HsCodeRepository hsCodeRepo,
                       GeminiChatService chatService) {
         this.embeddingService = embeddingService;
         this.chunkRepo = chunkRepo;
+        this.hsCodeRepo = hsCodeRepo;
         this.chatService = chatService;
+    }
+
+    /**
+     * Search cg_hs_codes by vector similarity and format as context text.
+     */
+    private String buildHsCodeContext(String embStr) {
+        List<Object[]> hsResults = hsCodeRepo.findBySemantic(embStr, HS_CODE_CONTEXT_LIMIT * 2);
+
+        List<String> lines = new ArrayList<>();
+        for (Object[] row : hsResults) {
+            double sim = row[6] != null ? ((Number) row[6]).doubleValue() : 0;
+            if (sim < HS_CODE_SIMILARITY_THRESHOLD) break;
+
+            String code = (String) row[0];
+            String descTh = row[1] != null ? (String) row[1] : "";
+            String descEn = row[2] != null ? (String) row[2] : "";
+            String rate = row[3] != null ? row[3].toString() + "%" : "N/A";
+            String desc = !descTh.isEmpty() ? descTh : descEn;
+
+            lines.add("HS Code %s: %s (อัตราอากร: %s)".formatted(code, desc, rate));
+            if (lines.size() >= HS_CODE_CONTEXT_LIMIT) break;
+        }
+
+        if (lines.isEmpty()) return null;
+        log.info("HS code context: {} codes found above threshold {}", lines.size(), HS_CODE_SIMILARITY_THRESHOLD);
+        return "=== ข้อมูลพิกัดศุลกากร (HS Code) ===\n" + String.join("\n", lines);
+    }
+
+    /**
+     * When query mentions a specific HS code (e.g. "0101"), look up that heading + sub-codes.
+     */
+    private String buildCodePrefixContext(String query) {
+        Matcher m = HS_CODE_IN_QUERY.matcher(query);
+        if (!m.find()) return null;
+
+        String fullMatch = m.group(0); // e.g. "0101" or "0306.17.00"
+        String heading = m.group(1);   // 4-digit heading e.g. "0101"
+
+        // Use the most specific code mentioned as prefix
+        String prefix = fullMatch.replace(".", "").length() >= 4 ? fullMatch : heading;
+
+        List<Object[]> results = hsCodeRepo.findByCodePrefix(prefix, 15);
+        if (results.isEmpty()) return null;
+
+        List<String> lines = new ArrayList<>();
+        for (Object[] row : results) {
+            String code = (String) row[0];
+            String descTh = row[1] != null ? (String) row[1] : "";
+            String descEn = row[2] != null ? (String) row[2] : "";
+            String rate = row[3] != null ? row[3].toString() + "%" : "N/A";
+            String desc = !descTh.isEmpty() ? descTh : descEn;
+            lines.add("HS %s: %s (อัตราอากร: %s)".formatted(code, desc, rate));
+        }
+
+        log.info("Code prefix lookup: prefix='{}', found {} codes", prefix, lines.size());
+        return "=== HS Code " + prefix + " และรหัสย่อย ===\n" + String.join("\n", lines);
     }
 
     private Map<String, Object> parseMetadata(Object raw) {
@@ -137,21 +205,37 @@ public class RagService {
                 .filter(row -> row[7] != null && ((Number) row[7]).doubleValue() >= MIN_SIMILARITY_THRESHOLD)
                 .toList();
 
-        log.info("Similarity filter: query='{}', total={}, passed={}, topScore={}",
-                query, chunks.size(), relevant.size(), topScore);
+        // 3.5 Also search HS codes for complementary context
+        String hsContext = buildHsCodeContext(embStr);
+        // 3.6 If query mentions a specific HS code, look up by prefix
+        String prefixContext = buildCodePrefixContext(query);
 
-        if (relevant.isEmpty()) {
+        log.info("Similarity filter: query='{}', chunks={}/{}, topScore={}, hsContext={}, prefixContext={}",
+                query, relevant.size(), chunks.size(), topScore, hsContext != null, prefixContext != null);
+
+        if (relevant.isEmpty() && hsContext == null && prefixContext == null) {
             return new RagSearchResponse(
                     NO_RELEVANT_DATA_MSG,
                     List.of(),
                     System.currentTimeMillis() - start);
         }
 
-        // 4. Build RAG context from relevant chunks
-        String context = relevant.stream()
-                .limit(limit)
-                .map(row -> (String) row[4])  // chunk_text
-                .collect(Collectors.joining("\n---\n"));
+        // 4. Build RAG context: prefix lookup > HS semantic > document chunks
+        List<String> contextParts = new ArrayList<>();
+        if (prefixContext != null) {
+            contextParts.add(prefixContext);
+        }
+        if (hsContext != null) {
+            contextParts.add(hsContext);
+        }
+        if (!relevant.isEmpty()) {
+            String docContext = relevant.stream()
+                    .limit(limit)
+                    .map(row -> (String) row[4])  // chunk_text
+                    .collect(Collectors.joining("\n---\n"));
+            contextParts.add(docContext);
+        }
+        String context = String.join("\n\n", contextParts);
 
         // 5. Call Gemini chat with context + query
         String answer = chatService.generateAnswer(query, context);
@@ -201,10 +285,14 @@ public class RagService {
                         .filter(row -> row[7] != null && ((Number) row[7]).doubleValue() >= MIN_SIMILARITY_THRESHOLD)
                         .toList();
 
-                log.info("Similarity filter (stream): query='{}', total={}, passed={}, topScore={}",
-                        query, chunks.size(), relevant.size(), topScore);
+                // 3.5 Also search HS codes
+                String hsContext = buildHsCodeContext(embStr);
+                String prefixContext = buildCodePrefixContext(query);
 
-                if (relevant.isEmpty()) {
+                log.info("Similarity filter (stream): query='{}', chunks={}/{}, topScore={}, hsContext={}, prefixContext={}",
+                        query, relevant.size(), chunks.size(), topScore, hsContext != null, prefixContext != null);
+
+                if (relevant.isEmpty() && hsContext == null && prefixContext == null) {
                     emitter.send(SseEmitter.event().name("done")
                             .data(Map.of("answer", NO_RELEVANT_DATA_MSG, "sources", List.of())));
                     emitter.complete();
@@ -222,10 +310,21 @@ public class RagService {
                 // 5. Emit: generating answer
                 emitter.send(SseEmitter.event().name("status").data("generating_answer"));
 
-                String context = relevant.stream()
-                        .limit(limit)
-                        .map(row -> (String) row[4])
-                        .collect(Collectors.joining("\n---\n"));
+                List<String> contextParts = new ArrayList<>();
+                if (prefixContext != null) {
+                    contextParts.add(prefixContext);
+                }
+                if (hsContext != null) {
+                    contextParts.add(hsContext);
+                }
+                if (!relevant.isEmpty()) {
+                    String docContext = relevant.stream()
+                            .limit(limit)
+                            .map(row -> (String) row[4])
+                            .collect(Collectors.joining("\n---\n"));
+                    contextParts.add(docContext);
+                }
+                String context = String.join("\n\n", contextParts);
 
                 String answer = chatService.generateAnswer(query, context);
 

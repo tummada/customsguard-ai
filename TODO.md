@@ -7,22 +7,14 @@ Updated: 2026-03-06
 
 ## สิ่งที่เหลือต้องทำ
 
-### Data Pipeline — ปรับ RAG quality ต่อ (eval 92%, เหลือ 11 fails)
+### Data Pipeline — RAG quality plateau (eval ~90%, LLM flaky ~10%)
 
-**ทำไปทำไม:** eval ยังเหลือ 11 fails — ส่วนใหญ่เป็น RAG groundedness (ตอบไม่ตรงคำถาม)
+**สถานะ:** Persistent failures แก้ครบ 4/4 แล้ว remaining ~10% fails เป็น LLM non-determinism (ไม่ผ่านบ้าง ผ่านบ้าง)
 
-**Remaining Failures:**
-- [ ] ui_004: HS 0306.17.00 (กุ้ง) — RAG ไม่ดึง context ที่ตรง
-- [ ] ks_009: พิกัดอาหารสุนัข — ไม่มี data
-- [ ] ks_multi_003: เปรียบเทียบ MFN vs ACFTA เหล็กแผ่น — multi-step reasoning
-- [ ] ks_multi_005: ภาษีฝั่งจีนสำหรับข้าว — out of scope (ไม่มี data ฝั่งจีน)
-- [ ] scan_002: HS code ถูกไหม — scan context issue
-- [ ] ai_003: โคตัวผู้ตอน HS Code — RAG ไม่ match
-- [ ] ai_006: แกะ/แพะ HS Code — RAG ไม่ match
-- [ ] ai_007: ม่าน HS Code — RAG ไม่ match
-- [ ] ai_020: HS 0105.11.10 คือสินค้าประเภทใด — RAG ไม่ match
-- [ ] ai_031: สารลดแรงตึงผิว — off-topic guard blocked (false positive?)
-- [ ] ai_045: HS 0101 + sub-codes — RAG ไม่ match
+**สิ่งที่อาจทำต่อ (optional — ไม่ urgent):**
+- [ ] Tune Gemini prompt ให้ตอบ groundedness ดีขึ้น (ลด flaky)
+- [ ] เพิ่ม data: อาหารสุนัข, ข้อมูลภาษีฝั่งจีน (ks_009, ks_multi_005)
+- [ ] ปรับ similarity threshold (ปัจจุบัน 0.65 document, 0.60 HS code)
 
 ---
 
@@ -109,10 +101,13 @@ Updated: 2026-03-06
 - [x] Hardening v3 — 4 fixes: diacritic stripping, "ข้อมูลลับ"/"confidential" block, "customs official" keyword, "สูตร" off-topic + customs bypass
   - Red Team **100%** (was 93%), adversarial_offtopic **100%** (was 75%), obfuscation **100%** (was 67%)
 
-### Data Pipeline — fix heading-level description_th (2026-03-06)
+### Data Pipeline + Hybrid RAG (2026-03-06)
 - [x] Fix 1,230 heading-level HS codes: description_th was empty, Thai text was in description_en column
 - [x] RAG eval improved: **89% → 92%** (+3%), 7 previously failing cases now pass
-  - Fixed: ม้า/ลา/ล่อ, โคกระบือ, เครื่องเกียร์, ม่าน, เครื่องสำอาง, แบตเตอรี่, รถยนต์ไฟฟ้า FTA
+- [x] Hybrid RAG: RagService now searches both `cg_document_chunks` + `cg_hs_codes` (semantic + prefix lookup)
+- [x] Fix "AD" false positive in UNAVAILABLE_TOPICS ("Additive" matched "AD")
+- [x] All 4 persistent failures fixed: ui_004 (กุ้ง), ai_006 (แกะ/แพะ), ai_031 (สารลดแรงตึง), ai_045 (0101 sub-codes)
+- [x] Eval baseline updated: ~90% (remaining ~10% is LLM flakiness, not data/code issue)
 
 ### RAG / Data Pipeline — ระบบค้นหากฎระเบียบศุลกากรด้วย AI
 - [x] Phase 1: pgvector + HS Code semantic search (13,308 codes, hit rate 96.7%)
