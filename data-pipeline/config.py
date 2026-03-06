@@ -14,6 +14,8 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
+# Also load root .env if running from data-pipeline/
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 # ── GCP ──────────────────────────────────────────────────────────
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID", "")
@@ -62,6 +64,21 @@ PROVENANCE_SOURCES = {
     "tax_dtn": "https://tax.dtn.go.th",
     "customs_go_th": "https://customs.go.th",
 }
+
+# ── Backend API (for eval pipeline) ───────────────────────────────
+API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8080")
+
+# ── Redis (for rate limit flush during eval) ─────────────────────
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
+
+# ── Gemini Chat (for LLM-as-Judge) ───────────────────────────────
+GEMINI_CHAT_MODEL = "gemini-2.5-flash"
+GEMINI_CHAT_URL = (
+    "https://generativelanguage.googleapis.com/v1beta/models/"
+    f"{GEMINI_CHAT_MODEL}:generateContent?key={GEMINI_API_KEY}"
+)
 
 # ── Pipeline Data Directory (local cache before GCS) ────────────
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")

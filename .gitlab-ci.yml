@@ -15,6 +15,8 @@ variables:
   IMAGE_TAG: $CI_COMMIT_SHORT_SHA
   BACKEND_IMAGE: $CI_REGISTRY_IMAGE/backend:$IMAGE_TAG
   BACKEND_IMAGE_LATEST: $CI_REGISTRY_IMAGE/backend:latest
+  MARKETING_IMAGE: $CI_REGISTRY_IMAGE/marketing:$IMAGE_TAG
+  MARKETING_IMAGE_LATEST: $CI_REGISTRY_IMAGE/marketing:latest
 
 # ─── Stage 1: Test ─────────────────────────────────────────
 
@@ -71,6 +73,22 @@ build-backend:
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
 
+build-marketing:
+  stage: build
+  image: docker:27
+  services:
+    - docker:27-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build -t $MARKETING_IMAGE -t $MARKETING_IMAGE_LATEST marketing-site/
+    - docker push $MARKETING_IMAGE
+    - docker push $MARKETING_IMAGE_LATEST
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
 # ─── Stage 3: Deploy to VPS ───────────────────────────────
 
 deploy-production:
@@ -94,16 +112,18 @@ deploy-production:
         # Login to GitLab Container Registry
         docker login -u gitlab-ci-token -p $CI_REGISTRY_PASSWORD $CI_REGISTRY 2>/dev/null || true
 
-        # Backup current image before deploy
-        docker tag vollos-backend:latest vollos-backend:backup-before-deploy 2>/dev/null || true
+        # Pull latest images
+        docker pull $BACKEND_IMAGE_LATEST
+        docker pull $MARKETING_IMAGE_LATEST
 
-        # Pull latest image
-        docker pull $BACKEND_IMAGE_LATEST || true
+        # Set IMAGE_TAG for docker-compose.prod.yml
+        export IMAGE_TAG=latest
+        export CI_REGISTRY_IMAGE=$CI_REGISTRY_IMAGE
 
         # Update and restart
-        docker compose -f docker-compose.prod.yml --env-file .env.production up -d backend
+        docker compose -f docker-compose.prod.yml --env-file .env.production up -d backend marketing
 
-        # Wait for health
+        # Wait for backend health
         echo "Waiting for backend..."
         for i in \$(seq 1 20); do
           if docker exec vollos-backend curl -sf http://localhost:8080/actuator/health > /dev/null 2>&1; then
@@ -118,5 +138,6 @@ deploy-production:
       DEPLOY_SCRIPT
   variables:
     BACKEND_IMAGE_LATEST: $CI_REGISTRY_IMAGE/backend:latest
+    MARKETING_IMAGE_LATEST: $CI_REGISTRY_IMAGE/marketing:latest
   rules:
     - if: $CI_COMMIT_BRANCH == "main"

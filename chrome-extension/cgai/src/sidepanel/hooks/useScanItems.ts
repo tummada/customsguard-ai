@@ -1,6 +1,6 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
-import { apiClient, isCacheValid, FTA_CACHE_TTL_MS, LPI_CACHE_TTL_MS } from "@/lib/api-client";
+import { apiClient, isCacheValid, FTA_CACHE_TTL_MS, LPI_CACHE_TTL_MS, RAG_CACHE_TTL_MS } from "@/lib/api-client";
 import type { CgDeclarationItem, CgFtaCache, CgLpiCache, ExtractedLineItem } from "@/types";
 
 export function useScanItems(declarationLocalId: number) {
@@ -60,7 +60,36 @@ export function useScanItems(declarationLocalId: number) {
       enrichWithKnowledgeBase(codes).catch((err) =>
         console.warn("[VOLLOS] KB enrichment failed:", err)
       );
+      enrichItemsWithRag(codes).catch((err) =>
+        console.warn("[VOLLOS] RAG enrichment failed:", err)
+      );
     }
+  }
+
+  async function enrichItemsWithRag(hsCodes: string[]): Promise<void> {
+    const uniqueCodes = [...new Set(hsCodes)].sort();
+    const cacheKey = `__enrich:${uniqueCodes.join(",")}`;
+
+    // Check cache first
+    const cached = await db.cgRagCache.where("query").equals(cacheKey).first();
+    if (cached && isCacheValid(cached.cachedAt, RAG_CACHE_TTL_MS)) {
+      console.log("[VOLLOS] RAG enrichment served from cache");
+      return;
+    }
+
+    const query = `กฎระเบียบและข้อปฏิบัติที่เกี่ยวข้องกับสินค้าพิกัด HS codes: ${uniqueCodes.join(", ")} สรุปสั้นๆ เฉพาะที่สำคัญ`;
+    const result = await apiClient.ragSearch(query, 5);
+
+    // Clear old cache for this key, then add new
+    await db.cgRagCache.where("query").equals(cacheKey).delete();
+    await db.cgRagCache.add({
+      query: cacheKey,
+      answer: result.answer,
+      sources: result.sources,
+      processingTimeMs: result.processingTimeMs,
+      cachedAt: new Date().toISOString(),
+    });
+    console.log("[VOLLOS] RAG enrichment cached:", uniqueCodes.length, "HS codes");
   }
 
   async function enrichWithKnowledgeBase(hsCodes: string[]): Promise<void> {

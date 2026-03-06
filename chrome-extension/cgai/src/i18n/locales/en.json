@@ -86,7 +86,8 @@
     "lpiTitle": "Licenses / Controlled Goods (LPI)",
     "lpiMore": "View details",
     "lpiAgency": "Agency",
-    "auditRisk": "Audit Risk Summary"
+    "auditRisk": "Audit Risk Summary",
+    "ragTips": "Related Regulations"
   },
   "traffic": {
     "safe": "Safe",

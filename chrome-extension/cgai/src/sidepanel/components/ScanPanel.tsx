@@ -5,6 +5,7 @@ import PdfDropZone from "./PdfDropZone";
 import LineItemTable from "./LineItemTable";
 import ExchangeRateBanner from "./ExchangeRateBanner";
 import LpiAlertBanner from "./LpiAlertBanner";
+import RagTipsBanner from "./RagTipsBanner";
 import { useScanItems } from "../hooks/useScanItems";
 import { useExchangeRates } from "../hooks/useExchangeRates";
 import { useAuditRisk } from "../hooks/useAuditRisk";
@@ -310,6 +311,9 @@ export default function ScanPanel({ onItemsChange, online = true }: ScanPanelPro
           {lpiAlerts.length > 0 && (
             <LpiAlertBanner alerts={lpiAlerts} />
           )}
+
+          {/* RAG Regulation Tips Banner (indigo) — below LPI */}
+          <RagTipsBanner hsCodes={items.map((i) => i.hsCode)} />
 
           {/* Action Buttons */}
           <div className="space-y-2">

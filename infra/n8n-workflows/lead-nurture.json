@@ -1,0 +1,121 @@
+{
+  "name": "VOLLOS — Lead Nurture",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "minutes", "minutesInterval": 30 }]
+        }
+      },
+      "id": "trigger",
+      "name": "Every 30 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, email, company_name, created_at FROM marketing_leads WHERE nurture_status IS NULL OR nurture_status = 'new' ORDER BY created_at ASC LIMIT 10;",
+        "options": {}
+      },
+      "id": "fetch-new-leads",
+      "name": "Fetch New Leads",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [480, 300],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID",
+          "name": "VOLLOS DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true },
+          "conditions": [
+            {
+              "id": "has-leads",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": { "type": "number", "operation": "gt" }
+            }
+          ]
+        }
+      },
+      "id": "check-leads",
+      "name": "Has New Leads?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.SENDGRID_FROM_EMAIL || 'hello@vollos.ai' }}",
+        "toEmail": "={{ $json.email }}",
+        "subject": "ยินดีต้อนรับสู่ VOLLOS — AI ช่วยจัดพิกัดศุลกากร",
+        "emailType": "html",
+        "message": "<h2>สวัสดีครับ {{ $json.company_name || '' }}</h2><p>ขอบคุณที่สนใจ VOLLOS! เราช่วยผู้นำเข้า-ส่งออกจัดพิกัดศุลกากรด้วย AI Semantic Search</p><p>ลองใช้เครื่องมือค้นหา HS Code ฟรีได้ที่:<br><a href='https://vollos.ai/customsguard/tools/hs-lookup'>VOLLOS HS Code Lookup</a></p><p>หากมีคำถามใดๆ ตอบกลับอีเมลนี้ได้เลยครับ</p><p>ด้วยความนับถือ,<br>ทีม VOLLOS</p>",
+        "options": {}
+      },
+      "id": "send-welcome",
+      "name": "Send Welcome Email",
+      "type": "n8n-nodes-base.sendGrid",
+      "typeVersion": 1,
+      "position": [960, 200],
+      "credentials": {
+        "sendGridApi": {
+          "id": "REPLACE_WITH_SENDGRID_CREDENTIAL_ID",
+          "name": "SendGrid"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE marketing_leads SET nurture_status = 'welcome_sent' WHERE id = '{{ $json.id }}';",
+        "options": {}
+      },
+      "id": "mark-welcome-sent",
+      "name": "Mark Welcome Sent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1200, 200],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID",
+          "name": "VOLLOS DB"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "noop",
+      "name": "No New Leads",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [960, 400]
+    }
+  ],
+  "connections": {
+    "Every 30 Minutes": {
+      "main": [[{ "node": "Fetch New Leads", "type": "main", "index": 0 }]]
+    },
+    "Fetch New Leads": {
+      "main": [[{ "node": "Has New Leads?", "type": "main", "index": 0 }]]
+    },
+    "Has New Leads?": {
+      "main": [
+        [{ "node": "Send Welcome Email", "type": "main", "index": 0 }],
+        [{ "node": "No New Leads", "type": "main", "index": 0 }]
+      ]
+    },
+    "Send Welcome Email": {
+      "main": [[{ "node": "Mark Welcome Sent", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": { "templateCredsSetupCompleted": false }
+}

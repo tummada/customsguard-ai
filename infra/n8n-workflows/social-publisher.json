@@ -1,0 +1,223 @@
+{
+  "name": "VOLLOS — Social Publisher",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 22,23,0,1,2,3,4,5,6 * * *" }]
+        }
+      },
+      "id": "trigger",
+      "name": "Hourly 22:00-06:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SET app.current_tenant_id = '00000000-0000-0000-0000-000000000001'; SELECT id, title, body, excerpt, content_type, image_url, tags FROM mkt_content WHERE status = 'scheduled' AND content_type IN ('fb','ig','tiktok','youtube','x') AND scheduled_at <= now() LIMIT 10;",
+        "options": {}
+      },
+      "id": "fetch-scheduled",
+      "name": "Fetch Scheduled Social Posts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [480, 300],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID",
+          "name": "VOLLOS DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            { "outputIndex": 0, "value": "fb" },
+            { "outputIndex": 1, "value": "ig" },
+            { "outputIndex": 2, "value": "tiktok" },
+            { "outputIndex": 3, "value": "youtube" },
+            { "outputIndex": 4, "value": "x" }
+          ]
+        },
+        "fallbackOutput": "extra",
+        "options": {},
+        "dataPropertyName": "content_type"
+      },
+      "id": "router",
+      "name": "Route by Platform",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v20.0/{{ $env.FB_PAGE_ID }}/feed",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.FB_PAGE_ACCESS_TOKEN }}" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "message", "value": "={{ $json.body }}" },
+            { "name": "link", "value": "=https://vollos.ai/customsguard/blog/{{ $json.slug || '' }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "post-fb",
+      "name": "Post to Facebook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v20.0/{{ $env.IG_USER_ID }}/media",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.FB_PAGE_ACCESS_TOKEN }}" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "caption", "value": "={{ $json.body }}" },
+            { "name": "image_url", "value": "={{ $json.image_url }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "post-ig",
+      "name": "Post to Instagram",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 250]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://open.tiktokapis.com/v2/post/publish/inbox/video/init/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.TIKTOK_ACCESS_TOKEN }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"post_info\": { \"title\": \"{{ $json.title }}\", \"description\": \"{{ $json.body }}\" }, \"source_info\": { \"source\": \"PULL_FROM_URL\", \"video_url\": \"{{ $json.image_url }}\" } }",
+        "options": {}
+      },
+      "id": "post-tiktok",
+      "name": "Post to TikTok",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.twitter.com/2/tweets",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.TWITTER_BEARER_TOKEN }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"text\": \"{{ $json.body }}\" }",
+        "options": {}
+      },
+      "id": "post-x",
+      "name": "Post to X/Twitter",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 550]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE mkt_content SET status='published', published_at=now(), platform_post_id='{{ $json.id || $json.data?.id || \"posted\" }}', updated_at=now() WHERE id = '{{ $item(\"Fetch Scheduled Social Posts\").json.id }}';",
+        "options": {}
+      },
+      "id": "mark-published",
+      "name": "Mark Published in DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1200, 300],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID",
+          "name": "VOLLOS DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.NOTIFICATION_WEBHOOK_URL }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "content",
+              "value": "=Social post FAILED: {{ $json.error || $json.message || 'Unknown error' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "error-notify",
+      "name": "Notify Error",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 550]
+    }
+  ],
+  "connections": {
+    "Hourly 22:00-06:00": {
+      "main": [[{ "node": "Fetch Scheduled Social Posts", "type": "main", "index": 0 }]]
+    },
+    "Fetch Scheduled Social Posts": {
+      "main": [[{ "node": "Route by Platform", "type": "main", "index": 0 }]]
+    },
+    "Route by Platform": {
+      "main": [
+        [{ "node": "Post to Facebook", "type": "main", "index": 0 }],
+        [{ "node": "Post to Instagram", "type": "main", "index": 0 }],
+        [{ "node": "Post to TikTok", "type": "main", "index": 0 }],
+        [{ "node": "No Op", "type": "main", "index": 0 }],
+        [{ "node": "Post to X/Twitter", "type": "main", "index": 0 }]
+      ]
+    },
+    "Post to Facebook": {
+      "main": [[{ "node": "Mark Published in DB", "type": "main", "index": 0 }]]
+    },
+    "Post to Instagram": {
+      "main": [[{ "node": "Mark Published in DB", "type": "main", "index": 0 }]]
+    },
+    "Post to TikTok": {
+      "main": [[{ "node": "Mark Published in DB", "type": "main", "index": 0 }]]
+    },
+    "Post to X/Twitter": {
+      "main": [[{ "node": "Mark Published in DB", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": ""
+  },
+  "meta": { "templateCredsSetupCompleted": false }
+}

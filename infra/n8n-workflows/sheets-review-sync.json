@@ -1,0 +1,211 @@
+{
+  "name": "VOLLOS — Sheets Review Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "minutes", "minutesInterval": 30 }]
+        }
+      },
+      "id": "trigger-draft",
+      "name": "Every 30 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SET app.current_tenant_id = '00000000-0000-0000-0000-000000000001'; SELECT id, title, body, excerpt, content_type, product_id, tags, hs_codes_mentioned, confidence_score, customs_verify_url, image_prompt, references_urls, status FROM mkt_content WHERE status = 'draft' ORDER BY created_at ASC LIMIT 50;",
+        "options": {}
+      },
+      "id": "fetch-drafts",
+      "name": "Fetch Draft Content",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [480, 300],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID",
+          "name": "VOLLOS DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true },
+          "conditions": [
+            {
+              "id": "has-drafts",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": { "type": "number", "operation": "gt" }
+            }
+          ]
+        }
+      },
+      "id": "check-drafts",
+      "name": "Has Drafts?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "documentId": { "__rl": true, "value": "REPLACE_WITH_SHEET_ID", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "Content", "mode": "name" },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "options": {}
+      },
+      "id": "write-to-sheets",
+      "name": "Write to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [960, 200],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_WITH_GOOGLE_CREDENTIAL_ID",
+          "name": "Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.NOTIFICATION_WEBHOOK_URL }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "content",
+              "value": "=มี content ใหม่ {{ $json.length }} ชิ้นรอ review ใน Google Sheets"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "notify-new-drafts",
+      "name": "Notify: New Drafts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 200]
+    },
+    {
+      "parameters": {},
+      "id": "noop-draft",
+      "name": "No Drafts",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [960, 400]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 1 * * *" }]
+        }
+      },
+      "id": "trigger-sync-back",
+      "name": "Daily 01:00 AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 600]
+    },
+    {
+      "parameters": {
+        "documentId": { "__rl": true, "value": "REPLACE_WITH_SHEET_ID", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "Content", "mode": "name" },
+        "filters": {
+          "filter": [
+            { "column": "Final_Status", "value": "Approved" },
+            { "column": "Finished", "value": "TRUE" },
+            { "column": "Synced", "value": "FALSE" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "read-approved",
+      "name": "Read Approved from Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [480, 600],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_WITH_GOOGLE_CREDENTIAL_ID",
+          "name": "Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE mkt_content SET status='scheduled', is_fact_checked=true, updated_at=now() WHERE id = '{{ $json.id }}' AND (confidence_score >= 80 OR is_fact_checked = true);",
+        "options": {}
+      },
+      "id": "schedule-content",
+      "name": "Schedule in DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [720, 600],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID",
+          "name": "VOLLOS DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": { "__rl": true, "value": "REPLACE_WITH_SHEET_ID", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "Content", "mode": "name" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": { "Synced": "TRUE" }
+        },
+        "options": { "cellFormat": "USER_ENTERED" }
+      },
+      "id": "mark-synced",
+      "name": "Mark Synced in Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [960, 600],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_WITH_GOOGLE_CREDENTIAL_ID",
+          "name": "Google Sheets"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every 30 Minutes": {
+      "main": [[{ "node": "Fetch Draft Content", "type": "main", "index": 0 }]]
+    },
+    "Fetch Draft Content": {
+      "main": [[{ "node": "Has Drafts?", "type": "main", "index": 0 }]]
+    },
+    "Has Drafts?": {
+      "main": [
+        [{ "node": "Write to Google Sheets", "type": "main", "index": 0 }],
+        [{ "node": "No Drafts", "type": "main", "index": 0 }]
+      ]
+    },
+    "Write to Google Sheets": {
+      "main": [[{ "node": "Notify: New Drafts", "type": "main", "index": 0 }]]
+    },
+    "Daily 01:00 AM": {
+      "main": [[{ "node": "Read Approved from Sheets", "type": "main", "index": 0 }]]
+    },
+    "Read Approved from Sheets": {
+      "main": [[{ "node": "Schedule in DB", "type": "main", "index": 0 }]]
+    },
+    "Schedule in DB": {
+      "main": [[{ "node": "Mark Synced in Sheet", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": { "templateCredsSetupCompleted": false }
+}

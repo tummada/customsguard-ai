@@ -74,9 +74,7 @@ services:
       "
 
   backend:
-    build:
-      context: ./backend-core
-      dockerfile: Dockerfile.jvm
+    image: ${CI_REGISTRY_IMAGE:-registry.gitlab.com/tummadajingjing/aiservice}/backend:${IMAGE_TAG:-latest}
     container_name: vollos-backend
     restart: always
     depends_on:
@@ -109,7 +107,7 @@ services:
       start_period: 60s
 
   marketing:
-    build: ./marketing-site
+    image: ${CI_REGISTRY_IMAGE:-registry.gitlab.com/tummadajingjing/aiservice}/marketing:${IMAGE_TAG:-latest}
     container_name: vollos-marketing
     restart: always
     deploy:

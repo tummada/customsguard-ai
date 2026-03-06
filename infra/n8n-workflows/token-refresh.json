@@ -1,0 +1,125 @@
+{
+  "name": "VOLLOS — Token Refresh",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 6 * * *" }]
+        }
+      },
+      "id": "trigger",
+      "name": "Daily 06:00 AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://graph.facebook.com/v20.0/me?fields=id,name&access_token={{ $env.FB_PAGE_ACCESS_TOKEN }}",
+        "options": { "timeout": 10000 }
+      },
+      "id": "check-meta-token",
+      "name": "Check Meta Token",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 200]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://graph.facebook.com/v20.0/oauth/access_token?grant_type=fb_exchange_token&client_id={{ $env.FB_APP_ID }}&client_secret={{ $env.FB_APP_SECRET }}&fb_exchange_token={{ $env.FB_PAGE_ACCESS_TOKEN }}",
+        "options": {}
+      },
+      "id": "refresh-meta-token",
+      "name": "Refresh Meta Token",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.NOTIFICATION_WEBHOOK_URL }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "content",
+              "value": "=Meta token refresh: {{ $json.access_token ? 'SUCCESS — new token obtained' : 'FAILED — manual refresh needed!' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "notify-meta",
+      "name": "Notify Meta Result",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://open.tiktokapis.com/v2/oauth/token/",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "client_key", "value": "={{ $env.TIKTOK_CLIENT_KEY }}" },
+            { "name": "client_secret", "value": "={{ $env.TIKTOK_CLIENT_SECRET }}" },
+            { "name": "grant_type", "value": "refresh_token" },
+            { "name": "refresh_token", "value": "={{ $env.TIKTOK_REFRESH_TOKEN }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "refresh-tiktok",
+      "name": "Refresh TikTok Token",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.NOTIFICATION_WEBHOOK_URL }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "content",
+              "value": "=TikTok token refresh: {{ $json.data?.access_token ? 'SUCCESS' : 'FAILED — manual refresh needed!' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "notify-tiktok",
+      "name": "Notify TikTok Result",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 400]
+    }
+  ],
+  "connections": {
+    "Daily 06:00 AM": {
+      "main": [
+        [
+          { "node": "Check Meta Token", "type": "main", "index": 0 },
+          { "node": "Refresh TikTok Token", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Check Meta Token": {
+      "main": [[{ "node": "Refresh Meta Token", "type": "main", "index": 0 }]]
+    },
+    "Refresh Meta Token": {
+      "main": [[{ "node": "Notify Meta Result", "type": "main", "index": 0 }]]
+    },
+    "Refresh TikTok Token": {
+      "main": [[{ "node": "Notify TikTok Result", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": { "templateCredsSetupCompleted": false }
+}

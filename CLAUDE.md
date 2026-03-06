@@ -135,6 +135,18 @@ CustomsGuard endpoints:
 
 ---
 
+## Session Coordination Protocol
+
+เมื่อเปิดหลาย AI session พร้อมกัน (Claude Code, ChatGPT, etc.) ให้ทุก session ปฏิบัติตาม:
+
+1. **อ่าน TODO.md ก่อนเริ่มงาน** — เช็คว่ามี task ไหนถูก claim อยู่หรือมีแผนที่ confirmed แล้ว
+2. **ห้ามทำซ้ำ** — ถ้า task มี 🔒 หรืออยู่ใน Active Plans → ข้ามไป ถามผู้ใช้ก่อน
+3. **บันทึกเมื่อผู้ใช้ยืนยัน "ทำเลย" เท่านั้น** — ระหว่างคุย/วางแผน/แก้แผน ห้ามเขียน TODO.md
+4. **Claim ก่อนทำ** — เมื่อผู้ใช้ยืนยันแล้ว ให้เขียนแผนลง TODO.md พร้อม 🔒 ก่อนเริ่มงานจริง
+5. **ปลด lock เมื่อเสร็จ** — เปลี่ยน 🔒 เป็น [x] และลบแผนออกจาก Active Plans
+
+---
+
 ## Architecture Commandments (กฎเหล็ก)
 
 กฎที่ต้องปฏิบัติตามเสมอ — มาจาก Team Manifesto:

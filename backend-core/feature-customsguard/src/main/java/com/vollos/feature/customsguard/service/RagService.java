@@ -47,7 +47,9 @@ public class RagService {
 
     private static final double MIN_SIMILARITY_THRESHOLD = 0.65;
     private static final String NO_RELEVANT_DATA_MSG =
-            "ไม่พบข้อมูลที่เกี่ยวข้องเพียงพอในฐานข้อมูล กรุณาลองถามด้วยคำอื่น หรือตรวจสอบที่ กรมศุลกากร https://www.customs.go.th";
+            "ยังไม่พบข้อมูลที่ตรงกับคำถามในฐานข้อมูลครับ " +
+            "ลองระบุชื่อสินค้าให้ชัดเจนขึ้น เช่น \"พิกัดกุ้งแช่แข็ง\" หรือ \"อัตราอากรคอมพิวเตอร์\" " +
+            "หรือตรวจสอบเพิ่มเติมที่ กรมศุลกากร https://www.customs.go.th";
 
     private final GeminiEmbeddingService embeddingService;
     private final DocumentChunkRepository chunkRepo;

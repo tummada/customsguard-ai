@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Use process.cwd() instead of __dirname for better ESM compatibility
+  output: "standalone",
   outputFileTracingRoot: process.cwd(),
 };
 

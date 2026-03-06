@@ -129,12 +129,12 @@ services:
     build: ./marketing-site
     container_name: saas-marketing
     restart: always
+    depends_on:
+      postgres: { condition: service_healthy }
     environment:
       - NODE_ENV=${APP_ENV}
-      - DB_URL=postgres://postgres:5432/${DB_NAME}
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - TENANT_ID_HEADER=x-tenant-id
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}
+      - NEXT_PUBLIC_API_URL=https://api.vollos.ai
     deploy:
       resources:
         limits: { cpus: '0.1', memory: 256M }

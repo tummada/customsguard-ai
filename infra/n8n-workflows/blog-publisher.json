@@ -1,0 +1,100 @@
+{
+  "name": "VOLLOS — Blog Publisher",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "hours", "hoursInterval": 1 }]
+        }
+      },
+      "id": "trigger",
+      "name": "Every 1 Hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE mkt_content SET status='published', published_at=now(), updated_at=now() WHERE status='scheduled' AND content_type='blog' AND scheduled_at <= now() RETURNING id, slug, title;",
+        "options": {}
+      },
+      "id": "publish-blogs",
+      "name": "Publish Scheduled Blogs",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [480, 300],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID",
+          "name": "VOLLOS DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "" },
+          "conditions": [
+            {
+              "id": "has-results",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": { "type": "number", "operation": "gt" }
+            }
+          ]
+        }
+      },
+      "id": "check-results",
+      "name": "Has Published?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.NOTIFICATION_WEBHOOK_URL }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "content",
+              "value": "=Blog published: {{ $json.length }} posts"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "notify",
+      "name": "Send Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 200]
+    },
+    {
+      "parameters": {},
+      "id": "noop",
+      "name": "No New Posts",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [960, 400]
+    }
+  ],
+  "connections": {
+    "Every 1 Hour": {
+      "main": [[{ "node": "Publish Scheduled Blogs", "type": "main", "index": 0 }]]
+    },
+    "Publish Scheduled Blogs": {
+      "main": [[{ "node": "Has Published?", "type": "main", "index": 0 }]]
+    },
+    "Has Published?": {
+      "main": [
+        [{ "node": "Send Notification", "type": "main", "index": 0 }],
+        [{ "node": "No New Posts", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": { "templateCredsSetupCompleted": false }
+}
