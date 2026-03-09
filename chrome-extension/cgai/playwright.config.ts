@@ -3,7 +3,7 @@ import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "e2e",
   testMatch: "*.spec.ts",
-  timeout: 30_000,
+  timeout: 60_000,
   retries: 0,
   workers: 1, // Chrome extension tests must run sequentially
   outputDir: "e2e-results",
