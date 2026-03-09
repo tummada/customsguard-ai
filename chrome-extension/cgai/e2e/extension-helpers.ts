@@ -7,6 +7,25 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const DIST_PATH = resolve(__dirname, "../dist");
 
 /**
+ * Generate a fake JWT for E2E testing.
+ * Creates a valid-looking token with future expiry so apiClient.loadConfig() accepts it.
+ */
+function makeFakeJwt(tenantId: string, userId = "e2e-user-001"): string {
+  const header = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+  const payload = btoa(
+    JSON.stringify({
+      sub: userId,
+      tenantId,
+      email: "e2e@vollos.local",
+      exp: Math.floor(Date.now() / 1000) + 86400, // 24h from now
+      iat: Math.floor(Date.now() / 1000),
+    })
+  );
+  const sig = btoa("e2e-fake-signature");
+  return `${header}.${payload}.${sig}`;
+}
+
+/**
  * Launch Chromium with the built extension loaded.
  * Uses `--headless=new` which supports extension loading (unlike old headless).
  *
@@ -78,69 +97,60 @@ export async function openSidepanel(context: BrowserContext, extId: string) {
  * Returns the current auth state.
  */
 export async function waitForSplashEnd(page: Page): Promise<"login" | "ready"> {
-  // Wait for either LoginScreen or Tab UI to appear (max 5s)
-  const loginEmail = page.locator("input[type='email']");
-  const tabBar = page.locator("button >> nth=0"); // First tab button
+  // Wait for either Google login button or Tab UI to appear (max 8s)
+  const googleBtn = page.locator("text=/Google|เข้าสู่ระบบ/");
+  const tabButtons = page.locator("button:has(svg.lucide-scan-line)");
 
   await Promise.race([
-    loginEmail.waitFor({ state: "visible", timeout: 5_000 }).catch(() => {}),
-    page.waitForTimeout(3_000),
+    googleBtn.first().waitFor({ state: "visible", timeout: 8_000 }).catch(() => {}),
+    tabButtons.first().waitFor({ state: "visible", timeout: 8_000 }).catch(() => {}),
   ]);
 
-  if (await loginEmail.isVisible().catch(() => false)) {
-    return "login";
+  // If Google login button visible → login screen
+  if (await googleBtn.first().isVisible().catch(() => false)) {
+    // Double-check it's not the main UI (which also has buttons)
+    const hasTabs = await tabButtons.first().isVisible().catch(() => false);
+    if (!hasTabs) return "login";
   }
   return "ready";
 }
 
 /**
- * Login via the new LoginScreen.
- * Taps logo 5 times to reveal dev URL field, sets URL, then logs in.
+ * Inject a fake auth token into chrome.storage.local so the extension
+ * skips login and goes straight to the main UI.
+ * Must be called on an extension page (chrome-extension:// origin).
  */
-export async function loginViaLoginScreen(
+export async function injectAuth(
   page: Page,
   baseUrl: string,
-  email = "e2e@vollos.local",
-  password = "test123"
+  tenantId = "a0000000-0000-0000-0000-000000000001"
 ): Promise<void> {
-  // Wait for login screen
-  await expect(page.locator("input[type='email']")).toBeVisible({ timeout: 5_000 });
-
-  // Tap VOLLOS logo 5 times to reveal dev URL
-  const logo = page.locator("h1:has-text('VOLLOS')");
-  for (let i = 0; i < 5; i++) {
-    await logo.click({ delay: 50 });
-  }
-
-  // Wait for dev URL field to appear
-  const devUrlInput = page.locator("input[type='url']");
-  await expect(devUrlInput).toBeVisible({ timeout: 2_000 });
-
-  // Fill dev URL
-  await devUrlInput.fill(baseUrl);
-  await page.locator("button:has-text('Save')").click();
-
-  // Fill credentials
-  await page.locator("input[type='email']").fill(email);
-  await page.locator("input[type='password']").fill(password);
-
-  // Click login button (matches Thai or English)
-  const loginBtn = page.locator("button.btn-primary").first();
-  await loginBtn.click();
-
-  // Wait for tab UI to appear (login success)
-  // Look for the tab bar which has multiple buttons
-  await page.waitForTimeout(3_000);
+  const fakeToken = makeFakeJwt(tenantId);
+  await page.evaluate(
+    async ({ token, tenant, url }) => {
+      await chrome.storage.local.set({
+        vollosApiConfig: { baseUrl: url, token, tenantId: tenant },
+      });
+    },
+    { token: fakeToken, tenant: tenantId, url: baseUrl }
+  );
 }
 
 /**
- * Ensure sidepanel is logged in; login if on LoginScreen.
+ * Ensure sidepanel is logged in.
+ * Injects a fake JWT into chrome.storage.local, then reloads the page
+ * so AuthProvider.loadConfig() picks it up and skips login.
  */
 export async function ensureLoggedIn(page: Page, baseUrl: string): Promise<void> {
   const state = await waitForSplashEnd(page);
   if (state === "login") {
-    await loginViaLoginScreen(page, baseUrl);
+    // Inject auth config and reload so the extension reads it
+    await injectAuth(page, baseUrl);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(1_500);
   }
+  // Wait for main UI to be visible (tab bar buttons)
+  await page.locator("button").first().waitFor({ state: "visible", timeout: 10_000 }).catch(() => {});
 }
 
 /** Create e2e-results/manual/ directory if not exists */
