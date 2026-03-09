@@ -353,7 +353,9 @@ public class RagService {
                 try {
                     emitter.send(SseEmitter.event().name("error").data(e.getMessage()));
                     emitter.complete();
-                } catch (IOException ignored) {}
+                } catch (IOException ex) {
+                    log.warn("Failed to send SSE error event: {}", ex.getMessage());
+                }
             }
         });
     }

@@ -269,8 +269,14 @@ public class ChatGuardService {
     /**
      * Normalize input: NFKC (converts homoglyphs to standard chars) + length cap.
      */
+    // Zero-width and invisible characters used for regex bypass
+    private static final Pattern ZERO_WIDTH_CHARS = Pattern.compile(
+            "[\\u200B\\u200C\\u200D\\u200E\\u200F\\u2060\\u2061\\u2062\\u2063\\u2064\\uFEFF\\u00AD]");
+
     private static String normalizeInput(String input) {
         String result = Normalizer.normalize(input, Normalizer.Form.NFKC);
+        // Strip zero-width characters (U+200B-200F, U+2060-2064, FEFF, soft hyphen)
+        result = ZERO_WIDTH_CHARS.matcher(result).replaceAll("");
         // Strip diacritics: NFD decompose then remove combining marks (á→a, é→e)
         String nfd = Normalizer.normalize(result, Normalizer.Form.NFD);
         result = nfd.replaceAll("\\p{InCombiningDiacriticalMarks}", "");

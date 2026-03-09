@@ -120,8 +120,8 @@ def main():
             # Try refreshing token in case it expired
             try:
                 token = get_access_token()
-            except:
-                pass
+            except Exception as e2:
+                print(f"  Failed to refresh token: {e2}")
             if errors > 1000:
                 print("Too many errors, stopping.")
                 break

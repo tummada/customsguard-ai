@@ -52,6 +52,9 @@ def main():
         "--if-exists",
     ] + table_args
 
+    # WARNING: PGPASSWORD in env is visible via /proc and `ps e`.
+    # For production use, prefer ~/.pgpass file (chmod 600) instead.
+    # See: https://www.postgresql.org/docs/current/libpq-pgpass.html
     env = os.environ.copy()
     env["PGPASSWORD"] = DB_PASSWORD
 

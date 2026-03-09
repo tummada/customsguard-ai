@@ -38,11 +38,15 @@ public class DocumentChunkService {
         int chunked = 0;
         int embedded = 0;
 
+        // Pre-fetch all regulation IDs that already have chunks to avoid N+1 queries
+        java.util.Set<String> alreadyChunked = new java.util.HashSet<>(
+                chunkRepo.findSourceIdsBySourceType("REGULATION"));
+
         for (RegulationEntity reg : regulations) {
             String sourceId = reg.getId().toString();
 
             // Skip if already chunked
-            if (!chunkRepo.findBySourceTypeAndSourceId("REGULATION", sourceId).isEmpty()) {
+            if (alreadyChunked.contains(sourceId)) {
                 log.info("Skipping regulation '{}' — already chunked", reg.getTitle());
                 continue;
             }

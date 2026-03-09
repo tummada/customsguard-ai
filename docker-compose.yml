@@ -80,7 +80,7 @@ services:
     logging: *default-logging
 
   n8n:
-    image: n8nio/n8n:latest
+    image: n8nio/n8n:1.76.1
     container_name: saas-n8n
     restart: always
     depends_on:
@@ -105,7 +105,7 @@ services:
     logging: *default-logging
 
   n8n-worker:
-    image: n8nio/n8n:latest
+    image: n8nio/n8n:1.76.1
     container_name: saas-n8n-worker
     command: worker
     restart: always

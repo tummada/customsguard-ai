@@ -28,7 +28,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://*.customs.go.th/*", "<all_urls>"],
+      "matches": ["https://*.customs.go.th/*"],
       "js": ["src/content/index.ts"],
       "all_frames": true
     }
@@ -36,7 +36,7 @@
   "web_accessible_resources": [
     {
       "resources": ["assets/*", "public/*", "pdf.worker.min.mjs"],
-      "matches": ["https://*.customs.go.th/*", "<all_urls>"]
+      "matches": ["https://*.customs.go.th/*"]
     }
   ],
   "icons": {

@@ -14,8 +14,6 @@ interface FillResult {
 const ALLOWED_ORIGINS = [
   "https://customs.go.th",
   "https://e-customs.customs.go.th",
-  // null origin for srcdoc iframes (mock page)
-  "null",
 ];
 
 // Numeric fields that require Big.js precision for customs-grade accuracy
@@ -153,8 +151,28 @@ export class FuzzySelectorEngine {
     return results;
   }
 
+  // Count how many item rows the payload needs (based on numbered field suffixes)
+  private countNeededRows(data: Record<string, string>): number {
+    let maxRow = 0;
+    for (const key of Object.keys(data)) {
+      // Extract trailing number: hsCode2 → 2, cifPrice3 → 3, hsCode → 1
+      const match = key.match(/(\d+)$/);
+      const rowNum = match ? parseInt(match[1], 10) : 1;
+      if (rowNum > maxRow) maxRow = rowNum;
+    }
+    return maxRow;
+  }
+
   // Main entry: fill all fields in page + iframes
   fill(data: Record<string, string>): { filledCount: number; results: FillResult[] } {
+    // Dispatch event so the page can auto-create rows before we fill
+    const neededRows = this.countNeededRows(data);
+    if (neededRows > 1) {
+      document.dispatchEvent(
+        new CustomEvent("vollos-ensure-rows", { detail: { count: neededRows } })
+      );
+    }
+
     const mainResults = this.fillDocument(document, data);
     const iframeResults = this.fillIframes(data);
     const results = [...mainResults, ...iframeResults];
@@ -177,12 +195,21 @@ export function setupIframeListener(engine: FuzzySelectorEngine): void {
     if (event.data?.type !== "VOLLOS_MAGIC_FILL") return;
 
     // Origin validation for security
-    if (!engine.isAllowedOrigin(event.origin) && event.origin !== "null") {
+    if (!engine.isAllowedOrigin(event.origin)) {
       console.warn(`[VOLLOS] Rejected message from untrusted origin: ${event.origin}`);
       return;
     }
 
     const data = event.data.payload as Record<string, string>;
+
+    // Auto-create rows inside iframe too
+    const neededRows = engine["countNeededRows"](data);
+    if (neededRows > 1) {
+      document.dispatchEvent(
+        new CustomEvent("vollos-ensure-rows", { detail: { count: neededRows } })
+      );
+    }
+
     engine.fillDocument(document, data);
   });
 }

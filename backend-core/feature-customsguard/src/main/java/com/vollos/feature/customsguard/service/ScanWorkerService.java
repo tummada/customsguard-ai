@@ -53,7 +53,7 @@ public class ScanWorkerService {
 
     @Scheduled(fixedDelay = 15_000, initialDelay = 30_000)
     public void pollAndProcess() {
-        // Pick one CREATED job (oldest first)
+        // Pick one CREATED job (oldest first) with FOR UPDATE SKIP LOCKED to prevent race condition
         List<Map<String, Object>> jobs = jdbcTemplate.queryForList("""
             SELECT j.id, j.prompt AS s3_key, j.tenant_id
             FROM ai_jobs j
@@ -61,6 +61,7 @@ public class ScanWorkerService {
               AND j.model_type = 'customsguard-scan'
             ORDER BY j.created_at ASC
             LIMIT 1
+            FOR UPDATE SKIP LOCKED
             """);
 
         if (jobs.isEmpty()) return;
@@ -252,11 +253,13 @@ public class ScanWorkerService {
                     List<SemanticSearchResponse> results = hsCodeService.semanticSearch(query, 3);
 
                     if (!results.isEmpty() && results.get(0).similarity() != null
-                            && results.get(0).similarity() >= 0.3) {
+                            && results.get(0).similarity() >= 0.3
+                            && results.get(0).code() != null) {
                         SemanticSearchResponse best = results.get(0);
                         item.put("hsCode", best.code());
                         item.put("confidence", best.similarity());
-                        item.put("aiReason", "Semantic search: " + best.descriptionEn()
+                        String descText = best.descriptionEn() != null ? best.descriptionEn() : "(no description)";
+                        item.put("aiReason", "Semantic search: " + descText
                                 + " (similarity=" + String.format("%.2f", best.similarity()) + ")");
                     } else {
                         item.putNull("hsCode");

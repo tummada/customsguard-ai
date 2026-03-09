@@ -29,8 +29,8 @@ def extract_debugbar_data(html):
             try:
                 data = json.loads(m)
                 return data
-            except:
-                pass
+            except (ValueError, json.JSONDecodeError) as e:
+                print(f"  Failed to parse debugbar JSON block: {e}")
 
     # Alternative: look for inline JSON data
     matches = re.findall(r'var\s+\w+\s*=\s*(\{[^;]{100,}\});', html, re.S)
@@ -38,8 +38,8 @@ def extract_debugbar_data(html):
         try:
             data = json.loads(m)
             return data
-        except:
-            pass
+        except (ValueError, json.JSONDecodeError) as e:
+            print(f"  Failed to parse inline JSON block: {e}")
     return None
 
 
@@ -131,7 +131,7 @@ def main():
                     print(f"  Array with {len(arr)} items")
                     if arr:
                         print(f"  First: {json.dumps(arr[0], ensure_ascii=False)[:300]}")
-                except:
+                except (ValueError, json.JSONDecodeError):
                     print(f"  Raw: {m.group(1)[:200]}")
 
 

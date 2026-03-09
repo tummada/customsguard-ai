@@ -70,14 +70,20 @@ public class GeminiChatService {
                     HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() != 200) {
-                log.error("Gemini vision error: status={}", response.statusCode());
+                log.error("Gemini vision error: status={}, body={}", response.statusCode(),
+                        truncateForLog(response.body()));
                 return "";
             }
 
             JsonNode root = objectMapper.readTree(response.body());
-            return root.path("candidates").get(0)
-                    .path("content").path("parts").get(0)
-                    .path("text").asText();
+            JsonNode candidates = root.path("candidates");
+            if (candidates.isMissingNode() || !candidates.isArray() || candidates.isEmpty()) {
+                log.warn("Gemini vision returned empty candidates");
+                return "";
+            }
+            return candidates.get(0)
+                    .path("content").path("parts").path(0)
+                    .path("text").asText("");
 
         } catch (Exception e) {
             log.error("Failed to extract text from image via Gemini Vision", e);
@@ -115,14 +121,20 @@ public class GeminiChatService {
                     HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() != 200) {
-                log.error("Gemini rawPrompt error: status={}", response.statusCode());
+                log.error("Gemini rawPrompt error: status={}, body={}", response.statusCode(),
+                        truncateForLog(response.body()));
                 return "";
             }
 
             JsonNode root = objectMapper.readTree(response.body());
-            return root.path("candidates").get(0)
-                    .path("content").path("parts").get(0)
-                    .path("text").asText();
+            JsonNode candidates = root.path("candidates");
+            if (candidates.isMissingNode() || !candidates.isArray() || candidates.isEmpty()) {
+                log.warn("Gemini rawPrompt returned empty candidates");
+                return "";
+            }
+            return candidates.get(0)
+                    .path("content").path("parts").path(0)
+                    .path("text").asText("");
 
         } catch (Exception e) {
             log.error("Failed to call Gemini rawPrompt", e);
@@ -173,18 +185,29 @@ public class GeminiChatService {
                     HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() != 200) {
-                log.error("Gemini chat error: status={}", response.statusCode());
+                log.error("Gemini chat error: status={}, body={}", response.statusCode(),
+                        truncateForLog(response.body()));
                 return "ขออภัย ไม่สามารถประมวลผลคำถามได้ในขณะนี้";
             }
 
             JsonNode root = objectMapper.readTree(response.body());
-            return root.path("candidates").get(0)
-                    .path("content").path("parts").get(0)
-                    .path("text").asText();
+            JsonNode candidates = root.path("candidates");
+            if (candidates.isMissingNode() || !candidates.isArray() || candidates.isEmpty()) {
+                log.warn("Gemini chat returned empty candidates");
+                return "ขออภัย ไม่สามารถประมวลผลคำถามได้ในขณะนี้";
+            }
+            return candidates.get(0)
+                    .path("content").path("parts").path(0)
+                    .path("text").asText("");
 
         } catch (Exception e) {
             log.error("Failed to call Gemini chat", e);
             return "เกิดข้อผิดพลาดในการเชื่อมต่อ AI";
         }
+    }
+
+    private static String truncateForLog(String body) {
+        if (body == null) return "(null)";
+        return body.length() > 500 ? body.substring(0, 500) + "...(truncated)" : body;
     }
 }

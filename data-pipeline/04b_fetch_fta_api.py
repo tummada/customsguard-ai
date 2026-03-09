@@ -62,8 +62,8 @@ def test_api():
                     try:
                         data = r.json()
                         print(f"  Hidden JSON: {json.dumps(data, ensure_ascii=False)[:300]}")
-                    except:
-                        print(f"  HTML: {text[:200]}")
+                    except (ValueError, json.JSONDecodeError) as e:
+                        print(f"  HTML (not JSON: {e}): {text[:200]}")
                 print()
             except Exception as e:
                 print(f"{method} {url}: ERROR {e}\n")
@@ -80,17 +80,17 @@ def fetch_chapter_rates(agreement, chapter):
             if r.status_code == 200:
                 try:
                     return r.json()
-                except:
-                    pass
+                except (ValueError, json.JSONDecodeError) as e:
+                    print(f"  GET {url} response not valid JSON: {e}")
 
             r = requests.post(url, data=params, headers=HEADERS, timeout=15)
             if r.status_code == 200:
                 try:
                     return r.json()
-                except:
-                    pass
-        except:
-            pass
+                except (ValueError, json.JSONDecodeError) as e:
+                    print(f"  POST {url} response not valid JSON: {e}")
+        except Exception as e:
+            print(f"  Error fetching {url} for {agreement} ch{chapter:02d}: {e}")
     return None
 
 

@@ -57,6 +57,17 @@ public class GeminiEmbeddingService {
             JsonNode root = objectMapper.readTree(response.body());
             JsonNode values = root.path("embedding").path("values");
 
+            if (values.isMissingNode() || !values.isArray() || values.isEmpty()) {
+                log.error("Gemini embedding returned no values. Response: {}",
+                        response.body().substring(0, Math.min(500, response.body().length())));
+                throw new RuntimeException("Embedding service returned empty values");
+            }
+
+            if (values.size() != dimensions) {
+                log.error("Embedding dimension mismatch: expected={}, got={}", dimensions, values.size());
+                throw new RuntimeException("Embedding dimension mismatch: expected " + dimensions + " but got " + values.size());
+            }
+
             float[] embedding = new float[values.size()];
             for (int i = 0; i < values.size(); i++) {
                 embedding[i] = (float) values.get(i).asDouble();

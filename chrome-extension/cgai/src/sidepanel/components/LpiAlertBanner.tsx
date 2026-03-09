@@ -31,7 +31,7 @@ export default function LpiAlertBanner({ alerts }: LpiAlertBannerProps) {
   };
 
   const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text).catch(() => {});
+    navigator.clipboard.writeText(text).catch((err) => console.warn("[VOLLOS] Clipboard copy failed:", err));
   };
 
   return (

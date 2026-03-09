@@ -198,11 +198,49 @@ Updated: 2026-03-09
 **สิ่งที่ต้องทำ (เรียงตามลำดับ):**
 - [x] Usage Quota — atomic UPSERT, 429 + Thai upsell message, chat นับเฉพาะ RAG จริง ✅ (2026-03-09)
 - [x] Admin upgrade API — `POST /v1/admin/upgrade` + X-Admin-Secret ✅ (2026-03-09)
+- [x] Admin Plan CRUD API — `GET/POST/PUT /v1/admin/plans` จัดการ package ผ่าน API ✅ (2026-03-09)
 - [x] Chrome Extension — QuotaExceededModal, UsageBadge (scan/chat remaining), 429 handling ✅ (2026-03-09)
 - [x] Marketing Site — Pricing page (FREE / PRO 990 บาท) + shared Navbar/Footer ✅ (2026-03-09)
 
 **Pricing:** FREE (10 scan + 3 chat) / PRO 990 บาท (100 ครั้งรวม) / เกินติดต่อ custom
 **Payment Phase 1:** Manual — LINE OA + PromptPay (ยังไม่มีบริษัท)
+
+---
+
+### 🔍 Code Audit Findings (2026-03-09) — 7 CRITICAL, 6 HIGH, 7 MEDIUM, 4 LOW
+
+**ที่มา:** Full Audit โดย vollos-code-auditor (static analysis ทุก layer)
+
+#### 🔴 CRITICAL — ✅ แก้ครบ (2026-03-09)
+- [x] **C1: Gemini Hallucination** — แก้ไปก่อนหน้า (enrichWithHsCodes ใช้ semantic search แทน Gemini เดา)
+- [x] **C2: Race Condition** — เพิ่ม `FOR UPDATE SKIP LOCKED` ใน job polling query
+- [x] **C3: Prompt Injection** — strip zero-width chars (U+200B-200F, U+2060-2064, FEFF, soft hyphen) ก่อน regex check
+- [x] **C4: NPE `.get(0)`** — เปลี่ยนเป็น safe `.path(0)` + check empty candidates ทั้ง 3 methods
+- [x] **C5: Embedding dimension** — validate dimensions = 768, throw error ถ้าไม่ตรง
+- [x] **C6: Admin permitAll()** — ลบ permitAll จาก SecurityConfig, admin ต้อง JWT authenticated
+- [x] **C7: AdminController @Valid** — เพิ่ม `UpgradeRequest` + `CreatePlanRequest` records พร้อม @Valid, @NotBlank, @Min
+
+#### 🟠 HIGH — ✅ แก้ครบ (2026-03-09)
+- [x] **H1: `<all_urls>` web_accessible_resources** — ลบ `<all_urls>` เหลือแค่ `customs.go.th`
+- [x] **H2: ChatGuardService Thai bypass** — strip zero-width chars (รวมกับ C3)
+- [x] **H3: Race in embedAllHsCodes()** — ลบ @Transactional (Thread.sleep ภายใน transaction)
+- [x] **H4: Null-unsafe semantic search** — null check code() + descriptionEn()
+- [x] **H5: Python bare except** — แก้ 8 จุดใน 4 ไฟล์ เป็น specific exception + logging
+- [x] **H6: Missing CSP header** — เพิ่ม Content-Security-Policy ใน nginx ทั้ง 2 server blocks
+
+#### 🟡 MEDIUM — ✅ แก้ครบ (2026-03-09)
+- [x] **M1+M2: Default secrets** — สร้าง SecretValidationConfig.java fail-fast บน production
+- [x] **M3: postMessage null origin** — ลบ "null" จาก ALLOWED_ORIGINS + ลบ bypass condition
+- [x] **M4: Unpinned Docker images** — pin n8n:1.76.1, minio RELEASE.2025-02-28, mc RELEASE.2025-02-21
+- [x] **M5: Gemini error log** — เพิ่ม truncateForLog() log response body (cap 500 chars)
+- [x] **M6: N+1 query** — pre-fetch chunked IDs ก่อน loop + เพิ่ม findSourceIdsBySourceType()
+- [x] **M7: Empty catch blocks** — เพิ่ม log.warn ใน RagController + RagService SSE
+
+#### 🟢 LOW — ✅ แก้ครบ (2026-03-09)
+- [x] **L1: Content script `<all_urls>`** — ลบ `<all_urls>` (รวมกับ H1)
+- [x] **L2: PGPASSWORD** — เพิ่ม comment warning + แนะนำ .pgpass
+- [x] **L3: Clipboard error** — เพิ่ม console.warn แทน empty catch
+- [x] **L4: GitLab CI SAST** — เพิ่ม sast job ใน test stage (dependencyCheckAnalyze)
 
 ---
 

@@ -32,7 +32,7 @@ for hs in ["0301", "03", "0306"]:
                     print(f"  {k}: {list(v.keys())}")
                 else:
                     print(f"  {k}: {str(v)[:100]}")
-    except:
+    except (ValueError, json.JSONDecodeError):
         print(f"  Not JSON: {r.text[:200]}")
     print()
 
@@ -42,5 +42,5 @@ print(f"hs=0301+ACFTA: status={r.status_code}")
 try:
     data = r.json()
     print(f"  {json.dumps(data, ensure_ascii=False)[:500]}")
-except:
+except (ValueError, json.JSONDecodeError):
     print(f"  {r.text[:300]}")

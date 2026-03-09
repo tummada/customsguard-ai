@@ -66,7 +66,6 @@ public class HsCodeService {
             @CacheEvict(value = "hs-lookup", allEntries = true),
             @CacheEvict(value = "hs-codes", allEntries = true)
     })
-    @Transactional
     public int embedAllHsCodes() {
         List<HsCodeEntity> unembedded = hsCodeRepo.findByEmbeddedFalse();
         int count = 0;

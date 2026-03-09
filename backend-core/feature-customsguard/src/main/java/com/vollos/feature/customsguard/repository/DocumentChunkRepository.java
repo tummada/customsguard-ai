@@ -25,6 +25,9 @@ public interface DocumentChunkRepository extends JpaRepository<DocumentChunkEnti
 
     List<DocumentChunkEntity> findBySourceTypeAndSourceId(String sourceType, String sourceId);
 
+    @Query("SELECT DISTINCT dc.sourceId FROM DocumentChunkEntity dc WHERE dc.sourceType = :sourceType")
+    List<String> findSourceIdsBySourceType(@Param("sourceType") String sourceType);
+
     @Modifying
     @Query(value = """
         INSERT INTO cg_document_chunks

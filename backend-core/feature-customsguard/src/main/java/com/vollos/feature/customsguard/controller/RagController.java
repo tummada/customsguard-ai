@@ -9,6 +9,8 @@ import com.vollos.feature.customsguard.service.ChatGuardService;
 import com.vollos.feature.customsguard.service.DocumentChunkService;
 import com.vollos.feature.customsguard.service.RagService;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -23,6 +25,8 @@ import java.util.UUID;
 @RequestMapping("/v1/customsguard/rag")
 @RequiresFeature("customsguard")
 public class RagController {
+
+    private static final Logger log = LoggerFactory.getLogger(RagController.class);
 
     private final RagService ragService;
     private final DocumentChunkService documentChunkService;
@@ -70,7 +74,9 @@ public class RagController {
                 emitter.send(SseEmitter.event().name("done")
                         .data(Map.of("answer", blocked.get(), "sources", List.of())));
                 emitter.complete();
-            } catch (IOException ignored) {}
+            } catch (IOException e) {
+                log.warn("Failed to send SSE blocked response: {}", e.getMessage());
+            }
             return emitter;
         }
 
