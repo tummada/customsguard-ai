@@ -11,4 +11,13 @@ dependencies {
 
     // PDFBox for text extraction from PDF
     implementation("org.apache.pdfbox:pdfbox:3.0.4")
+
+    // Test dependencies
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.springframework.security:spring-security-test")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+tasks.withType<Test> {
+    useJUnitPlatform()
 }
