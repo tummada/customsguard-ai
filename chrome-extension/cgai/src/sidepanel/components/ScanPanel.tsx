@@ -10,7 +10,8 @@ import { useScanItems } from "../hooks/useScanItems";
 import { useExchangeRates } from "../hooks/useExchangeRates";
 import { useAuditRisk } from "../hooks/useAuditRisk";
 import { db } from "@/lib/db";
-import type { LpiAlert } from "@/lib/api-client";
+import { QuotaExceededError } from "@/lib/api-client";
+import type { LpiAlert, QuotaExceededResponse } from "@/lib/api-client";
 import type { ScanPdfResponse, CgDeclarationItem, RiskSummary } from "@/types";
 
 // Use declarationLocalId = 1 for the current scan session
@@ -95,9 +96,10 @@ function AuditSummaryBanner({ summary }: { summary: RiskSummary }) {
 interface ScanPanelProps {
   onItemsChange?: (hsCodes: string[]) => void;
   online?: boolean;
+  onQuotaExceeded?: (quota: QuotaExceededResponse) => void;
 }
 
-export default function ScanPanel({ onItemsChange, online = true }: ScanPanelProps) {
+export default function ScanPanel({ onItemsChange, online = true, onQuotaExceeded }: ScanPanelProps) {
   const { t } = useTranslation();
   const [pages, setPages] = useState<string[]>([]);
   const [rawPdfFile, setRawPdfFile] = useState<File | null>(null);
@@ -176,13 +178,15 @@ export default function ScanPanel({ onItemsChange, online = true }: ScanPanelPro
       );
       const pdfDataUrl = `data:application/pdf;base64,${base64}`;
 
-      const response: ScanPdfResponse = await chrome.runtime.sendMessage({
+      const response = await chrome.runtime.sendMessage({
         type: "SCAN_PDF",
         payload: { pdfDataUrl, declarationType: "IMPORT" },
-      });
+      }) as ScanPdfResponse & { quotaExceeded?: QuotaExceededResponse };
 
       if (response.success && response.items) {
         await saveExtractedItems(response.items);
+      } else if (response.quotaExceeded) {
+        onQuotaExceeded?.(response.quotaExceeded as QuotaExceededResponse);
       } else {
         setScanError(response.error || t("scan.scanFailed"));
       }

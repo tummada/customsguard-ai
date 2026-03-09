@@ -1,5 +1,5 @@
 import { submitScanToBackend, pollScanResult } from "./ai-proxy";
-import { apiClient } from "@/lib/api-client";
+import { apiClient, QuotaExceededError } from "@/lib/api-client";
 import type {
   ScanPdfResponse,
   BackgroundMessage,
@@ -72,6 +72,14 @@ async function handleScanPdf(
 
     sendResponse({ success: true, items, jobId });
   } catch (err) {
+    if (err instanceof QuotaExceededError) {
+      sendResponse({
+        success: false,
+        error: "QUOTA_EXCEEDED",
+        quotaExceeded: err.quota,
+      });
+      return;
+    }
     const errorMessage = err instanceof Error ? err.message : "Unknown error";
     console.error("[VOLLOS] Scan error:", errorMessage);
     sendResponse({ success: false, error: errorMessage });
@@ -120,6 +128,14 @@ async function handleRagSearch(
     const result = await apiClient.ragSearch(message.payload.query);
     sendResponse({ success: true, ...result });
   } catch (err) {
+    if (err instanceof QuotaExceededError) {
+      sendResponse({
+        success: false,
+        error: "QUOTA_EXCEEDED",
+        quotaExceeded: err.quota,
+      });
+      return;
+    }
     sendResponse({
       success: false,
       error: err instanceof Error ? err.message : "RAG search failed",

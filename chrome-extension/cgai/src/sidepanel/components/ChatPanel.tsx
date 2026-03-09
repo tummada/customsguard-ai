@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Send, Loader2 } from "lucide-react";
-import { apiClient, isCacheValid, RAG_CACHE_TTL_MS } from "@/lib/api-client";
-import type { RagSource } from "@/lib/api-client";
+import { apiClient, isCacheValid, RAG_CACHE_TTL_MS, QuotaExceededError } from "@/lib/api-client";
+import type { RagSource, QuotaExceededResponse } from "@/lib/api-client";
 import { db } from "@/lib/db";
 
 interface ChatMessage {
@@ -15,6 +15,7 @@ interface ChatMessage {
 
 interface ChatPanelProps {
   activeHsCodes?: string[];
+  onQuotaExceeded?: (quota: QuotaExceededResponse) => void;
 }
 
 // --- Intent classification ---
@@ -87,7 +88,7 @@ export function classifyIntent(text: string): Intent {
   return "chitchat";
 }
 
-export default function ChatPanel({ activeHsCodes }: ChatPanelProps) {
+export default function ChatPanel({ activeHsCodes, onQuotaExceeded }: ChatPanelProps) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -191,9 +192,13 @@ export default function ChatPanel({ activeHsCodes }: ChatPanelProps) {
         },
       ]);
     } catch (err) {
-      addAssistantMessage(
-        err instanceof Error ? err.message : t("error.connectionFailed")
-      );
+      if (err instanceof QuotaExceededError) {
+        onQuotaExceeded?.(err.quota);
+      } else {
+        addAssistantMessage(
+          err instanceof Error ? err.message : t("error.connectionFailed")
+        );
+      }
     } finally {
       setLoading(false);
     }

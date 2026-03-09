@@ -6,6 +6,39 @@ export interface ApiConfig {
   tenantId: string;
 }
 
+// --- Quota / Usage types ---
+
+export interface QuotaExceededResponse {
+  error: "QUOTA_EXCEEDED";
+  usageType: string;
+  current: number;
+  limit: number;
+  plan: string;
+  message: string;
+  upgradeUrl: string;
+}
+
+export interface UsageCounter {
+  used: number;
+  limit: number;
+}
+
+export interface UsageResponse {
+  plan: string;
+  period: string;
+  scan: UsageCounter;
+  chat: UsageCounter;
+}
+
+export class QuotaExceededError extends Error {
+  public readonly quota: QuotaExceededResponse;
+  constructor(quota: QuotaExceededResponse) {
+    super(quota.message);
+    this.name = "QuotaExceededError";
+    this.quota = quota;
+  }
+}
+
 export interface ScanJobResult {
   jobId: string;
   status: "CREATED" | "PROCESSING" | "COMPLETED" | "FAILED";
@@ -175,6 +208,18 @@ class ApiClient {
       throw new Error("SESSION_EXPIRED");
     }
 
+    if (resp.status === 429) {
+      try {
+        const body = await resp.json();
+        if (body?.error === "QUOTA_EXCEEDED") {
+          throw new QuotaExceededError(body as QuotaExceededResponse);
+        }
+      } catch (e) {
+        if (e instanceof QuotaExceededError) throw e;
+      }
+      throw new Error("RATE_LIMITED");
+    }
+
     if (!resp.ok) {
       const text = await resp.text();
       throw new Error(`API ${resp.status}: ${text}`);
@@ -248,6 +293,17 @@ class ApiClient {
           onError("SESSION_EXPIRED");
           return;
         }
+        if (resp.status === 429) {
+          try {
+            const body = await resp.json();
+            if (body?.error === "QUOTA_EXCEEDED") {
+              onError(JSON.stringify({ quotaExceeded: true, ...body }));
+              return;
+            }
+          } catch { /* ignore parse errors */ }
+          onError("RATE_LIMITED");
+          return;
+        }
         if (!resp.ok || !resp.body) {
           onError(`API error: ${resp.status}`);
           return;
@@ -292,6 +348,11 @@ class ApiClient {
   // Exchange rates
   async getExchangeRates(): Promise<ExchangeRate[]> {
     return this.request("/v1/customsguard/exchange-rates");
+  }
+
+  // Fetch usage/quota info
+  async fetchUsage(): Promise<UsageResponse> {
+    return this.request("/v1/usage");
   }
 
   // Semantic HS search

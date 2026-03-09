@@ -1,6 +1,5 @@
 'use client';
 
-import Image from "next/image";
 import { motion } from "framer-motion";
 import { BentoCard } from "./BentoCard";
 import { SocialLoginForm } from "./SocialLoginForm";
@@ -10,6 +9,8 @@ import { FaqAccordion } from "./FaqAccordion";
 import { TargetIcon, ShieldIcon, ZapIcon, UploadIcon, SearchAIIcon, SparklesIcon, EyeScanIcon, LayersIcon, ClipboardCheckIcon } from "./Icons";
 import { RadarBlueprint } from "./RadarBlueprint";
 import { TimeCollapse } from "./TimeCollapse";
+import { Navbar } from "./Navbar";
+import { Footer } from "./Footer";
 import { ProductConfig } from "../types/product";
 
 interface LandingTemplateProps {
@@ -44,24 +45,16 @@ export function LandingTemplate({ config }: LandingTemplateProps) {
             <RadarBlueprint />
 
             {/* Navigation */}
-            <nav className="fixed top-0 w-full z-50 bg-white/40 backdrop-blur-xl border-b border-gray-100/30">
-                <div className="max-w-7xl mx-auto px-6 h-24 flex items-center justify-between">
-                    <motion.div
-                        className="pl-4"
-                        whileHover={{ filter: "drop-shadow(0 0 12px rgba(212, 175, 55, 0.4))", scale: 1.02 }}
-                        transition={luxurySpring}
-                    >
-                        <Image src="/images/logo.svg" alt="VOLLOS" width={550} height={518} className="h-14 w-auto object-contain" priority />
-                    </motion.div>
-                    <div className="hidden md:flex items-center gap-12 text-[13px] font-bold tracking-widest uppercase text-gray-500">
-                        <motion.a whileHover={{ scale: 0.98 }} transition={luxurySpring} href="#roi" className="hover:text-black transition">ผลลัพธ์</motion.a>
-                        <motion.a whileHover={{ scale: 0.98 }} transition={luxurySpring} href="#compare" className="hover:text-black transition">เปรียบเทียบ</motion.a>
-                        <motion.a whileHover={{ scale: 0.98 }} transition={luxurySpring} href="#features" className="hover:text-black transition">ฟีเจอร์</motion.a>
-                        <motion.a whileHover={{ scale: 0.98 }} transition={luxurySpring} href="#security" className="hover:text-black transition">ความปลอดภัย</motion.a>
-                        <motion.a whileHover={{ scale: 0.98 }} transition={luxurySpring} href="#waitlist" className="bg-black text-white px-8 py-3 rounded-full hover:bg-neutral-800 transition shadow-luxury">{config.navbar.ctaText}</motion.a>
-                    </div>
-                </div>
-            </nav>
+            <Navbar
+                anchors={[
+                    { label: "ผลลัพธ์", href: "#roi" },
+                    { label: "เปรียบเทียบ", href: "#compare" },
+                    { label: "ฟีเจอร์", href: "#features" },
+                    { label: "ความปลอดภัย", href: "#security" },
+                ]}
+                ctaText={config.navbar.ctaText}
+                ctaHref="#waitlist"
+            />
 
             {/* Hero Section */}
             <section className="pt-56 pb-40 text-center px-6 relative z-10">
@@ -322,12 +315,9 @@ export function LandingTemplate({ config }: LandingTemplateProps) {
                                                 {card.description}
                                             </p>
                                         </div>
-                                        <div className="flex flex-wrap gap-4 items-center text-[10px] font-bold tracking-widest uppercase">
+                                        <div className="flex flex-wrap gap-4 items-center text-[10px] font-bold tracking-widest uppercase text-luxury-gold">
                                             {card.badges?.map((badge, bIdx) => (
-                                                <span key={bIdx} className={badge === 'ROADMAP'
-                                                    ? "bg-gray-100 text-gray-400 px-4 py-2 rounded-full border border-gray-200"
-                                                    : "bg-luxury-gold/5 text-luxury-gold px-4 py-2 rounded-full border border-luxury-gold/10"
-                                                }>{badge}</span>
+                                                <span key={bIdx} className="bg-luxury-gold/5 px-4 py-2 rounded-full border border-luxury-gold/10">{badge}</span>
                                             ))}
                                         </div>
                                     </>
@@ -402,18 +392,7 @@ export function LandingTemplate({ config }: LandingTemplateProps) {
             </section>
 
             {/* Footer */}
-            <footer className="py-20 border-t border-gray-50 text-center relative z-10">
-                <Image src="/images/logo.svg" alt="VOLLOS" width={550} height={518} className="mx-auto mb-3 h-12 w-auto opacity-100" />
-                <p className="text-[11px] font-medium tracking-[0.35em] uppercase text-gray-400 mb-8">
-                    {config.footer.tagline}
-                </p>
-                <div className="flex justify-center gap-6 mb-4 text-[11px] font-medium tracking-[0.2em] uppercase text-gray-400">
-                    <a href="/privacy" className="hover:text-gray-600 transition">Privacy Policy</a>
-                </div>
-                <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-gray-300">
-                    {config.footer.copyright}
-                </p>
-            </footer>
+            <Footer tagline={config.footer.tagline} copyright={config.footer.copyright} />
         </main>
     );
 }

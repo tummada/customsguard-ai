@@ -1,14 +1,18 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Wand2, ScanLine, MessageCircle, Wifi, WifiOff, LogOut } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { db } from "@/lib/db";
 import { apiClient } from "@/lib/api-client";
+import type { QuotaExceededResponse } from "@/lib/api-client";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import LoginScreen from "./components/LoginScreen";
 import ScanPanel from "./components/ScanPanel";
 import ChatPanel from "./components/ChatPanel";
+import QuotaExceededModal from "./components/QuotaExceededModal";
+import UsageBadge from "./components/UsageBadge";
 import LanguageToggle from "./components/LanguageToggle";
+import { useUsage } from "./hooks/useUsage";
 
 type FillStatus = "idle" | "filling" | "success" | "error";
 type Tab = "magic-fill" | "scan-review" | "chat";
@@ -31,6 +35,8 @@ function AppContent() {
   const [dbReady, setDbReady] = useState(false);
   const [online, setOnline] = useState(true);
   const [scannedHsCodes, setScannedHsCodes] = useState<string[]>([]);
+  const [quotaModal, setQuotaModal] = useState<QuotaExceededResponse | null>(null);
+  const { usage, refresh: refreshUsage } = useUsage();
 
   useEffect(() => {
     db.open()
@@ -50,6 +56,16 @@ function AppContent() {
       window.removeEventListener("offline", goOffline);
     };
   }, []);
+
+  const handleQuotaExceeded = useCallback((quota: QuotaExceededResponse) => {
+    setQuotaModal(quota);
+  }, []);
+
+  // Refresh usage after quota modal is closed (user might have upgraded)
+  const handleQuotaClose = useCallback(() => {
+    setQuotaModal(null);
+    refreshUsage();
+  }, [refreshUsage]);
 
   if (authState === "loading") return <Splash />;
   if (authState === "login") return <LoginScreen />;
@@ -168,6 +184,10 @@ function AppContent() {
             </button>
           </div>
         </div>
+        {/* Usage quota badge */}
+        <div className="mt-1.5">
+          <UsageBadge usage={usage} />
+        </div>
       </header>
 
       {/* Tabs */}
@@ -190,10 +210,10 @@ function AppContent() {
 
       {/* Tab Content — use hidden instead of unmount to preserve state */}
       <div className={`p-4 ${activeTab === "scan-review" ? "" : "hidden"}`}>
-        <ScanPanel onItemsChange={setScannedHsCodes} online={online} />
+        <ScanPanel onItemsChange={setScannedHsCodes} online={online} onQuotaExceeded={handleQuotaExceeded} />
       </div>
       <div className={`p-4 ${activeTab === "chat" ? "" : "hidden"}`}>
-        <ChatPanel activeHsCodes={scannedHsCodes} />
+        <ChatPanel activeHsCodes={scannedHsCodes} onQuotaExceeded={handleQuotaExceeded} />
       </div>
       {activeTab === "magic-fill" && (
         <div className="p-4">
@@ -229,6 +249,11 @@ function AppContent() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Quota Exceeded Modal */}
+      {quotaModal && (
+        <QuotaExceededModal quota={quotaModal} onClose={handleQuotaClose} />
       )}
     </div>
   );

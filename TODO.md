@@ -5,32 +5,6 @@ Updated: 2026-03-09
 
 ---
 
-## 🔴 Bug เร่งด่วน
-
-### Scan ให้ HS Code ผิด — Gemini เดาเองแทนที่จะใช้ฐานข้อมูล
-
-**ปัญหา:** Scan PDF ได้ HS code ผิด — เช่น ทุเรียนสด ควรได้ `0810.60.00` แต่ Gemini เดาเป็น `0803.90.10` (กล้วย)
-
-**สาเหตุ:** `ScanWorkerService.classifyWithGemini()` ให้ Gemini ทำ 2 อย่างพร้อมกัน: อ่านข้อมูลจาก PDF + เดา HS code → เดาผิดบ่อย ทั้งที่มีฐานข้อมูล HS code + semantic search อยู่แล้วแต่ไม่ได้ใช้ตอน scan (จุดเดียวที่เดา — RAG system มีกฎ "ห้ามแต่ง HS code" อยู่แล้ว)
-
-**ไฟล์ที่ต้องแก้:** `backend-core/feature-customsguard/.../ScanWorkerService.java` (ไฟล์เดียว)
-
-**ขั้นตอน:**
-- [x] **1. Inject HsCodeService** — เพิ่มเป็น constructor dependency ✅ (2026-03-09)
-- [x] **2. แก้ prompt Gemini** — เปลี่ยนชื่อ `classifyWithGemini()` → `extractItemsWithGemini()`, ตัด hsCode/confidence/aiReason ออกจาก prompt, เพิ่ม "ห้ามเดา HS Code" ✅ (2026-03-09)
-- [x] **3. เพิ่ม `enrichWithHsCodes()`** — semantic search ≥ 0.3, per-item error handling ✅ (2026-03-09)
-- [x] **4. Wire เข้า pollAndProcess()** — เรียก enrichWithHsCodes() หลัง Gemini extract ✅ (2026-03-09)
-- [x] **5. Set TenantContext** — setCurrentTenantId() + clear() ใน finally ✅ (2026-03-09)
-- [x] **6. ทดสอบ** — ทุเรียน→0810.60.00 ✅, มังคุด→0804.50.30 ✅, semantic search similarity 0.73-0.79, Gemini ไม่เดาเอง ✅ (2026-03-09)
-
-**เลือก semanticSearch() แทน hybridSearch()** เพราะ: handle embedding ภายในตัว (caller ส่งแค่ string), invoice descriptions ภาษาอังกฤษสั้น → semantic ดีกว่า full-text ไทย
-
-**สิ่งที่ไม่เปลี่ยน:** retry logic, JSON cleanup, items JSON schema, Chrome Extension, HsCodeService/Repository
-
-**สถานะ:** ✅ DONE (2026-03-09) — code + ทดสอบผ่าน (ทุเรียน→0810.60.00, มังคุด→0804.50.30)
-
----
-
 ## สิ่งที่เหลือต้องทำ
 
 ### Data Pipeline Tier 2 — Collectors 5 ตัวที่เหลือ (ข้อมูลเสริม)
@@ -195,10 +169,10 @@ Updated: 2026-03-09
 - [ ] **Rotate Google OAuth Client ID** — AI เผลอแสดง Client ID ใน chat ต้องสร้างใหม่ที่ Google Cloud Console → แก้ `.env` (local) + `.env.production` (VPS) + rebuild Extension
 
 **สิ่งที่ต้องทำ (เรียงตามลำดับ):**
-- [ ] Usage Quota — atomic increment, Caffeine cache, 429 + upsell message
-- [ ] Admin upgrade API — manual upgrade หลังลูกค้าโอนเงิน
-- [ ] Chrome Extension — QuotaExceededModal, Chat prompt suggestions + remaining count
-- [ ] Marketing Site — Pricing page (2 plans: FREE / PRO 990 บาท)
+- [x] Usage Quota — atomic UPSERT, 429 + Thai upsell message, chat นับเฉพาะ RAG จริง ✅ (2026-03-09)
+- [x] Admin upgrade API — `POST /v1/admin/upgrade` + X-Admin-Secret ✅ (2026-03-09)
+- [x] Chrome Extension — QuotaExceededModal, UsageBadge (scan/chat remaining), 429 handling ✅ (2026-03-09)
+- [x] Marketing Site — Pricing page (FREE / PRO 990 บาท) + shared Navbar/Footer ✅ (2026-03-09)
 
 **Pricing:** FREE (10 scan + 3 chat) / PRO 990 บาท (100 ครั้งรวม) / เกินติดต่อ custom
 **Payment Phase 1:** Manual — LINE OA + PromptPay (ยังไม่มีบริษัท)
@@ -207,23 +181,7 @@ Updated: 2026-03-09
 
 ## 🔒 Active Plans (งานที่กำลังทำ — ห้าม session อื่นทำซ้ำ)
 
-### 🔒 Marketing Site — แก้ bug + Social Login + เตรียม production (Claude Code session)
-
-**AI ทำ:**
-- [x] Fix SQL Injection + Transaction ใน `marketing-site/src/lib/db.ts`
-- [x] Fix Tenant ID ใน `marketing-site/src/lib/leads.ts` (เปลี่ยนเป็น `a0000000-...`)
-- [x] เปลี่ยน LeadForm → Google + LINE Login (`SocialLoginForm.tsx`)
-- [x] เพิ่ม Privacy Policy page (PDPA แบบสั้น) — `marketing-site/src/app/privacy/page.tsx`
-- [x] เพิ่ม `nurture_status` column — `V7__marketing_leads_nurture.sql`
-- [x] เพิ่ม OG Image + Analytics placeholder ใน `layout.tsx`
-
-**รอเจ้าของทำ (ต้องมี account/credential):**
-- [x] สร้าง Google OAuth Client ID (console.cloud.google.com) → ใส่ `NEXT_PUBLIC_GOOGLE_CLIENT_ID` ใน `.env`
-- [x] สร้าง LINE Login Channel (developers.line.biz) → ใส่ `NEXT_PUBLIC_LINE_CLIENT_ID` + `LINE_CLIENT_SECRET` ใน `.env`
-- [ ] สร้าง OG Image 1200x630px → วางที่ `marketing-site/public/og-default.jpg` (ใช้ Canva ฟรี, สี brand ทอง #D4AF37)
-- [ ] สมัคร SendGrid → ใส่ credential ใน n8n สำหรับ welcome email (ทำทีหลังได้)
-- [ ] สมัคร Plausible/GA4 → ใส่ `NEXT_PUBLIC_ANALYTICS_ID` ใน `.env` (ทำทีหลังได้)
-- [ ] ถ่าย/สร้าง product screenshot จริง → แทน placeholder images (ทำทีหลังได้)
+(ว่าง)
 
 ---
 
@@ -231,6 +189,20 @@ Updated: 2026-03-09
 
 ### Deploy & CI/CD
 - [x] SHA-based deploy: docker-compose.prod.yml ใช้ `image:` จาก registry แทน `build:`
+
+### Scan HS Code Fix (2026-03-09)
+- [x] ScanWorkerService: แยก Gemini extract items ออกจาก HS code classification
+- [x] เพิ่ม enrichWithHsCodes() ใช้ semantic search จากฐานข้อมูลแทน Gemini เดา
+- [x] ทดสอบผ่าน: ทุเรียน→0810.60.00 (sim 0.73), มังคุด→0804.50.30 (sim 0.79)
+
+### Marketing Site Layout Fixes (2026-03-09)
+- [x] ROADMAP badge styling สีเทาแยกจาก badge ทอง
+- [x] Footer link ไป /privacy
+- [x] Marketing Site Social Login + Privacy Policy (SQL fix, LeadForm→Google+LINE, PDPA page, OG Image)
+
+### Data Pipeline Supplementary Embed (2026-03-09)
+- [x] Embed 51 chunks ใหม่ (LPI 9 + Excise 42), total 4,729 chunks
+- [x] Eval รัน 143 cases: 81% (test suite ยากขึ้น — regression จาก MFN duty N/A + red team bypass)
 
 ### ChatGuard — ระบบกรอง prompt injection / PII / off-topic ใน RAG Chat
 - [x] Rate limit: 20 req/min/tenant (configurable via `customsguard.chat-guard.max-requests-per-minute` ใน application.yml)

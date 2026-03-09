@@ -158,6 +158,7 @@ export interface ScanPdfResponse {
   items?: ExtractedLineItem[];
   jobId?: string;
   error?: string;
+  quotaExceeded?: unknown;
 }
 
 export interface ExtractedLineItem {

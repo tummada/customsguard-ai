@@ -67,6 +67,9 @@ jwt:
 google:
   client-id: ${GOOGLE_CLIENT_ID:}
 
+admin:
+  secret: ${ADMIN_SECRET:vollos-admin-secret-change-me}
+
 customsguard:
   chat-guard:
     max-requests-per-minute: ${CHATGUARD_RATE_LIMIT:20}

@@ -1,6 +1,8 @@
 package com.vollos.feature.customsguard.controller;
 
 import com.vollos.core.feature.RequiresFeature;
+import com.vollos.core.quota.UsageQuotaService;
+import com.vollos.core.tenant.TenantContext;
 import com.vollos.feature.customsguard.dto.RagSearchRequest;
 import com.vollos.feature.customsguard.dto.RagSearchResponse;
 import com.vollos.feature.customsguard.service.ChatGuardService;
@@ -15,6 +17,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/v1/customsguard/rag")
@@ -24,13 +27,16 @@ public class RagController {
     private final RagService ragService;
     private final DocumentChunkService documentChunkService;
     private final ChatGuardService chatGuard;
+    private final UsageQuotaService usageQuotaService;
 
     public RagController(RagService ragService,
                          DocumentChunkService documentChunkService,
-                         ChatGuardService chatGuard) {
+                         ChatGuardService chatGuard,
+                         UsageQuotaService usageQuotaService) {
         this.ragService = ragService;
         this.documentChunkService = documentChunkService;
         this.chatGuard = chatGuard;
+        this.usageQuotaService = usageQuotaService;
     }
 
     /** Standard request-response search */
@@ -38,8 +44,14 @@ public class RagController {
     public RagSearchResponse search(@Valid @RequestBody RagSearchRequest request) {
         Optional<String> blocked = chatGuard.check(request.query());
         if (blocked.isPresent()) {
+            // Greeting/thanks/blocked — don't count as chat usage
             return new RagSearchResponse(blocked.get(), List.of(), 0);
         }
+
+        // Real RAG query — check chat quota (throws QuotaExceededException → 429)
+        UUID tenantId = TenantContext.getCurrentTenantId();
+        usageQuotaService.checkAndIncrement(tenantId, "chat");
+
         return ragService.search(request.query(), request.limit());
     }
 
@@ -53,6 +65,7 @@ public class RagController {
 
         Optional<String> blocked = chatGuard.check(request.query());
         if (blocked.isPresent()) {
+            // Greeting/thanks/blocked — don't count as chat usage
             try {
                 emitter.send(SseEmitter.event().name("done")
                         .data(Map.of("answer", blocked.get(), "sources", List.of())));
@@ -60,6 +73,10 @@ public class RagController {
             } catch (IOException ignored) {}
             return emitter;
         }
+
+        // Real RAG query — check chat quota (throws QuotaExceededException → 429)
+        UUID tenantId = TenantContext.getCurrentTenantId();
+        usageQuotaService.checkAndIncrement(tenantId, "chat");
 
         ragService.streamSearch(request.query(), request.limit(), emitter);
         return emitter;

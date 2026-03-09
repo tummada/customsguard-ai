@@ -30,6 +30,7 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/v1/auth/**").permitAll()
+                        .requestMatchers("/v1/admin/**").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         .requestMatchers("/v1/**").authenticated()
                         .anyRequest().denyAll())
@@ -47,7 +48,7 @@ public class SecurityConfig {
                 "http://localhost:[*]"
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Content-Type", "Authorization", "X-Tenant-ID"));
+        config.setAllowedHeaders(List.of("Content-Type", "Authorization", "X-Tenant-ID", "X-Admin-Secret"));
         config.setExposedHeaders(List.of("X-Request-Id"));
         config.setAllowCredentials(false);
         config.setMaxAge(3600L);

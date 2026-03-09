@@ -104,6 +104,14 @@
     "fileTooLarge": "PDF file too large (max 10MB)",
     "invalidCredentials": "Authentication failed, please try again"
   },
+  "quota": {
+    "title": "Quota Exceeded",
+    "exceeded": "You have reached your usage quota.",
+    "plan": "Plan",
+    "upgrade": "Upgrade to PRO (990 THB/month)",
+    "scan": "Scan",
+    "chat": "Chat"
+  },
   "common": {
     "cancel": "Cancel",
     "close": "Close",

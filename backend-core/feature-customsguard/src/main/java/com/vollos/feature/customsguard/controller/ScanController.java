@@ -1,6 +1,7 @@
 package com.vollos.feature.customsguard.controller;
 
 import com.vollos.core.feature.RequiresFeature;
+import com.vollos.core.quota.UsageQuotaService;
 import com.vollos.core.tenant.TenantContext;
 import com.vollos.feature.customsguard.dto.ScanJobResponse;
 import com.vollos.feature.customsguard.service.ScanService;
@@ -21,9 +22,11 @@ public class ScanController {
 
     private static final Set<String> VALID_DECLARATION_TYPES = Set.of("IMPORT", "EXPORT", "TRANSIT");
     private final ScanService scanService;
+    private final UsageQuotaService usageQuotaService;
 
-    public ScanController(ScanService scanService) {
+    public ScanController(ScanService scanService, UsageQuotaService usageQuotaService) {
         this.scanService = scanService;
+        this.usageQuotaService = usageQuotaService;
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -35,6 +38,9 @@ public class ScanController {
         if (!VALID_DECLARATION_TYPES.contains(declarationType)) {
             return ResponseEntity.badRequest().body(Map.of("error", "Invalid declarationType. Allowed: IMPORT, EXPORT, TRANSIT"));
         }
+
+        // Check scan quota before processing (throws QuotaExceededException → 429)
+        usageQuotaService.checkAndIncrement(tenantId, "scan");
 
         try {
             ScanJobResponse job = scanService.submitScanJob(tenantId, file, declarationType);
