@@ -39,6 +39,9 @@ backend-core/out/
 *.jar
 *.war
 
+# --- Node Modules (global) ---
+node_modules/
+
 # --- Frontend (Angular 21) ---
 frontend-app/node_modules/
 frontend-app/dist/

@@ -24,7 +24,11 @@ export default function RagTipsBanner({ hsCodes }: RagTipsBannerProps) {
   const cacheKey = `__enrich:${uniqueCodes.join(",")}`;
 
   const cached = useLiveQuery(
-    () => db.cgRagCache.where("query").equals(cacheKey).first(),
+    async () => {
+      try {
+        return await db.cgRagCache.where("query").equals(cacheKey).first();
+      } catch { return undefined; }
+    },
     [cacheKey]
   );
 

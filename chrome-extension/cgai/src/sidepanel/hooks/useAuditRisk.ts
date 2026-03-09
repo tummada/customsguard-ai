@@ -11,7 +11,7 @@ interface UseAuditRiskResult {
 
 export function useAuditRisk(items: CgDeclarationItem[]): UseAuditRiskResult {
   const hsCodes = useMemo(
-    () => [...new Set(items.map((i) => i.hsCode))],
+    () => [...new Set(items.map((i) => i.hsCode).filter(Boolean))],
     [items]
   );
 
@@ -19,7 +19,9 @@ export function useAuditRisk(items: CgDeclarationItem[]): UseAuditRiskResult {
   const lpiRecords = useLiveQuery(
     async () => {
       if (hsCodes.length === 0) return [];
-      return db.cgLpiCache.where("hsCode").anyOf(hsCodes).toArray();
+      try {
+        return await db.cgLpiCache.where("hsCode").anyOf(hsCodes).toArray();
+      } catch { return []; }
     },
     [hsCodes],
     []
@@ -28,7 +30,9 @@ export function useAuditRisk(items: CgDeclarationItem[]): UseAuditRiskResult {
   const ftaRecords = useLiveQuery(
     async () => {
       if (hsCodes.length === 0) return [];
-      return db.cgFtaCache.where("hsCode").anyOf(hsCodes).toArray();
+      try {
+        return await db.cgFtaCache.where("hsCode").anyOf(hsCodes).toArray();
+      } catch { return []; }
     },
     [hsCodes],
     []

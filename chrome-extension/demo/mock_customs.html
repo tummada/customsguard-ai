@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DEMO - ระบบสำแดงใบขนสินค้า (จำลอง)</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Tahoma', 'Prompt', sans-serif; background: #f0f2f5; color: #333; min-height: 100vh; }
+
+        /* Demo banner */
+        .demo-banner {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+            text-align: center;
+            padding: 12px 20px;
+            font-size: 14px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .demo-banner span { font-size: 11px; font-weight: normal; letter-spacing: 0; display: block; margin-top: 2px; opacity: 0.9; }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #1a3a5c, #0d2137);
+            color: white;
+            padding: 0;
+        }
+        .header-top {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 12px 24px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .header-logo {
+            width: 60px;
+            height: 60px;
+            background: white;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: #1a3a5c;
+            font-weight: bold;
+            text-align: center;
+            line-height: 1.2;
+        }
+        .header-title { flex: 1; }
+        .header-title h1 { font-size: 18px; font-weight: bold; }
+        .header-title p { font-size: 12px; opacity: 0.8; margin-top: 2px; }
+
+        .header-nav {
+            display: flex;
+            gap: 0;
+            padding: 0 24px;
+        }
+        .header-nav a {
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+            padding: 10px 20px;
+            font-size: 13px;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+        }
+        .header-nav a:hover { color: white; background: rgba(255,255,255,0.05); }
+        .header-nav a.active {
+            color: #ffd700;
+            border-bottom-color: #ffd700;
+            background: rgba(255,255,255,0.05);
+        }
+
+        /* Main content */
+        .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+
+        /* Breadcrumb */
+        .breadcrumb {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 16px;
+        }
+        .breadcrumb a { color: #2980b9; text-decoration: none; }
+
+        /* Form sections */
+        .form-section {
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+        .section-header {
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            color: white;
+            padding: 12px 20px;
+            font-size: 14px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .section-header .icon { font-size: 16px; }
+        .section-body { padding: 20px; }
+
+        /* Form grid */
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        .form-row:last-child { margin-bottom: 0; }
+
+        .form-group { display: flex; flex-direction: column; gap: 4px; }
+        .form-group label {
+            font-size: 12px;
+            font-weight: bold;
+            color: #555;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .form-group label .required { color: #e74c3c; }
+        .form-group label .field-id { color: #999; font-weight: normal; font-size: 10px; }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 10px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            background: #fafbfc;
+        }
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52,152,219,0.1);
+            background: white;
+        }
+        .form-group textarea { resize: vertical; min-height: 60px; }
+        .form-group .hint { font-size: 10px; color: #999; margin-top: 2px; }
+
+        /* Filled animation */
+        .form-group input.filled,
+        .form-group select.filled,
+        .form-group textarea.filled {
+            border-color: #27ae60;
+            background: #f0fdf4;
+            box-shadow: 0 0 0 3px rgba(39,174,96,0.1);
+            animation: fillPulse 0.5s ease;
+        }
+        @keyframes fillPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+
+        /* Item table */
+        .item-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        .item-table th {
+            background: #f1f5f9;
+            padding: 10px 12px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #555;
+            text-align: left;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .item-table td {
+            padding: 8px 12px;
+            border-bottom: 1px solid #f1f5f9;
+            vertical-align: top;
+        }
+        .item-table input {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-size: 13px;
+            background: #fafbfc;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .item-table input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 2px rgba(52,152,219,0.1);
+            background: white;
+        }
+        .item-table input.filled {
+            border-color: #27ae60;
+            background: #f0fdf4;
+            animation: fillPulse 0.5s ease;
+        }
+
+        /* Row number */
+        .row-num {
+            width: 40px;
+            text-align: center;
+            font-weight: bold;
+            color: #888;
+            font-size: 13px;
+        }
+
+        /* Buttons */
+        .btn-row { display: flex; gap: 8px; margin-top: 20px; justify-content: center; }
+        .btn {
+            padding: 10px 28px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        .btn-primary { background: #2980b9; color: white; }
+        .btn-primary:hover { background: #2471a3; }
+        .btn-secondary { background: #ecf0f1; color: #555; border: 1px solid #d1d5db; }
+        .btn-secondary:hover { background: #dfe6e9; }
+        .btn-success { background: #27ae60; color: white; }
+        .btn-success:hover { background: #219a52; }
+
+        /* Status bar */
+        .status-bar {
+            background: #eaf4fc;
+            border: 1px solid #bee3f8;
+            border-radius: 6px;
+            padding: 12px 16px;
+            font-size: 12px;
+            color: #2c5282;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .status-bar .dot {
+            width: 8px;
+            height: 8px;
+            background: #38a169;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Watermark */
+        .watermark {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(231, 76, 60, 0.9);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            z-index: 99;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #999;
+            font-size: 11px;
+            border-top: 1px solid #e5e7eb;
+            margin-top: 24px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Demo Banner -->
+<div class="demo-banner">
+    *** DEMO MODE — หน้าจอจำลองเพื่อสาธิตการทำงาน ไม่ใช่ระบบจริงของกรมศุลกากร ***
+    <span>This is a demonstration page for VOLLOS AI. Not affiliated with Thai Customs Department.</span>
+</div>
+
+<!-- Header -->
+<div class="header">
+    <div class="header-top">
+        <div class="header-logo">DEMO<br>ศุลกากร</div>
+        <div class="header-title">
+            <h1>ระบบพิธีการศุลกากรอิเล็กทรอนิกส์ (DEMO)</h1>
+            <p>e-Customs Declaration System — สาธิตการทำงาน VOLLOS AI</p>
+        </div>
+    </div>
+    <div class="header-nav">
+        <a href="#">หน้าหลัก</a>
+        <a href="#" class="active">สร้างใบขนสินค้า</a>
+        <a href="#">ค้นหาใบขน</a>
+        <a href="#">รายงาน</a>
+        <a href="#">ช่วยเหลือ</a>
+    </div>
+</div>
+
+<!-- Content -->
+<div class="container">
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <a href="#">หน้าหลัก</a> &gt; <a href="#">ใบขนสินค้าขาเข้า</a> &gt; สร้างใบขนใหม่
+    </div>
+
+    <!-- Status -->
+    <div class="status-bar">
+        <div class="dot"></div>
+        สถานะ: <strong>กำลังบันทึกข้อมูล (Draft)</strong> &mdash; เลขที่อ้างอิง: DEMO-2026-000001
+    </div>
+
+    <!-- Section 1: ข้อมูลทั่วไป -->
+    <div class="form-section">
+        <div class="section-header">
+            <span class="icon">📋</span>
+            ส่วนที่ 1: ข้อมูลทั่วไปของใบขน
+        </div>
+        <div class="section-body">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>ประเภทใบขน <span class="required">*</span></label>
+                    <select data-field="declarationType" name="declarationType">
+                        <option value="">-- เลือก --</option>
+                        <option value="IMPORT" selected>ใบขนสินค้าขาเข้า</option>
+                        <option value="EXPORT">ใบขนสินค้าขาออก</option>
+                        <option value="TRANSIT">ใบขนผ่านแดน</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>เลขที่ใบขน <span class="field-id">(Auto)</span></label>
+                    <input type="text" value="DEMO-2026-000001" readonly style="background: #f1f5f9; color: #888;">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>ผู้นำเข้า/ส่งออก <span class="required">*</span></label>
+                    <input type="text" data-field="importerName" name="importerName" placeholder="ชื่อบริษัท">
+                </div>
+                <div class="form-group">
+                    <label>เลขประจำตัวผู้เสียภาษี</label>
+                    <input type="text" data-field="taxId" name="taxId" placeholder="13 หลัก">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>ประเทศต้นทาง</label>
+                    <select data-field="originCountry" name="originCountry">
+                        <option value="">-- เลือก --</option>
+                        <option value="CN">จีน (CN)</option>
+                        <option value="JP">ญี่ปุ่น (JP)</option>
+                        <option value="US">สหรัฐอเมริกา (US)</option>
+                        <option value="DE">เยอรมนี (DE)</option>
+                        <option value="KR">เกาหลีใต้ (KR)</option>
+                        <option value="MY">มาเลเซีย (MY)</option>
+                        <option value="VN">เวียดนาม (VN)</option>
+                        <option value="TW">ไต้หวัน (TW)</option>
+                        <option value="IN">อินเดีย (IN)</option>
+                        <option value="TH">ไทย (TH)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>ท่า/ที่ศุลกากร</label>
+                    <select data-field="customsPort" name="customsPort">
+                        <option value="">-- เลือก --</option>
+                        <option value="0100">ท่าเรือกรุงเทพ (0100)</option>
+                        <option value="0200">ท่าเรือแหลมฉบัง (0200)</option>
+                        <option value="0401">สนามบินสุวรรณภูมิ (0401)</option>
+                        <option value="0600">ด่านศุลกากรมาบตาพุด (0600)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: รายการสินค้า -->
+    <div class="form-section">
+        <div class="section-header">
+            <span class="icon">📦</span>
+            ส่วนที่ 2: รายการสินค้า
+        </div>
+        <div class="section-body">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <p style="font-size: 12px; color: #888; margin: 0;">
+                    กรอกรายการสินค้าทีละรายการ หรือใช้ <strong style="color: #D4AF37;">VOLLOS Magic Fill</strong> กรอกอัตโนมัติจากข้อมูลที่ AI วิเคราะห์
+                </p>
+                <div style="display: flex; gap: 6px;">
+                    <button class="btn btn-primary" onclick="addItemRow()" style="padding: 6px 16px; font-size: 12px;">
+                        + เพิ่มรายการ
+                    </button>
+                </div>
+            </div>
+            <div style="overflow-x: auto;">
+            <table class="item-table">
+                <thead>
+                    <tr>
+                        <th style="width:40px">#</th>
+                        <th style="width:140px">พิกัดศุลกากร (HS Code) <span style="color:#e74c3c">*</span></th>
+                        <th>รายละเอียดสินค้า</th>
+                        <th style="width:100px">จำนวน</th>
+                        <th style="width:100px">น้ำหนัก (kg)</th>
+                        <th style="width:130px">ราคา CIF (บาท)</th>
+                        <th style="width:40px"></th>
+                    </tr>
+                </thead>
+                <tbody id="itemTableBody">
+                    <tr data-row="1">
+                        <td class="row-num">1</td>
+                        <td><input type="text" data-field="hsCode" name="hsCode" placeholder="0000.00.00"></td>
+                        <td><input type="text" data-field="itemDescription" name="itemDescription" placeholder="รายละเอียดสินค้า"></td>
+                        <td><input type="text" data-field="itemQuantity" name="itemQuantity" placeholder="0"></td>
+                        <td><input type="text" data-field="itemWeight" name="itemWeight" placeholder="0.00"></td>
+                        <td><input type="text" data-field="cifPrice" name="cifPrice" placeholder="0.00"></td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+            </div>
+            <p style="font-size: 11px; color: #aaa; margin-top: 8px;" id="itemCount">จำนวนรายการ: 1</p>
+        </div>
+    </div>
+
+    <!-- Section 3: ภาษีและค่าธรรมเนียม -->
+    <div class="form-section">
+        <div class="section-header">
+            <span class="icon">💰</span>
+            ส่วนที่ 3: ภาษีอากรและค่าธรรมเนียม
+        </div>
+        <div class="section-body">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>อัตราอากร (%)</label>
+                    <input type="text" data-field="dutyRate" name="dutyRate" placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label>จำนวนเงินอากร (บาท)</label>
+                    <input type="text" data-field="dutyAmount" name="dutyAmount" placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label>ภาษีมูลค่าเพิ่ม (บาท)</label>
+                    <input type="text" data-field="vatAmount" name="vatAmount" placeholder="0.00">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>สิทธิพิเศษ FTA</label>
+                    <select data-field="ftaAgreement" name="ftaAgreement">
+                        <option value="">-- ไม่ใช้สิทธิ --</option>
+                        <option value="JTEPA">JTEPA (ญี่ปุ่น)</option>
+                        <option value="ACFTA">ACFTA (จีน)</option>
+                        <option value="ATIGA">ATIGA (อาเซียน)</option>
+                        <option value="RCEP">RCEP</option>
+                        <option value="AIFTA">AIFTA (อินเดีย)</option>
+                        <option value="AKFTA">AKFTA (เกาหลี)</option>
+                        <option value="AANZFTA">AANZFTA (ออสเตรเลีย-NZ)</option>
+                        <option value="TAFTA">TAFTA (ออสเตรเลีย)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>อัตราอากร FTA (%)</label>
+                    <input type="text" data-field="ftaRate" name="ftaRate" placeholder="0.00">
+                    <span class="hint">ถ้าใช้สิทธิ FTA ระบุอัตราอากรพิเศษที่นี่</span>
+                </div>
+                <div class="form-group">
+                    <label>เงินประหยัดจาก FTA (บาท)</label>
+                    <input type="text" data-field="ftaSavings" name="ftaSavings" placeholder="0.00" readonly style="background: #fefce8; border-color: #fbbf24;">
+                    <span class="hint">คำนวณอัตโนมัติ</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 4: เอกสารประกอบ -->
+    <div class="form-section">
+        <div class="section-header">
+            <span class="icon">📎</span>
+            ส่วนที่ 4: เอกสารประกอบ
+        </div>
+        <div class="section-body">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Invoice No.</label>
+                    <input type="text" data-field="invoiceNo" name="invoiceNo" placeholder="INV-XXXX">
+                </div>
+                <div class="form-group">
+                    <label>Packing List No.</label>
+                    <input type="text" data-field="packingListNo" name="packingListNo" placeholder="PL-XXXX">
+                </div>
+                <div class="form-group">
+                    <label>B/L หรือ AWB No.</label>
+                    <input type="text" data-field="blNo" name="blNo" placeholder="BL/AWB number">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>หมายเหตุ</label>
+                    <textarea data-field="remarks" name="remarks" placeholder="หมายเหตุเพิ่มเติม (ถ้ามี)" rows="2"></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Buttons -->
+    <div class="btn-row">
+        <button class="btn btn-secondary" onclick="clearAll()">ล้างข้อมูล</button>
+        <button class="btn btn-primary" onclick="saveDraft()">บันทึกร่าง</button>
+        <button class="btn btn-success" onclick="submitDeclaration()">ส่งใบขน</button>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <strong style="color: #e74c3c;">*** หน้าจอจำลอง (DEMO) ***</strong><br>
+        สร้างเพื่อสาธิตการทำงานของ VOLLOS AI Chrome Extension<br>
+        ไม่มีการเชื่อมต่อกับระบบจริงของกรมศุลกากร &mdash; ข้อมูลทั้งหมดอยู่ในเครื่องของคุณเท่านั้น
+    </div>
+
+</div>
+
+<!-- Watermark -->
+<div class="watermark">DEMO MODE</div>
+
+<script>
+    let rowCount = 1;
+
+    // Attach fill animation to an element
+    function attachFillAnimation(el) {
+        el.addEventListener('input', function() {
+            if (this.value) {
+                this.classList.add('filled');
+                setTimeout(() => this.classList.remove('filled'), 3000);
+            }
+        });
+        el.addEventListener('change', function() {
+            if (this.value) {
+                this.classList.add('filled');
+                setTimeout(() => this.classList.remove('filled'), 3000);
+            }
+        });
+    }
+
+    // Init existing fields
+    document.querySelectorAll('input, select, textarea').forEach(attachFillAnimation);
+
+    function updateItemCount() {
+        document.getElementById('itemCount').textContent = 'จำนวนรายการ: ' + rowCount;
+    }
+
+    function addItemRow() {
+        rowCount++;
+        const tbody = document.getElementById('itemTableBody');
+        const tr = document.createElement('tr');
+        tr.setAttribute('data-row', rowCount);
+
+        // For row 2+ use numbered suffixes (hsCode2, hsCode3...)
+        const suffix = rowCount > 1 ? rowCount : '';
+
+        tr.innerHTML = `
+            <td class="row-num">${rowCount}</td>
+            <td><input type="text" data-field="hsCode${suffix}" name="hsCode${suffix}" placeholder="0000.00.00"></td>
+            <td><input type="text" data-field="itemDescription${suffix}" name="itemDescription${suffix}" placeholder="รายละเอียดสินค้า"></td>
+            <td><input type="text" data-field="itemQuantity${suffix}" name="itemQuantity${suffix}" placeholder="0"></td>
+            <td><input type="text" data-field="itemWeight${suffix}" name="itemWeight${suffix}" placeholder="0.00"></td>
+            <td><input type="text" data-field="cifPrice${suffix}" name="cifPrice${suffix}" placeholder="0.00"></td>
+            <td><button onclick="removeRow(this)" style="background:none;border:none;color:#e74c3c;cursor:pointer;font-size:16px;padding:4px;" title="ลบแถวนี้">&times;</button></td>
+        `;
+
+        tbody.appendChild(tr);
+
+        // Attach fill animation to new inputs
+        tr.querySelectorAll('input').forEach(attachFillAnimation);
+
+        // Scroll to new row
+        tr.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+        // Flash the new row
+        tr.style.backgroundColor = '#fefce8';
+        setTimeout(() => { tr.style.backgroundColor = ''; }, 1000);
+
+        updateItemCount();
+    }
+
+    function removeRow(btn) {
+        if (rowCount <= 1) {
+            alert('ต้องมีอย่างน้อย 1 รายการ');
+            return;
+        }
+        const tr = btn.closest('tr');
+        tr.remove();
+        rowCount--;
+        renumberRows();
+        updateItemCount();
+    }
+
+function renumberRows() {
+        const rows = document.querySelectorAll('#itemTableBody tr');
+        rows.forEach((tr, idx) => {
+            const num = idx + 1;
+            tr.setAttribute('data-row', num);
+            tr.querySelector('.row-num').textContent = num;
+
+            // Update data-field and name attributes
+            const suffix = num > 1 ? num : '';
+            const fields = ['hsCode', 'itemDescription', 'itemQuantity', 'itemWeight', 'cifPrice'];
+            const inputs = tr.querySelectorAll('input');
+            inputs.forEach((input, fIdx) => {
+                if (fIdx < fields.length) {
+                    input.setAttribute('data-field', fields[fIdx] + suffix);
+                    input.setAttribute('name', fields[fIdx] + suffix);
+                }
+            });
+        });
+    }
+
+    // Auto-create rows when Extension sends multi-item Magic Fill
+    document.addEventListener('vollos-ensure-rows', function(e) {
+        const needed = e.detail?.count || 0;
+        while (rowCount < needed) {
+            addItemRow();
+        }
+    });
+
+    function clearAll() {
+        // Remove extra rows, keep only 1
+        const tbody = document.getElementById('itemTableBody');
+        while (tbody.children.length > 1) {
+            tbody.removeChild(tbody.lastElementChild);
+        }
+        rowCount = 1;
+        updateItemCount();
+
+        // Clear all values
+        document.querySelectorAll('input:not([readonly]), select, textarea').forEach(el => {
+            if (el.tagName === 'SELECT') {
+                el.selectedIndex = 0;
+            } else {
+                el.value = '';
+            }
+            el.classList.remove('filled');
+        });
+    }
+
+    function saveDraft() {
+        alert('✅ บันทึกร่างเรียบร้อย (DEMO)\n\nจำนวนรายการสินค้า: ' + rowCount + ' รายการ\n\nนี่คือหน้าจอจำลอง — ข้อมูลไม่ได้ถูกส่งไปยังระบบจริง');
+    }
+
+    function submitDeclaration() {
+        const hsCode = document.querySelector('[data-field="hsCode"]')?.value;
+        if (!hsCode) {
+            alert('⚠️ กรุณากรอกพิกัดศุลกากร (HS Code) อย่างน้อย 1 รายการ');
+            return;
+        }
+        alert('✅ ส่งใบขนเรียบร้อย (DEMO)\n\nจำนวนรายการสินค้า: ' + rowCount + ' รายการ\n\nนี่คือหน้าจอจำลอง — ข้อมูลไม่ได้ถูกส่งไปยังกรมศุลกากร');
+    }
+</script>
+
+</body>
+</html>
