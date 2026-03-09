@@ -7,6 +7,33 @@ Updated: 2026-03-09
 
 ## สิ่งที่เหลือต้องทำ
 
+### Opn Payments (Omise) — ระบบชำระเงินอัตโนมัติ
+
+**ทำไปทำไม:** ลูกค้ากดอัพเกรด PRO → จ่ายเงินเสร็จ → ระบบอัพเกรดทันทีอัตโนมัติ ไม่ต้องรอ admin กดให้
+
+**เงื่อนไข:** สมัครได้เป็นบุคคลธรรมดา (ไม่ต้องจดบริษัท) ใช้บัตรประชาชน
+
+**สิ่งที่ต้องทำ (เรียงตามลำดับ):**
+- [ ] **เจ้าของสมัคร Opn Payments** — https://www.opn.ooo → ยืนยันตัวตน → ได้ API keys (test + live)
+- [ ] **Backend: Charge API** — `POST /v1/payment/create-charge` สร้าง Opn charge (PromptPay QR + บัตรเครดิต)
+- [ ] **Backend: Webhook receiver** — `POST /v1/payment/webhook` รับ event จาก Opn → เมื่อจ่ายสำเร็จ เรียก upgrade API อัตโนมัติ
+- [ ] **Pricing Page: ปุ่มจ่ายเงินจริง** — เปลี่ยนจาก "ติดต่อ LINE OA" → redirect ไปหน้า checkout Opn
+- [ ] **Extension: ปุ่ม Upgrade ใน QuotaExceededModal** → เปิดหน้า checkout
+- [ ] **ทดสอบ end-to-end** — สมัคร FREE → ใช้จนเกิน → กด Upgrade → จ่ายเงิน (test mode) → PRO ทันที
+
+---
+
+### ทดสอบ + Deploy Production (Usage Quota + Pricing)
+
+**สิ่งที่ต้องทำ:**
+- [ ] Boot backend dev → ทดสอบ GET /v1/usage, POST /v1/admin/upgrade, 429 quota exceeded
+- [ ] ทดสอบ Chrome Extension — UsageBadge แสดงถูก, QuotaExceededModal ขึ้นเมื่อเกิน
+- [ ] ทดสอบ Marketing Site — หน้า /pricing แสดงถูก, Navbar link ราคา, mobile hamburger
+- [ ] Deploy production — push + build + verify
+- [ ] เพิ่ม ADMIN_SECRET ใน `.env.production` บน VPS
+
+---
+
 ### Data Pipeline Tier 2 — Collectors 5 ตัวที่เหลือ (ข้อมูลเสริม)
 
 **ทำไปทำไม:** เพิ่ม coverage ให้ RAG — AD/CVD duty, ใบอนุญาตนำเข้า, BOI สิทธิพิเศษ, สรรพสามิต, คำวินิจฉัยจาก US CBP
@@ -129,7 +156,7 @@ Updated: 2026-03-09
 **Phase 2: Layout Fixes — DONE (2026-03-09)**
 - [x] เพิ่ม ROADMAP badge styling สีเทา (`bg-gray-100 text-gray-400`) แยกจาก badge ทอง ✅ (2026-03-09, worktree)
 - [x] เพิ่ม Footer link ไป `/privacy` ✅ (2026-03-09, worktree)
-- [ ] (Optional) เพิ่ม Mobile hamburger menu
+- [x] เพิ่ม Mobile hamburger menu → shared Navbar.tsx ✅ (2026-03-09)
 
 **Phase 3: รูปภาพ (ทำใน 1 สัปดาห์)**
 - [ ] สร้าง OG Image 1200x630px (`/public/og-default.jpg`) — Canva/Figma สีทอง #D4AF37
@@ -189,6 +216,14 @@ Updated: 2026-03-09
 
 ### Deploy & CI/CD
 - [x] SHA-based deploy: docker-compose.prod.yml ใช้ `image:` จาก registry แทน `build:`
+
+### Usage Quota + Pricing System (2026-03-09)
+- [x] UsageQuotaService — atomic UPSERT นับ scan/chat, ตรวจโควต้า, chat นับเฉพาะ RAG จริง (ทักทายไม่นับ)
+- [x] QuotaExceptionHandler — HTTP 429 + QUOTA_EXCEEDED response ภาษาไทย
+- [x] GET /v1/usage — Extension เรียกดูโควต้าเหลือ
+- [x] POST /v1/admin/upgrade — admin กดอัพเกรด tenant (X-Admin-Secret)
+- [x] Chrome Extension — QuotaExceededModal, UsageBadge (progress bars สี), 429 handling
+- [x] Marketing Site — Pricing page (FREE/PRO 990 บาท), shared Navbar + hamburger, shared Footer
 
 ### Scan HS Code Fix (2026-03-09)
 - [x] ScanWorkerService: แยก Gemini extract items ออกจาก HS code classification
