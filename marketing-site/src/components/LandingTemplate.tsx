@@ -322,9 +322,12 @@ export function LandingTemplate({ config }: LandingTemplateProps) {
                                                 {card.description}
                                             </p>
                                         </div>
-                                        <div className="flex flex-wrap gap-4 items-center text-[10px] font-bold tracking-widest uppercase text-luxury-gold">
+                                        <div className="flex flex-wrap gap-4 items-center text-[10px] font-bold tracking-widest uppercase">
                                             {card.badges?.map((badge, bIdx) => (
-                                                <span key={bIdx} className="bg-luxury-gold/5 px-4 py-2 rounded-full border border-luxury-gold/10">{badge}</span>
+                                                <span key={bIdx} className={badge === 'ROADMAP'
+                                                    ? "bg-gray-100 text-gray-400 px-4 py-2 rounded-full border border-gray-200"
+                                                    : "bg-luxury-gold/5 text-luxury-gold px-4 py-2 rounded-full border border-luxury-gold/10"
+                                                }>{badge}</span>
                                             ))}
                                         </div>
                                     </>
@@ -404,6 +407,9 @@ export function LandingTemplate({ config }: LandingTemplateProps) {
                 <p className="text-[11px] font-medium tracking-[0.35em] uppercase text-gray-400 mb-8">
                     {config.footer.tagline}
                 </p>
+                <div className="flex justify-center gap-6 mb-4 text-[11px] font-medium tracking-[0.2em] uppercase text-gray-400">
+                    <a href="/privacy" className="hover:text-gray-600 transition">Privacy Policy</a>
+                </div>
                 <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-gray-300">
                     {config.footer.copyright}
                 </p>

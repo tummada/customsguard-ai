@@ -1,6 +1,11 @@
 package com.vollos.feature.customsguard.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.vollos.core.tenant.TenantContext;
+import com.vollos.feature.customsguard.dto.SemanticSearchResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -9,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Background worker that processes scan jobs.
@@ -25,17 +31,20 @@ public class ScanWorkerService {
     private final S3StorageService s3Service;
     private final PdfProcessingService pdfService;
     private final GeminiChatService geminiChat;
+    private final HsCodeService hsCodeService;
     private final ObjectMapper objectMapper;
 
     public ScanWorkerService(JdbcTemplate jdbcTemplate,
                              S3StorageService s3Service,
                              PdfProcessingService pdfService,
                              GeminiChatService geminiChat,
+                             HsCodeService hsCodeService,
                              ObjectMapper objectMapper) {
         this.jdbcTemplate = jdbcTemplate;
         this.s3Service = s3Service;
         this.pdfService = pdfService;
         this.geminiChat = geminiChat;
+        this.hsCodeService = hsCodeService;
         this.objectMapper = objectMapper;
     }
 
@@ -68,6 +77,7 @@ public class ScanWorkerService {
             jdbcTemplate.queryForObject(
                     "SELECT set_config('app.current_tenant_id', ?, false)",
                     String.class, tenantId);
+            TenantContext.setCurrentTenantId(UUID.fromString(tenantId));
 
             // 1. Update status → PROCESSING
             jdbcTemplate.update("""
@@ -93,10 +103,10 @@ public class ScanWorkerService {
                 WHERE id = ?::uuid
                 """, jobId);
 
-            // 4. Send to Gemini for HS code classification (with retry for rate limits)
+            // 4. Send to Gemini for item extraction (with retry for rate limits)
             String itemsJson = null;
             for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-                itemsJson = classifyWithGemini(extractedText);
+                itemsJson = extractItemsWithGemini(extractedText);
                 if (!"[]".equals(itemsJson)) break;
 
                 if (attempt < MAX_RETRIES) {
@@ -105,12 +115,15 @@ public class ScanWorkerService {
                     Thread.sleep(RETRY_DELAY_MS);
                 }
             }
-            log.info("Gemini classification result: {} chars", itemsJson.length());
+            log.info("Gemini extraction result: {} chars", itemsJson.length());
 
             // If still empty after retries, mark as FAILED
             if ("[]".equals(itemsJson)) {
                 throw new RuntimeException("Gemini returned empty result after " + MAX_RETRIES + " retries");
             }
+
+            // 4b. Enrich items with HS codes from semantic search
+            itemsJson = enrichWithHsCodes(itemsJson);
 
             jdbcTemplate.update("""
                 UPDATE ai_jobs SET progress = 80, updated_at = NOW()
@@ -151,31 +164,31 @@ public class ScanWorkerService {
             } catch (Exception ex) {
                 log.error("Failed to update job status to FAILED", ex);
             }
+        } finally {
+            TenantContext.clear();
         }
     }
 
-    private String classifyWithGemini(String invoiceText) {
+    private String extractItemsWithGemini(String invoiceText) {
         String prompt = """
-            คุณคือผู้เชี่ยวชาญด้านพิกัดศุลกากรไทย (HS Code Classifier)
+            คุณคือผู้เชี่ยวชาญด้านการอ่าน invoice สำหรับศุลกากร
 
-            จากข้อความ invoice ด้านล่าง ให้วิเคราะห์และจำแนกสินค้าทุกรายการ
+            จากข้อความ invoice ด้านล่าง ให้ดึงข้อมูลสินค้าทุกรายการ
             ตอบเป็น JSON array เท่านั้น ไม่ต้องมีคำอธิบาย ไม่ต้องมี markdown
 
+            **ห้ามเดา HS Code เด็ดขาด** — ระบบจะค้นหา HS Code จากฐานข้อมูลเอง
+
             แต่ละรายการมี fields:
-            - hsCode: พิกัด HS 6-10 หลัก (เช่น "0306.17.10")
-            - descriptionTh: คำอธิบายภาษาไทย
-            - descriptionEn: คำอธิบายภาษาอังกฤษ (จาก invoice)
+            - descriptionTh: คำอธิบายภาษาไทย (แปลจาก invoice)
+            - descriptionEn: คำอธิบายภาษาอังกฤษ (จาก invoice ตรงๆ)
             - quantity: จำนวน (string)
             - weight: น้ำหนัก (string, รวมหน่วย เช่น "500 KG")
             - unitPrice: ราคาต่อหน่วย (string)
             - cifPrice: ราคา CIF รวม (string)
             - currency: สกุลเงิน (เช่น "USD", "THB")
-            - confidence: ความมั่นใจ 0.0-1.0
-            - aiReason: เหตุผลสั้นๆ ว่าทำไมจึงเลือก HS code นี้
             - sourcePageIndex: หน้าที่พบข้อมูล (เริ่มจาก 0)
 
             ถ้าไม่มีข้อมูลในช่องไหน ให้ใส่ null
-            ถ้าไม่แน่ใจ HS code ให้ confidence ต่ำ (< 0.5)
 
             === INVOICE TEXT ===
             """ + invoiceText + """
@@ -206,5 +219,64 @@ public class ScanWorkerService {
         }
 
         return cleaned;
+    }
+
+    /**
+     * Enrich extracted items with HS codes from semantic search.
+     * Each item's descriptionEn + descriptionTh is used as the search query.
+     * Errors per-item are caught so one failure doesn't break the whole job.
+     */
+    private String enrichWithHsCodes(String itemsJson) {
+        try {
+            JsonNode root = objectMapper.readTree(itemsJson);
+            if (!root.isArray()) return itemsJson;
+
+            ArrayNode items = (ArrayNode) root;
+            for (int i = 0; i < items.size(); i++) {
+                ObjectNode item = (ObjectNode) items.get(i);
+                try {
+                    // Build search query from descriptions
+                    String descEn = item.has("descriptionEn") && !item.get("descriptionEn").isNull()
+                            ? item.get("descriptionEn").asText() : "";
+                    String descTh = item.has("descriptionTh") && !item.get("descriptionTh").isNull()
+                            ? item.get("descriptionTh").asText() : "";
+                    String query = (descEn + " " + descTh).trim();
+
+                    if (query.isEmpty()) {
+                        item.putNull("hsCode");
+                        item.put("confidence", 0.0);
+                        item.put("aiReason", "ไม่มีคำอธิบายสินค้าสำหรับค้นหา");
+                        continue;
+                    }
+
+                    List<SemanticSearchResponse> results = hsCodeService.semanticSearch(query, 3);
+
+                    if (!results.isEmpty() && results.get(0).similarity() != null
+                            && results.get(0).similarity() >= 0.3) {
+                        SemanticSearchResponse best = results.get(0);
+                        item.put("hsCode", best.code());
+                        item.put("confidence", best.similarity());
+                        item.put("aiReason", "Semantic search: " + best.descriptionEn()
+                                + " (similarity=" + String.format("%.2f", best.similarity()) + ")");
+                    } else {
+                        item.putNull("hsCode");
+                        item.put("confidence", 0.0);
+                        item.put("aiReason", "ไม่พบ HS Code ที่ตรงกันในฐานข้อมูล");
+                    }
+
+                } catch (Exception e) {
+                    log.warn("Failed to enrich item {} with HS code: {}", i, e.getMessage());
+                    item.putNull("hsCode");
+                    item.put("confidence", 0.0);
+                    item.put("aiReason", "HS Code lookup failed: " + e.getMessage());
+                }
+            }
+
+            return objectMapper.writeValueAsString(items);
+
+        } catch (Exception e) {
+            log.error("Failed to parse items JSON for enrichment, returning original", e);
+            return itemsJson;
+        }
     }
 }

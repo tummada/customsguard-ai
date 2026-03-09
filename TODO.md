@@ -1,7 +1,33 @@
 # TODO — VOLLOS Backlog
 
 Shared backlog visible to all AI tools and humans.
-Updated: 2026-03-07
+Updated: 2026-03-09
+
+---
+
+## 🔴 Bug เร่งด่วน
+
+### Scan ให้ HS Code ผิด — Gemini เดาเองแทนที่จะใช้ฐานข้อมูล
+
+**ปัญหา:** Scan PDF ได้ HS code ผิด — เช่น ทุเรียนสด ควรได้ `0810.60.00` แต่ Gemini เดาเป็น `0803.90.10` (กล้วย)
+
+**สาเหตุ:** `ScanWorkerService.classifyWithGemini()` ให้ Gemini ทำ 2 อย่างพร้อมกัน: อ่านข้อมูลจาก PDF + เดา HS code → เดาผิดบ่อย ทั้งที่มีฐานข้อมูล HS code + semantic search อยู่แล้วแต่ไม่ได้ใช้ตอน scan (จุดเดียวที่เดา — RAG system มีกฎ "ห้ามแต่ง HS code" อยู่แล้ว)
+
+**ไฟล์ที่ต้องแก้:** `backend-core/feature-customsguard/.../ScanWorkerService.java` (ไฟล์เดียว)
+
+**ขั้นตอน:**
+- [x] **1. Inject HsCodeService** — เพิ่มเป็น constructor dependency ✅ (2026-03-09)
+- [x] **2. แก้ prompt Gemini** — เปลี่ยนชื่อ `classifyWithGemini()` → `extractItemsWithGemini()`, ตัด hsCode/confidence/aiReason ออกจาก prompt, เพิ่ม "ห้ามเดา HS Code" ✅ (2026-03-09)
+- [x] **3. เพิ่ม `enrichWithHsCodes()`** — semantic search ≥ 0.3, per-item error handling ✅ (2026-03-09)
+- [x] **4. Wire เข้า pollAndProcess()** — เรียก enrichWithHsCodes() หลัง Gemini extract ✅ (2026-03-09)
+- [x] **5. Set TenantContext** — setCurrentTenantId() + clear() ใน finally ✅ (2026-03-09)
+- [x] **6. ทดสอบ** — ทุเรียน→0810.60.00 ✅, มังคุด→0804.50.30 ✅, semantic search similarity 0.73-0.79, Gemini ไม่เดาเอง ✅ (2026-03-09)
+
+**เลือก semanticSearch() แทน hybridSearch()** เพราะ: handle embedding ภายในตัว (caller ส่งแค่ string), invoice descriptions ภาษาอังกฤษสั้น → semantic ดีกว่า full-text ไทย
+
+**สิ่งที่ไม่เปลี่ยน:** retry logic, JSON cleanup, items JSON schema, Chrome Extension, HsCodeService/Repository
+
+**สถานะ:** ✅ DONE (2026-03-09) — code + ทดสอบผ่าน (ทุเรียน→0810.60.00, มังคุด→0804.50.30)
 
 ---
 
@@ -52,8 +78,9 @@ Updated: 2026-03-07
   - [x] NSW/LPI → 0 (collector ได้แค่ homepage — ดูด้านล่าง)
   - [x] BOI → 35 PDFs processed แต่ได้ 0 records (PDFs เป็น forms/ประกาศ IT ไม่มี structured privileges)
   - [x] Excise → 187 PDFs processed → **41 excise rates** (5 failed JSON parse)
-- [ ] **รัน embed** — `10_embed_supplementary.py` chunk + embed records ใหม่เข้า `cg_document_chunks`
-- [ ] **รัน eval** ดูว่า accuracy ดีขึ้นจาก ~92% ไหม
+- [x] **รัน embed** — 51 chunks ใหม่ (LPI 9 + Excise 42), total 4,729 chunks ✅ (2026-03-09)
+- [x] **รัน eval** — ⚠️ Regression: 90.1% → 81% เพราะ test suite ใหม่ยากกว่า (MFN duty N/A, red team bypass) ✅ (2026-03-09)
+- [ ] **แก้ regression:** MFN duty rates "N/A" + redteam_offtopic/gibberish bypass ChatGuard
 - [ ] ทดสอบ end-to-end บน dev แล้วค่อย deploy production
 
 **Backlog — ต้องแก้ collector ก่อนถึงจะ parse ได้ (ทำทีหลัง):**
@@ -125,9 +152,9 @@ Updated: 2026-03-07
 - [x] แก้ Process Step 2: ลบ "Form E" (ระบบไม่ได้สร้าง Form E)
 - [x] เพิ่ม footnote "*ตัวเลขเป็นค่าประมาณจากข้อมูลอุตสาหกรรม" ใน pain section + ROI
 
-**Phase 2: Layout Fixes**
-- [ ] เพิ่ม ROADMAP badge styling สีต่างจาก badge ปกติ (`LandingTemplate.tsx`)
-- [ ] เพิ่ม Footer link ไป `/privacy`
+**Phase 2: Layout Fixes — DONE (2026-03-09)**
+- [x] เพิ่ม ROADMAP badge styling สีเทา (`bg-gray-100 text-gray-400`) แยกจาก badge ทอง ✅ (2026-03-09, worktree)
+- [x] เพิ่ม Footer link ไป `/privacy` ✅ (2026-03-09, worktree)
 - [ ] (Optional) เพิ่ม Mobile hamburger menu
 
 **Phase 3: รูปภาพ (ทำใน 1 สัปดาห์)**
@@ -160,9 +187,12 @@ Updated: 2026-03-07
 - [x] ลบ AuthController (dev email/password) — ใช้ Google OAuth ทั้ง dev + prod
 - [x] VPS `.env.production` — เพิ่ม GOOGLE_CLIENT_ID
 
-**รอทดสอบ (backend ไม่ว่าง — AI อีกตัวรัน eval pipeline อยู่):**
-- [ ] ทดสอบ Google OAuth บน dev — kill backend เก่า → start ใหม่ → ลอง login จาก Extension
-- [ ] ทดสอบ Google OAuth บน production — push + deploy + ลอง login
+**ทดสอบ (รอเจ้าของทดสอบเอง):**
+- [x] Backend dev — endpoint ทำงาน (401 fake token, 400 empty body, V8 tables ครบ)
+- [x] Backend production — deploy สำเร็จ, GOOGLE_CLIENT_ID ใส่แล้ว, endpoint ตอบ 401
+- [x] แก้ Extension crash หน้าขาว — เพิ่ม Error Boundary + Dexie try-catch + filter undefined hsCode
+- [ ] **รอเจ้าของทดสอบ:** ล้าง IndexedDB เก่า (F12 → Application → IndexedDB → Delete) → reload Extension → Login with Google → ลากไฟล์ scan
+- [ ] **Rotate Google OAuth Client ID** — AI เผลอแสดง Client ID ใน chat ต้องสร้างใหม่ที่ Google Cloud Console → แก้ `.env` (local) + `.env.production` (VPS) + rebuild Extension
 
 **สิ่งที่ต้องทำ (เรียงตามลำดับ):**
 - [ ] Usage Quota — atomic increment, Caffeine cache, 429 + upsell message
