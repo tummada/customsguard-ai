@@ -82,6 +82,7 @@ Updated: 2026-03-09
 - [x] **รัน embed** — 51 chunks ใหม่ (LPI 9 + Excise 42), total 4,729 chunks ✅ (2026-03-09)
 - [x] **รัน eval** — ⚠️ Regression: 90.1% → 81% เพราะ test suite ใหม่ยากกว่า (MFN duty N/A, red team bypass) ✅ (2026-03-09)
 - [ ] **แก้ regression:** MFN duty rates "N/A" + redteam_offtopic/gibberish bypass ChatGuard
+- [x] **🐛 Bug: ChatGuard Thai NFKC normalization** — แก้แล้ว: เพิ่ม `nfkc()`, `nfkcPattern()`, `nfkcSet()`, `nfkcList()` helpers pre-normalize ทุก Thai pattern/keyword ด้วย NFKC ตอน class load ✅ (2026-03-09)
 - [ ] ทดสอบ end-to-end บน dev แล้วค่อย deploy production
 
 **Backlog — ต้องแก้ collector ก่อนถึงจะ parse ได้ (ทำทีหลัง):**

@@ -9,6 +9,9 @@ import org.springframework.stereotype.Service;
 
 import java.text.Normalizer;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -36,6 +39,27 @@ public class ChatGuardService {
 
     private static final Duration WINDOW = Duration.ofMinutes(1);
 
+    // NFKC helper — normalize Thai strings so สระอำ (U+0E33) matches its decomposed form (U+0E4D+U+0E32)
+    private static String nfkc(String s) {
+        return Normalizer.normalize(s, Normalizer.Form.NFKC);
+    }
+
+    private static Pattern nfkcPattern(String regex) {
+        return Pattern.compile(nfkc(regex));
+    }
+
+    private static Set<String> nfkcSet(String... items) {
+        var set = new LinkedHashSet<String>();
+        for (String item : items) set.add(nfkc(item));
+        return Collections.unmodifiableSet(set);
+    }
+
+    private static List<String> nfkcList(String... items) {
+        var list = new ArrayList<String>();
+        for (String item : items) list.add(nfkc(item));
+        return Collections.unmodifiableList(list);
+    }
+
     // Prompt injection patterns
     private static final List<Pattern> INJECTION_PATTERNS = List.of(
             // Classic English injection
@@ -51,10 +75,10 @@ public class ChatGuardService {
             Pattern.compile("(?i)what\\s+(are|is)\\s+your\\s+(instructions|system\\s+prompt)"),
             Pattern.compile("(?i)\\brole\\s*:\\s*system\\b"),
             Pattern.compile("(?i)###\\s*(system|instruction)"),
-            // Thai injection (with \s* to prevent space obfuscation)
-            Pattern.compile("ยก\\s*เลิก\\s*คำ\\s*สั่ง"),
-            Pattern.compile("ลืม\\s*(คำสั่ง|ทุกอย่าง)"),
-            Pattern.compile("ตอนนี้คุณ(คือ|เป็น)"),
+            // Thai injection — NFKC-normalized so สระอำ matches decomposed form
+            nfkcPattern("ยก\\s*เลิก\\s*คำ\\s*สั่ง"),
+            nfkcPattern("ลืม\\s*(คำสั่ง|ทุกอย่าง)"),
+            nfkcPattern("ตอนนี้คุณ(คือ|เป็น)"),
             // Role-play / fictional framing / jailbreak
             Pattern.compile("(?i)imagine\\s+you\\s+are"),
             Pattern.compile("(?i)let'?s\\s+play\\s+a\\s+game"),
@@ -80,8 +104,8 @@ public class ChatGuardService {
             Pattern.compile("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}")
     );
 
-    // Customs domain keywords — if present, bypass gibberish/greeting checks
-    private static final Set<String> CUSTOMS_KEYWORDS = Set.of(
+    // Customs domain keywords — if present, bypass gibberish/greeting checks (NFKC-normalized)
+    private static final Set<String> CUSTOMS_KEYWORDS = nfkcSet(
             // Thai
             "พิกัด", "อากร", "ภาษี", "นำเข้า", "ส่งออก", "ศุลกากร",
             "ใบขน", "สินค้า", "แหล่งกำเนิด", "ใบอนุญาต",
@@ -91,18 +115,18 @@ public class ChatGuardService {
     );
 
     // Greeting keywords (short greetings only, ≤30 chars)
-    private static final Set<String> GREETING_KEYWORDS = Set.of(
+    private static final Set<String> GREETING_KEYWORDS = nfkcSet(
             "สวัสดี", "หวัดดี", "hello", "hi", "hey",
             "good morning", "good evening", "good afternoon"
     );
 
     // Thanks keywords (short thanks only, ≤30 chars)
-    private static final Set<String> THANKS_KEYWORDS = Set.of(
+    private static final Set<String> THANKS_KEYWORDS = nfkcSet(
             "ขอบคุณ", "thank", "thanks"
     );
 
     // Meta-support keywords — user complaints/questions about the AI itself
-    private static final Set<String> META_SUPPORT_KEYWORDS = Set.of(
+    private static final Set<String> META_SUPPORT_KEYWORDS = nfkcSet(
             "ทำไมไม่ตอบ", "ดุจัง", "เก่งไหม", "เป็นใคร", "ช่วยอะไรได้บ้าง",
             "งง", "ถามอะไรได้", "ไม่เข้าใจ", "ตอบผิด", "ตอบไม่ได้",
             "มีแฟน", "ชื่ออะไร", "อายุเท่าไหร่", "เป็นคน", "เป็น ai"
@@ -126,7 +150,7 @@ public class ChatGuardService {
     private static final Pattern REPEATED_CHAR = Pattern.compile("(.)\\1{4,}");
 
     // Off-topic keywords (things clearly outside customs domain)
-    private static final List<String> OFF_TOPIC_KEYWORDS = List.of(
+    private static final List<String> OFF_TOPIC_KEYWORDS = nfkcList(
             "เขียนโค้ด", "write code", "programming", "เขียนโปรแกรม",
             "แต่งเพลง", "write a song", "compose music",
             "แต่งกลอน", "write a poem",
@@ -145,7 +169,7 @@ public class ChatGuardService {
     );
 
     // PII request keywords — requests for others' personal data
-    private static final List<String> PII_REQUEST_KEYWORDS = List.of(
+    private static final List<String> PII_REQUEST_KEYWORDS = nfkcList(
             // Request for personal info
             "full name", "ชื่อเต็ม", "ที่อยู่", "address", "contact number",
             "เบอร์โทร", "passport", "หนังสือเดินทาง",
@@ -161,7 +185,7 @@ public class ChatGuardService {
     );
 
     // Harmful intent keywords — illegal activity requests
-    private static final List<String> HARMFUL_INTENT_KEYWORDS = List.of(
+    private static final List<String> HARMFUL_INTENT_KEYWORDS = nfkcList(
             "smuggle", "smuggling", "ลักลอบ",
             "bypass detection", "avoid detection", "หลีกเลี่ยงการตรวจ",
             "bribe", "สินบน", "ติดสินบน",
@@ -175,7 +199,7 @@ public class ChatGuardService {
     );
 
     // Safe context — if present alongside harmful keywords, allow through (educational query)
-    private static final List<String> HARMFUL_SAFE_CONTEXT = List.of(
+    private static final List<String> HARMFUL_SAFE_CONTEXT = nfkcList(
             "how to prevent", "วิธีป้องกัน", "ตรวจจับ", "detect",
             "กฎหมาย", "ลงโทษ", "penalty", "punishment",
             "prevent", "enforcement", "บังคับใช้", "regulation",
@@ -183,7 +207,7 @@ public class ChatGuardService {
     );
 
     // Social engineering keywords — authority impersonation
-    private static final List<String> SOCIAL_ENGINEERING_KEYWORDS = List.of(
+    private static final List<String> SOCIAL_ENGINEERING_KEYWORDS = nfkcList(
             // Authority claims
             "i am admin", "i am an admin", "i am the admin",
             "ผมเป็นแอดมิน", "ฉันเป็นแอดมิน",
