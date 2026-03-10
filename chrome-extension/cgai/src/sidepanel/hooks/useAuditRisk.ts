@@ -52,20 +52,23 @@ export function useAuditRisk(items: CgDeclarationItem[]): UseAuditRiskResult {
 
   // Aggregate summary
   const riskSummary = useMemo((): RiskSummary => {
-    const counts = { red: 0, orange: 0, green: 0, gold: 0, blue: 0 };
+    const counts = { red: 0, orange: 0, yellow: 0, green: 0, darkGreen: 0, blue: 0, confirmed: 0 };
     const flagMap = new Map<string, RiskFlag>();
 
-    for (const risk of riskMap.values()) {
-      counts[risk.color]++;
+    for (const [, risk] of riskMap) {
+      // Check if confirmed (special property from computeAuditRisk)
+      if ((risk as unknown as { confirmed?: boolean }).confirmed) {
+        counts.confirmed++;
+      } else {
+        counts[risk.color]++;
+      }
       for (const flag of risk.flags) {
-        // Deduplicate by type
         if (!flagMap.has(flag.type)) {
           flagMap.set(flag.type, flag);
         }
       }
     }
 
-    // Sort: error first, then warning, then info
     const severityOrder = { error: 0, warning: 1, info: 2 };
     const topFlags = Array.from(flagMap.values()).sort(
       (a, b) => severityOrder[a.severity] - severityOrder[b.severity]

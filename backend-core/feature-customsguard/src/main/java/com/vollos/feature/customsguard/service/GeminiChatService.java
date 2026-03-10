@@ -71,8 +71,8 @@ public class GeminiChatService {
                     HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() != 200) {
-                log.error("Gemini vision OCR FAILED: status={}, body={}", response.statusCode(),
-                        truncateForLog(response.body()));
+                // H2-LOG-LEAK: Only log status code, no response body (may contain API details)
+                log.error("Gemini vision OCR FAILED: status={}", response.statusCode());
                 throw new RuntimeException("Gemini Vision OCR failed with status " + response.statusCode());
             }
 
@@ -86,6 +86,7 @@ public class GeminiChatService {
                     .path("content").path("parts").path(0)
                     .path("text").asText("");
             if (text.isBlank()) {
+                // M3-OCR-BLANK: Log warning — caller (PdfProcessingService) handles fallback
                 log.warn("Gemini vision OCR returned blank text — image may not contain readable text");
             }
             return text;
@@ -139,8 +140,8 @@ public class GeminiChatService {
                     HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() != 200) {
-                log.error("Gemini rawPrompt error: status={}, body={}", response.statusCode(),
-                        truncateForLog(response.body()));
+                // H2-LOG-LEAK: Only log status code, scrub response body
+                log.error("Gemini rawPrompt error: status={}", response.statusCode());
                 return "";
             }
 
@@ -213,8 +214,8 @@ public class GeminiChatService {
                     HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() != 200) {
-                log.error("Gemini chat error: status={}, body={}", response.statusCode(),
-                        truncateForLog(response.body()));
+                // H2-LOG-LEAK: Only log status code, scrub response body
+                log.error("Gemini chat error: status={}", response.statusCode());
                 return "ขออภัย ไม่สามารถประมวลผลคำถามได้ในขณะนี้";
             }
 

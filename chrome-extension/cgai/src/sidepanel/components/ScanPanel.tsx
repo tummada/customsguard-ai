@@ -20,15 +20,14 @@ const CURRENT_DECLARATION_ID = 1;
 // --- Inline AuditSummaryBanner ---
 function AuditSummaryBanner({ summary }: { summary: RiskSummary }) {
   const { t } = useTranslation();
-  const hasRisk = summary.red > 0 || summary.orange > 0;
-  const [expanded, setExpanded] = useState(hasRisk);
+  const hasAlerts = summary.topFlags.some((f) => f.severity === "error" || f.severity === "warning");
+  const [expanded, setExpanded] = useState(hasAlerts);
 
-  // Auto-expand when risk appears, auto-collapse when cleared
   useEffect(() => {
-    setExpanded(hasRisk);
-  }, [hasRisk]);
+    setExpanded(hasAlerts);
+  }, [hasAlerts]);
 
-  const total = summary.red + summary.orange + summary.green + summary.gold + summary.blue;
+  const total = summary.red + summary.orange + summary.yellow + summary.green + summary.darkGreen + summary.blue + summary.confirmed;
   if (total === 0) return null;
 
   return (
@@ -53,16 +52,22 @@ function AuditSummaryBanner({ summary }: { summary: RiskSummary }) {
               <span className="text-orange-600 font-medium">{summary.orange}</span>
             </span>
           )}
-          {summary.green > 0 && (
+          {summary.yellow > 0 && (
             <span className="flex items-center gap-0.5">
-              <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
-              <span className="text-green-600 font-medium">{summary.green}</span>
+              <span className="w-2 h-2 rounded-full bg-yellow-400 inline-block" />
+              <span className="text-yellow-600 font-medium">{summary.yellow}</span>
             </span>
           )}
-          {summary.gold > 0 && (
+          {(summary.green + summary.darkGreen) > 0 && (
             <span className="flex items-center gap-0.5">
-              <span className="w-2 h-2 rounded-full bg-brand inline-block" />
-              <span className="text-brand font-medium">{summary.gold}</span>
+              <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+              <span className="text-green-600 font-medium">{summary.green + summary.darkGreen}</span>
+            </span>
+          )}
+          {summary.confirmed > 0 && (
+            <span className="flex items-center gap-0.5">
+              <span className="text-[10px]">✅</span>
+              <span className="text-green-700 font-medium">{summary.confirmed}</span>
             </span>
           )}
           <span className="text-gray-400 text-[10px]">
@@ -80,9 +85,9 @@ function AuditSummaryBanner({ summary }: { summary: RiskSummary }) {
                   ? "text-red-500"
                   : flag.severity === "warning"
                     ? "text-amber-500"
-                    : "text-gray-400"
+                    : "text-green-500"
               }`}>
-                {flag.severity === "error" ? "\u26A0" : flag.severity === "warning" ? "\u26A0" : "\u2139"}
+                {flag.severity === "error" ? "\u274C" : flag.severity === "warning" ? "\u26A0\uFE0F" : "\uD83D\uDC9A"}
               </span>
               <span className="text-gray-600">{flag.message}</span>
             </div>

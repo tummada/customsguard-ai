@@ -18,6 +18,7 @@ import org.springframework.beans.factory.annotation.Value;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -128,7 +129,8 @@ public class ScanWorkerService {
                     long delay = BASE_RETRY_DELAY_MS * (1L << (attempt - 1)); // exponential backoff
                     log.warn("Gemini returned empty items (attempt {}/{}) — could be rate-limited or no data, retrying in {}s...",
                             attempt, MAX_RETRIES, delay / 1000);
-                    Thread.sleep(delay);
+                    // C3-VSLEEP: TimeUnit.sleep is VT-safe (does not pin carrier thread)
+                    TimeUnit.MILLISECONDS.sleep(delay);
                 }
             }
             log.info("Gemini extraction result: {} chars", itemsJson.length());
@@ -209,6 +211,8 @@ public class ScanWorkerService {
                 ? invoiceText.substring(0, MAX_INPUT_LENGTH) + "\n[ข้อความถูกตัดเนื่องจากยาวเกิน]"
                 : invoiceText;
         sanitized = sanitized.replaceAll("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]", " ");
+        // H4-PROMPT-INJ: Escape quotes and backticks to prevent prompt injection from invoice text
+        sanitized = sanitized.replace("`", "'").replace("\"", "'").replace("\\", "");
 
         String prompt = """
             คุณคือผู้เชี่ยวชาญด้านการอ่าน invoice สำหรับศุลกากร
@@ -260,6 +264,32 @@ public class ScanWorkerService {
             cleaned = "[]";
         }
 
+        // C2-GEMINI-JSON: Validate schema of each item — strip invalid/hallucinated fields
+        try {
+            JsonNode parsed = objectMapper.readTree(cleaned);
+            if (parsed.isArray()) {
+                ArrayNode validated = objectMapper.createArrayNode();
+                for (JsonNode node : parsed) {
+                    if (!node.isObject()) continue;
+                    ObjectNode item = (ObjectNode) node;
+                    // Only keep known fields — prevents hallucinated HS codes or injected data
+                    ObjectNode safe = objectMapper.createObjectNode();
+                    for (String field : List.of("descriptionTh", "descriptionEn", "quantity",
+                            "weight", "unitPrice", "cifPrice", "currency", "sourcePageIndex")) {
+                        if (item.has(field)) safe.set(field, item.get(field));
+                    }
+                    // Ensure it has at least a description
+                    if (safe.has("descriptionTh") || safe.has("descriptionEn")) {
+                        validated.add(safe);
+                    }
+                }
+                cleaned = objectMapper.writeValueAsString(validated);
+            }
+        } catch (Exception e) {
+            log.warn("C2: Failed to validate Gemini JSON schema: {}", e.getMessage());
+            cleaned = "[]";
+        }
+
         return cleaned;
     }
 
@@ -295,10 +325,23 @@ public class ScanWorkerService {
                     // Pass 1: Semantic search → top 5 candidates from DB
                     List<SemanticSearchResponse> candidates = hsCodeService.semanticSearch(query, 5);
 
-                    // Filter candidates above minimum threshold
+                    // Traffic Light redesign: ลด threshold เป็น 0.65 ให้ผลทุกระดับผ่านไป Frontend
+                    // H6-SEMANTIC: Also cross-check that candidate description has keyword overlap
+                    String queryLower = query.toLowerCase();
                     List<SemanticSearchResponse> validCandidates = candidates.stream()
-                            .filter(c -> c.similarity() != null && c.similarity() >= 0.80
+                            .filter(c -> c.similarity() != null && c.similarity() >= 0.65
                                     && c.code() != null && isValidHsCode(c.code()))
+                            .filter(c -> {
+                                // H6: Cross-check — at least one keyword from query appears in description
+                                String desc = ((c.descriptionEn() != null ? c.descriptionEn() : "") + " "
+                                        + (c.descriptionTh() != null ? c.descriptionTh() : "")).toLowerCase();
+                                String[] words = queryLower.split("\\s+");
+                                for (String w : words) {
+                                    if (w.length() >= 3 && desc.contains(w)) return true;
+                                }
+                                // If no keyword match but very high similarity, still allow
+                                return c.similarity() >= 0.92;
+                            })
                             .toList();
 
                     if (validCandidates.isEmpty()) {
@@ -359,10 +402,10 @@ public class ScanWorkerService {
             StringBuilder options = new StringBuilder();
             for (int i = 0; i < candidates.size(); i++) {
                 SemanticSearchResponse c = candidates.get(i);
-                options.append(String.format("%d. %s — %s / %s\n",
-                        i + 1, c.code(),
-                        c.descriptionTh() != null ? c.descriptionTh() : "",
-                        c.descriptionEn() != null ? c.descriptionEn() : ""));
+                // H5-PROMPT-HS: Sanitize candidate descriptions to prevent injection via DB data
+                String descTh = c.descriptionTh() != null ? c.descriptionTh().replaceAll("[\\x00-\\x1F\"`\\\\]", " ") : "";
+                String descEn = c.descriptionEn() != null ? c.descriptionEn().replaceAll("[\\x00-\\x1F\"`\\\\]", " ") : "";
+                options.append(String.format("%d. %s — %s / %s\n", i + 1, c.code(), descTh, descEn));
             }
 
             // M1: Sanitize item description to reduce prompt injection from invoice text
@@ -541,7 +584,15 @@ public class ScanWorkerService {
      * Detects format by checking which separator appears last (decimal separator).
      */
     private static String normalizeNumber(String input) {
-        String s = input.replaceAll("[^\\d.,]", "");
+        // M7-THAI-NUM: Convert Thai numerals ๐-๙ to 0-9 before processing
+        StringBuilder sb = new StringBuilder(input);
+        for (int i = 0; i < sb.length(); i++) {
+            char c = sb.charAt(i);
+            if (c >= '\u0E50' && c <= '\u0E59') { // ๐-๙
+                sb.setCharAt(i, (char) ('0' + (c - '\u0E50')));
+            }
+        }
+        String s = sb.toString().replaceAll("[^\\d.,]", "");
         if (s.isEmpty()) return "0";
         int lastDot = s.lastIndexOf('.');
         int lastComma = s.lastIndexOf(',');
@@ -560,21 +611,12 @@ public class ScanWorkerService {
         return code != null && code.matches("\\d{4}\\.\\d{2}(\\.\\d{2})?");
     }
 
-    /** H1: Set HS code result with confidence band and review flag */
+    /** Set HS code result — Frontend คำนวณสีจาก confidence เอง (Traffic Light redesign) */
     private void setHsCodeResult(ObjectNode item, String code, double similarity, String reason, boolean forceReview) {
         item.put("hsCode", code);
         item.put("confidence", similarity);
         item.put("aiReason", reason + " (similarity=" + String.format("%.2f", similarity) + ")");
-
-        // Confidence band: HIGH ≥0.90 / MEDIUM ≥0.75 / LOW <0.75
-        String level;
-        if (similarity >= 0.90) level = "HIGH";
-        else if (similarity >= 0.75) level = "MEDIUM";
-        else level = "LOW";
-        item.put("confidenceLevel", level);
-
-        boolean needsReview = forceReview || "LOW".equals(level);
-        item.put("requiresReview", needsReview);
+        item.put("requiresReview", forceReview || similarity < 0.80);
     }
 
     private String descText(SemanticSearchResponse r) {

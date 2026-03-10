@@ -50,15 +50,15 @@ public class SecurityConfig {
                 "https://api.vollos.ai",
                 "https://www.vollos.ai"
         ));
-        // Only allow localhost in dev profile
-        boolean isDev = Arrays.asList(environment.getActiveProfiles()).contains("dev")
-                || environment.getActiveProfiles().length == 0;
+        // H1-CORS: Only allow localhost when "dev" profile is EXPLICITLY active (fail-closed)
+        boolean isDev = Arrays.asList(environment.getActiveProfiles()).contains("dev");
         if (isDev) {
             origins.add("http://localhost:[*]");
         }
         config.setAllowedOriginPatterns(origins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Content-Type", "Authorization", "X-Tenant-ID", "X-Admin-Secret"));
+        // S5: Removed X-Admin-Secret from public CORS headers — admin endpoints use separate auth
+        config.setAllowedHeaders(List.of("Content-Type", "Authorization", "X-Tenant-ID"));
         config.setExposedHeaders(List.of("X-Request-Id"));
         config.setAllowCredentials(false);
         config.setMaxAge(3600L);

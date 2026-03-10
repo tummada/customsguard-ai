@@ -82,7 +82,8 @@ public class DocumentChunkService {
 
                     if (embedded % 5 == 0) {
                         log.info("Embedded {}/{} chunks so far", embedded, countTotalChunks(regulations, chunks.size()));
-                        Thread.sleep(300);
+                        // C3-VSLEEP: TimeUnit.sleep is VT-safe
+                        java.util.concurrent.TimeUnit.MILLISECONDS.sleep(300);
                     }
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
@@ -146,33 +147,43 @@ public class DocumentChunkService {
     }
 
     private int findSentenceBreak(String text, int start, int end) {
-        // H4: Thai text has no spaces between words — prioritize newline/paragraph breaks
+        // M6-THAI-CHUNK: Thai text has no spaces between words — use multiple strategies
+        int minBreak = start + CHUNK_SIZE / 2;
+
         // Priority 1: Double newline (paragraph break)
-        for (int i = end; i > start + CHUNK_SIZE / 2; i--) {
+        for (int i = end; i > minBreak; i--) {
             if (i > 1 && text.charAt(i - 1) == '\n' && text.charAt(i - 2) == '\n') {
                 return i;
             }
         }
         // Priority 2: Single newline
-        for (int i = end; i > start + CHUNK_SIZE / 2; i--) {
+        for (int i = end; i > minBreak; i--) {
             if (text.charAt(i - 1) == '\n') {
                 return i;
             }
         }
-        // Priority 3: Thai sentence-ending characters (Thai period ๆ, fullstop, CJK period)
-        for (int i = end; i > start + CHUNK_SIZE / 2; i--) {
+        // Priority 3: Thai sentence markers (ฯ, มาตรา/ข้อ pattern, Thai fullstop)
+        for (int i = end; i > minBreak; i--) {
             char c = text.charAt(i - 1);
-            if (c == '.' || c == '。' || c == '\u0E2F' /* ฯ Thai abbreviation */
-                    || (c == ' ' && i > 1 && text.charAt(i - 2) == '.')) {
+            if (c == '\u0E2F' /* ฯ */ || c == '。') return i;
+            // Thai legal: "มาตรา" or "ข้อ" followed by space/number = section break
+            if (c == ' ' && i >= 7 && text.substring(Math.max(0, i - 7), i - 1).contains("มาตรา")) return i - 1;
+            if (c == ' ' && i >= 4 && text.substring(Math.max(0, i - 4), i - 1).contains("ข้อ")) return i - 1;
+        }
+        // Priority 4: Period/fullstop followed by space (sentence end)
+        for (int i = end; i > minBreak; i--) {
+            if (text.charAt(i - 1) == '.' && i < text.length() && (i == text.length() || text.charAt(i) == ' ' || text.charAt(i) == '\n')) {
                 return i;
             }
         }
-        // Priority 4: Tab or multiple spaces (common in Thai legal documents)
-        for (int i = end; i > start + CHUNK_SIZE / 2; i--) {
+        // Priority 5: Space (Thai text uses spaces between clauses/phrases)
+        for (int i = end; i > minBreak; i--) {
+            if (text.charAt(i - 1) == ' ') return i;
+        }
+        // Priority 6: Tab or multiple spaces (common in Thai legal documents)
+        for (int i = end; i > minBreak; i--) {
             char c = text.charAt(i - 1);
-            if (c == '\t' || (c == ' ' && i > 1 && text.charAt(i - 2) == ' ')) {
-                return i;
-            }
+            if (c == '\t') return i;
         }
         return end;
     }

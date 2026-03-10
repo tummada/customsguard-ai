@@ -220,19 +220,19 @@ export interface RagSearchResponseMsg {
 
 // --- Feature #5: AI Auditor Traffic Light ---
 
-export type TrafficLightColor = "green" | "orange" | "red" | "blue" | "gold";
+// Traffic Light redesign: 5 confidence levels + blue (edited) + confirmed (checkmark)
+export type TrafficLightColor = "darkGreen" | "green" | "yellow" | "orange" | "red" | "blue";
 
-/** @deprecated Use computeAuditRisk() instead for multi-factor analysis */
+/** @deprecated Use computeAuditRisk() instead */
 export function getTrafficColor(
   item: CgDeclarationItem,
-  ftaAvailable?: boolean
 ): TrafficLightColor {
-  if (item.editStatus === "CONFIRMED") return "gold";
   if (item.editStatus === "EDITED") return "blue";
-  if (ftaAvailable) return "gold";
-  if (item.confidence == null) return "red";
-  if (item.confidence > 0.9) return "green";
-  if (item.confidence >= 0.6) return "orange";
+  const c = item.confidence ?? 0;
+  if (c >= 0.95) return "darkGreen";
+  if (c >= 0.90) return "green";
+  if (c >= 0.80) return "yellow";
+  if (c >= 0.70) return "orange";
   return "red";
 }
 
@@ -244,7 +244,8 @@ export type RiskFlagType =
   | "MISSING_VALUES"
   | "LPI_REQUIRED"
   | "HIGH_DUTY"
-  | "USER_EDITED";
+  | "USER_EDITED"
+  | "FTA_SAVINGS";
 
 export interface RiskFlag {
   type: RiskFlagType;
@@ -262,9 +263,11 @@ export interface AuditRisk {
 export interface RiskSummary {
   red: number;
   orange: number;
+  yellow: number;
   green: number;
-  gold: number;
+  darkGreen: number;
   blue: number;
+  confirmed: number;
   topFlags: RiskFlag[];
 }
 
@@ -275,10 +278,11 @@ export function computeAuditRisk(
 ): AuditRisk {
   const flags: RiskFlag[] = [];
 
-  // Step 1: Override — CONFIRMED or EDITED
+  // Step 1: Override — CONFIRMED → use checkmark (handled by TrafficLight component)
   if (item.editStatus === "CONFIRMED" || item.isConfirmed) {
-    return { color: "gold", score: 0, flags: [], summary: "ยืนยันแล้ว" };
+    return { color: "green", score: 0, flags: [], summary: "ยืนยันแล้ว", confirmed: true } as AuditRisk & { confirmed: boolean };
   }
+  // EDITED → blue
   if (item.editStatus === "EDITED") {
     return {
       color: "blue",
@@ -288,8 +292,16 @@ export function computeAuditRisk(
     };
   }
 
-  // Step 2: Critical flags → RED immediately
+  // Step 2: Confidence → determines circle color (5 levels)
   const confidence = item.confidence ?? 0;
+  let color: TrafficLightColor;
+  if (confidence >= 0.95) color = "darkGreen";
+  else if (confidence >= 0.90) color = "green";
+  else if (confidence >= 0.80) color = "yellow";
+  else if (confidence >= 0.70) color = "orange";
+  else color = "red";
+
+  // Step 3: Alert badges (separate from confidence color)
   const hsNotFound =
     confidence <= 0.1 && item.aiReason && item.aiReason.includes("ไม่พบ");
 
@@ -299,23 +311,9 @@ export function computeAuditRisk(
       severity: "error",
       message: "HS Code ไม่พบในฐานข้อมูล",
     });
-    return { color: "red", score: 1.0, flags, summary: "HS Code ไม่พบ" };
   }
 
-  if (confidence < 0.6) {
-    flags.push({
-      type: "LOW_CONFIDENCE",
-      severity: "error",
-      message: `ความมั่นใจต่ำ (${Math.round(confidence * 100)}%)`,
-    });
-    return {
-      color: "red",
-      score: 1.0,
-      flags,
-      summary: "ความมั่นใจต่ำ",
-    };
-  }
-
+  // Missing values alert
   const cifNum = item.cifPrice ? parseFloat(item.cifPrice) : 0;
   if (cifNum <= 0 || !item.quantity || !item.weight) {
     const missing: string[] = [];
@@ -327,27 +325,17 @@ export function computeAuditRisk(
       severity: "error",
       message: `ข้อมูลไม่ครบ: ${missing.join(", ")}`,
     });
-    return {
-      color: "red",
-      score: 1.0,
-      flags,
-      summary: "ข้อมูลไม่ครบ",
-    };
   }
 
-  // Step 3: Additive scoring for non-critical
-  let score = 0;
-
+  // LPI alerts
   const lpiCount = lpiAlerts.length;
   if (lpiCount >= 2) {
-    score += 0.3;
     flags.push({
       type: "LPI_REQUIRED",
       severity: "warning",
       message: `ต้องมีใบอนุญาต ${lpiCount} หน่วยงาน`,
     });
   } else if (lpiCount === 1) {
-    score += 0.15;
     flags.push({
       type: "LPI_REQUIRED",
       severity: "warning",
@@ -355,39 +343,44 @@ export function computeAuditRisk(
     });
   }
 
-  // Check base duty rate from FTA data
+  // High duty rate alert
   const maxBaseRate = ftaRates.reduce((max, r) => {
     const base = r.preferentialRate + r.savingPercent;
     return base > max ? base : max;
   }, 0);
   if (maxBaseRate >= 30) {
-    score += 0.15;
     flags.push({
       type: "HIGH_DUTY",
-      severity: "info",
+      severity: "warning",
       message: `อัตราอากรสูง (${maxBaseRate}%) — ตรวจสอบเข้ม`,
     });
   }
 
-  if (confidence >= 0.6 && confidence < 0.8) {
-    score += 0.1;
+  // FTA savings — good news badge
+  const bestSaving = ftaRates.reduce((max, r) => r.savingPercent > max ? r.savingPercent : max, 0);
+  if (bestSaving > 0) {
+    const bestFta = ftaRates.find((r) => r.savingPercent === bestSaving);
     flags.push({
-      type: "LOW_CONFIDENCE",
+      type: "FTA_SAVINGS",
       severity: "info",
-      message: `ความมั่นใจปานกลาง (${Math.round(confidence * 100)}%)`,
+      message: `ใช้ FTA ${bestFta?.ftaName} ประหยัดอากร ${bestSaving}%`,
     });
   }
 
-  // Step 4: Color from score
-  const color: TrafficLightColor = score >= 0.4 ? "orange" : "green";
-  const summary =
-    color === "orange"
-      ? "ความเสี่ยงปานกลาง"
-      : flags.length > 0
-        ? "ผ่าน — มีข้อสังเกต"
+  // Score for summary (higher = more alerts)
+  const errorCount = flags.filter((f) => f.severity === "error").length;
+  const warnCount = flags.filter((f) => f.severity === "warning").length;
+  const score = Math.min(errorCount * 0.3 + warnCount * 0.15, 1.0);
+
+  const summary = errorCount > 0
+    ? "มีปัญหาต้องแก้ไข"
+    : warnCount > 0
+      ? "มีข้อควรระวัง"
+      : bestSaving > 0
+        ? "ผ่าน — มี FTA ประหยัดอากร"
         : "ผ่าน";
 
-  return { color, score: Math.min(score, 1.0), flags, summary };
+  return { color, score, flags, summary };
 }
 
 // Union type for all background messages

@@ -167,12 +167,14 @@ public class RagService {
 
     private RagChunkDto toChunkDto(Object[] row) {
         var meta = parseMetadata(row[6]);
+        // M4-NULL-SIM: Default to 0.0 instead of null to prevent frontend crash
+        double similarity = row[7] != null ? ((Number) row[7]).doubleValue() : 0.0;
         return new RagChunkDto(
                 (String) row[1],   // source_type
                 (String) row[2],   // source_id
                 (String) row[4],   // chunk_text
                 (String) row[5],   // content_summary
-                row[7] != null ? ((Number) row[7]).doubleValue() : null,  // similarity
+                similarity,
                 (String) meta.get("source_url"),
                 (String) meta.get("doc_number"),
                 (String) meta.get("doc_type"),
@@ -206,6 +208,11 @@ public class RagService {
     @Transactional(readOnly = true)
     public RagSearchResponse search(String query, int limit) {
         long start = System.currentTimeMillis();
+
+        // M8-EMPTY-QUERY: Validate query before embedding
+        if (query == null || query.isBlank()) {
+            return new RagSearchResponse("กรุณาพิมพ์คำถาม", List.of(), 0);
+        }
 
         // 0. Check for unavailable Tier 2 topics
         String disclaimer = checkUnavailableTopic(query);
@@ -265,8 +272,8 @@ public class RagService {
         // 5. Call Gemini chat with context + query
         String answer = chatService.generateAnswer(query, context);
 
-        // 5.5 Confidence disclaimer — if only low-similarity chunks and no HS context
-        if (hsContext == null && prefixContext == null && topScore < minSimilarityThreshold) {
+        // M1-RAG-THRESHOLD + M9-RAG-CONF: Aligned disclaimer threshold with filter (0.70)
+        if (hsContext == null && prefixContext == null && topScore < 0.70) {
             answer = answer + "\n\n⚠️ ข้อมูลนี้มีความเกี่ยวข้องต่ำ กรุณาตรวจสอบเพิ่มเติมที่ กรมศุลกากร https://www.customs.go.th";
         }
 
@@ -288,13 +295,23 @@ public class RagService {
      */
     public void streamSearch(String query, int limit, SseEmitter emitter) {
         sseExecutor.execute(() -> {
+            // M2-SSE-RACE: Use flag to ensure complete() is called exactly once
+            final java.util.concurrent.atomic.AtomicBoolean completed = new java.util.concurrent.atomic.AtomicBoolean(false);
             try {
+                // M8-EMPTY-QUERY: Validate query
+                if (query == null || query.isBlank()) {
+                    emitter.send(SseEmitter.event().name("done")
+                            .data(Map.of("answer", "กรุณาพิมพ์คำถาม", "sources", List.of())));
+                    if (completed.compareAndSet(false, true)) emitter.complete();
+                    return;
+                }
+
                 // 0. Check for unavailable Tier 2 topics
                 String disclaimer = checkUnavailableTopic(query);
                 if (disclaimer != null) {
                     emitter.send(SseEmitter.event().name("done")
                             .data(Map.of("answer", disclaimer, "sources", List.of())));
-                    emitter.complete();
+                    if (completed.compareAndSet(false, true)) emitter.complete();
                     return;
                 }
 
@@ -328,7 +345,7 @@ public class RagService {
                 if (relevant.isEmpty() && hsContext == null && prefixContext == null) {
                     emitter.send(SseEmitter.event().name("done")
                             .data(Map.of("answer", NO_RELEVANT_DATA_MSG, "sources", List.of())));
-                    emitter.complete();
+                    if (completed.compareAndSet(false, true)) emitter.complete();
                     return;
                 }
 
@@ -365,11 +382,10 @@ public class RagService {
                 emitter.send(SseEmitter.event().name("done")
                         .data(Map.of("answer", answer, "sources", sources)));
 
-                emitter.complete();
+                if (completed.compareAndSet(false, true)) emitter.complete();
 
             } catch (IOException e) {
                 log.warn("SSE connection closed by client");
-                // Do NOT attempt to send error — client already disconnected
             } catch (Exception e) {
                 log.error("SSE stream error", e);
                 try {
@@ -378,7 +394,7 @@ public class RagService {
                 } catch (IOException ex) {
                     log.warn("Failed to send SSE error event (client disconnected): {}", ex.getMessage());
                 } finally {
-                    emitter.complete();
+                    if (completed.compareAndSet(false, true)) emitter.complete();
                 }
             }
         });

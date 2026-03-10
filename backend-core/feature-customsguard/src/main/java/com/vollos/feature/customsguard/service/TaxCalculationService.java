@@ -131,7 +131,15 @@ public class TaxCalculationService {
         }
 
         return switch (method.toUpperCase()) {
-            case "SPECIFIC" -> specific;
+            case "SPECIFIC" -> {
+                // C4-EXCISE-NULL: SPECIFIC duty requires quantity — throw if missing
+                if (quantity == null) {
+                    log.warn("Excise SPECIFIC requires quantity but got null — cannot calculate");
+                    throw new IllegalArgumentException(
+                            "สินค้าสรรพสามิตประเภท SPECIFIC ต้องระบุจำนวน (quantity) เพื่อคำนวณภาษี");
+                }
+                yield specific;
+            }
             case "COMPOUND" -> adValorem.max(specific);
             default -> adValorem; // AD_VALOREM
         };

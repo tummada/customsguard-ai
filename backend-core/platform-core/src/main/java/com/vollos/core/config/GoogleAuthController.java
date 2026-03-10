@@ -29,6 +29,9 @@ public class GoogleAuthController {
 
     private static final Logger log = LoggerFactory.getLogger(GoogleAuthController.class);
     private static final String GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo?id_token=";
+    // C1-SSRF: JWT format = 3 base64url segments separated by dots
+    private static final java.util.regex.Pattern JWT_FORMAT = java.util.regex.Pattern.compile(
+            "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$");
 
     private final JwtTokenProvider tokenProvider;
     private final UserRepository userRepository;
@@ -83,9 +86,9 @@ public class GoogleAuthController {
                     user.getId().toString(),
                     user.getEmail());
 
-            log.info("Google login: email={}, tenantId={}, new={}",
-                    user.getEmail(), user.getTenantId(),
-                    !userRepository.findByGoogleId(userInfo.googleId).isPresent());
+            // S7: Hash email instead of logging plaintext
+            String emailHash = Integer.toHexString(user.getEmail().hashCode());
+            log.info("Google login: emailHash={}, tenantId={}", emailHash, user.getTenantId());
 
             return ResponseEntity.ok(Map.of(
                     "accessToken", jwt,
@@ -103,6 +106,12 @@ public class GoogleAuthController {
     }
 
     private GoogleUserInfo verifyGoogleToken(String idToken) throws Exception {
+        // C1-SSRF: Validate JWT format before constructing URI to prevent SSRF
+        if (!JWT_FORMAT.matcher(idToken).matches() || idToken.length() > 4096) {
+            log.warn("Invalid token format — rejected (length={})", idToken.length());
+            return null;
+        }
+
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(GOOGLE_TOKENINFO_URL + idToken))
                 .GET()

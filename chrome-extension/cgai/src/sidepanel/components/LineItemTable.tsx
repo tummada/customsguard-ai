@@ -1,6 +1,5 @@
 import { useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { CheckCircle } from "lucide-react";
 import type { CgDeclarationItem, AuditRisk } from "@/types";
 import TrafficLight from "./TrafficLight";
 
@@ -156,7 +155,7 @@ export default function LineItemTable({ items, riskMap, onEditItem, onConfirmIte
               })}
               <td className="py-2 px-1 w-12 text-center">
                 {item.isConfirmed ? (
-                  <CheckCircle className="w-4 h-4 text-green-600 inline-block" />
+                  <span className="text-green-600 text-sm" title={t("table.confirmed", { defaultValue: "ยืนยันแล้ว" })}>✅</span>
                 ) : (
                   <button
                     onClick={() => onConfirmItem(item.localId!)}

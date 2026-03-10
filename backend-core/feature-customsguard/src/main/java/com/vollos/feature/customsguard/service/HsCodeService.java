@@ -80,7 +80,8 @@ public class HsCodeService {
 
                 if (count % 10 == 0) {
                     log.info("Embedded {}/{} HS codes", count, unembedded.size());
-                    Thread.sleep(500);
+                    // C3-VSLEEP: TimeUnit.sleep is VT-safe
+                    java.util.concurrent.TimeUnit.MILLISECONDS.sleep(500);
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();

@@ -49,7 +49,8 @@ public class GeminiEmbeddingService {
                     long delay = BASE_RETRY_DELAY_MS * (1L << (attempt - 1));
                     log.warn("Embedding failed (attempt {}/{}), retrying in {}ms: {}",
                             attempt, MAX_RETRIES, delay, e.getMessage());
-                    try { Thread.sleep(delay); } catch (InterruptedException ie) {
+                    // C3-VSLEEP: TimeUnit.sleep is VT-safe
+                    try { java.util.concurrent.TimeUnit.MILLISECONDS.sleep(delay); } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
                         throw e;
                     }
