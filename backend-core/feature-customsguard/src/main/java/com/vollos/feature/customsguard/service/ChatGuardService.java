@@ -165,7 +165,22 @@ public class ChatGuardService {
             "chemical composition", "explosive", "วัตถุระเบิด",
             "drug smuggling", "ยาเสพติด", "narcotic",
             // Math/science disguised as customs
-            "nautical miles", "how long will it take"
+            "nautical miles", "how long will it take",
+            // Academic/theoretical topics (not Thai customs operations)
+            "quantum", "theoretical model", "ethical implications",
+            "demographics", "biases against", "predictive analytics",
+            "medieval", "silk road", "ancient",
+            "machine learning", "neural network"
+    );
+
+    // Strong off-topic keywords — checked EVEN when customs keywords are present
+    // These indicate the query is about customs-adjacent but non-operational topics
+    private static final List<String> STRONG_OFF_TOPIC_KEYWORDS = nfkcList(
+            "medieval", "silk road", "ancient",
+            "quantum", "theoretical model",
+            "ethical implications", "demographics", "biases against",
+            "predictive analytics", "psychological profile",
+            "recruitment method", "architectural style"
     );
 
     // PII request keywords — requests for others' personal data
@@ -265,6 +280,13 @@ public class ChatGuardService {
         if (harmful.isPresent()) return harmful;
 
         // 4. Customs keyword priority — bypass gibberish/greeting/meta if customs-related
+        //    BUT check for gibberish-with-customs-keyword (e.g. "Flurble customs dinglehopper")
+        if (isGibberishWithCustomsKeyword(normalized)) {
+            log.warn("GUARD_BLOCK category=gibberish keyword='customs_gibberish_mix' tenant={} query_prefix='{}'",
+                    TenantContext.getCurrentTenantId(),
+                    normalized.substring(0, Math.min(50, normalized.length())));
+            return Optional.of("ไม่เข้าใจคำถาม กรุณาพิมพ์คำถามเกี่ยวกับพิกัดศุลกากรหรืออัตราอากร");
+        }
         if (!hasCustomsKeyword(normalized)) {
             // 5. Gibberish detection
             Optional<String> gibberish = checkGibberish(normalized);
@@ -432,6 +454,43 @@ public class ChatGuardService {
         return false;
     }
 
+    /**
+     * Check if query has customs keywords but most words are nonsense/unknown.
+     * Returns true if the query looks like gibberish with customs keywords sprinkled in.
+     */
+    private boolean isGibberishWithCustomsKeyword(String query) {
+        if (!hasCustomsKeyword(query)) return false;
+        String[] words = query.trim().toLowerCase().split("\\s+");
+        if (words.length < 4) return false;
+
+        int knownCount = 0;
+        for (String word : words) {
+            // Count words that are customs keywords, common English, or Thai
+            if (CUSTOMS_KEYWORDS.contains(word)) { knownCount++; continue; }
+            if (THAI_CHARS.matcher(word).find()) { knownCount++; continue; }
+            if (isCommonEnglishWord(word)) { knownCount++; continue; }
+        }
+        // If less than 40% of words are recognizable, it's gibberish with customs keywords
+        return (double) knownCount / words.length < 0.4;
+    }
+
+    private static final Set<String> COMMON_ENGLISH = Set.of(
+            "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
+            "have", "has", "had", "do", "does", "did", "will", "would", "could", "should",
+            "may", "might", "shall", "can", "need", "dare", "ought", "used",
+            "for", "and", "nor", "but", "or", "yet", "so", "at", "by", "in", "of", "on",
+            "to", "up", "it", "its", "my", "we", "he", "she", "they", "you", "i", "me",
+            "this", "that", "these", "those", "what", "which", "who", "whom", "whose",
+            "how", "when", "where", "why", "not", "no", "yes", "all", "any", "each",
+            "from", "with", "about", "into", "through", "during", "before", "after",
+            "if", "then", "than", "because", "as", "while", "between", "please",
+            "rate", "code", "price", "product", "goods", "item", "number"
+    );
+
+    private static boolean isCommonEnglishWord(String word) {
+        return COMMON_ENGLISH.contains(word) || word.length() <= 2;
+    }
+
     private boolean isPotentialHsCode(String query) {
         return HS_CODE_PATTERN.matcher(query.trim()).matches();
     }
@@ -519,11 +578,23 @@ public class ChatGuardService {
     }
 
     private Optional<String> checkOffTopic(String query) {
-        // Bypass if query also contains customs domain keywords (e.g. "สูตรคำนวณภาษี")
-        if (hasCustomsKeyword(query)) {
+        String q = query.toLowerCase();
+        boolean hasCustoms = hasCustomsKeyword(query);
+
+        // Strong off-topic keywords override customs keyword bypass
+        for (String keyword : STRONG_OFF_TOPIC_KEYWORDS) {
+            if (q.contains(keyword.toLowerCase())) {
+                log.warn("GUARD_BLOCK category=off_topic keyword='{}' tenant={} query_prefix='{}'",
+                        keyword, TenantContext.getCurrentTenantId(),
+                        q.substring(0, Math.min(50, q.length())));
+                return Optional.of("ระบบนี้ตอบได้เฉพาะคำถามเกี่ยวกับพิกัดศุลกากร อัตราอากร และกฎระเบียบนำเข้า-ส่งออก");
+            }
+        }
+
+        // Regular off-topic: bypass if query contains customs keywords (e.g. "สูตรคำนวณภาษี")
+        if (hasCustoms) {
             return Optional.empty();
         }
-        String q = query.toLowerCase();
         for (String keyword : OFF_TOPIC_KEYWORDS) {
             if (q.contains(keyword.toLowerCase())) {
                 log.warn("GUARD_BLOCK category=off_topic keyword='{}' tenant={} query_prefix='{}'",

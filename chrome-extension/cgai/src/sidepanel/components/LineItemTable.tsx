@@ -15,7 +15,7 @@ interface LineItemTableProps {
   onConfirmItem: (localId: number) => void;
 }
 
-type EditableField = "hsCode" | "descriptionEn" | "quantity" | "weight" | "unitPrice" | "cifPrice";
+type EditableField = "hsCode" | "descriptionEn" | "quantity" | "weight" | "unitPrice" | "cifPrice" | "insuranceAmount" | "freightAmount";
 
 /** Validate Thai customs HS code format: DDDD.DD or DDDD.DD.DD (8 or 10 digits with dots) */
 function isValidHsCode(code: string): boolean {
@@ -38,6 +38,8 @@ export default function LineItemTable({ items, riskMap, onEditItem, onConfirmIte
     { key: "quantity", label: t("table.qty"), width: "w-16" },
     { key: "weight", label: t("table.weight"), width: "w-16" },
     { key: "unitPrice", label: t("table.unitPrice"), width: "w-20" },
+    { key: "insuranceAmount", label: t("table.insurance"), width: "w-16" },
+    { key: "freightAmount", label: t("table.freight"), width: "w-16" },
     { key: "cifPrice", label: t("table.cif"), width: "w-20" },
   ];
 

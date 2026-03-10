@@ -43,6 +43,10 @@ public class ExchangeRateSyncService {
     private final ExchangeRateRepository exchangeRateRepo;
     private final HttpClient httpClient;
 
+    /** Track consecutive sync failures for alerting */
+    private int consecutiveFailures = 0;
+    private static final int ALERT_THRESHOLD = 3;
+
     public ExchangeRateSyncService(ExchangeRateRepository exchangeRateRepo) {
         this.exchangeRateRepo = exchangeRateRepo;
         this.httpClient = HttpClient.newBuilder()
@@ -60,9 +64,26 @@ public class ExchangeRateSyncService {
         log.info("ExchangeRate sync started");
         try {
             int count = syncFromCustomsDept();
-            log.info("ExchangeRate sync completed: {} rates updated", count);
+            if (count > 0) {
+                consecutiveFailures = 0;
+                log.info("ExchangeRate sync completed: {} rates updated", count);
+            } else {
+                consecutiveFailures++;
+                log.warn("ExchangeRate sync returned 0 rates (consecutive failures: {})", consecutiveFailures);
+                checkAndAlert();
+            }
         } catch (Exception e) {
-            log.warn("ExchangeRate sync failed (will retry tomorrow): {}", e.getMessage());
+            consecutiveFailures++;
+            log.warn("ExchangeRate sync failed (consecutive failures: {}): {}", consecutiveFailures, e.getMessage());
+            checkAndAlert();
+        }
+    }
+
+    private void checkAndAlert() {
+        if (consecutiveFailures >= ALERT_THRESHOLD) {
+            log.error("ALERT: ExchangeRate sync failed {} consecutive days! " +
+                    "อัตราแลกเปลี่ยนศุลกากรอาจไม่เป็นปัจจุบัน — ตรวจสอบ customs.go.th หรือ sync ด้วยมือ",
+                    consecutiveFailures);
         }
     }
 

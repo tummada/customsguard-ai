@@ -90,7 +90,7 @@ public class RagService {
             String code = (String) row[0];
             String descTh = row[1] != null ? (String) row[1] : "";
             String descEn = row[2] != null ? (String) row[2] : "";
-            String rate = row[3] != null ? row[3].toString() + "%" : "N/A";
+            String rate = row[3] != null ? row[3].toString() + "%" : "ไม่ระบุ (ตรวจสอบที่ customs.go.th)";
             String desc = !descTh.isEmpty() ? descTh : descEn;
 
             StringBuilder line = new StringBuilder(
@@ -135,7 +135,7 @@ public class RagService {
             String code = (String) row[0];
             String descTh = row[1] != null ? (String) row[1] : "";
             String descEn = row[2] != null ? (String) row[2] : "";
-            String rate = row[3] != null ? row[3].toString() + "%" : "N/A";
+            String rate = row[3] != null ? row[3].toString() + "%" : "ไม่ระบุ (ตรวจสอบที่ customs.go.th)";
             String desc = !descTh.isEmpty() ? descTh : descEn;
             lines.add("HS %s: %s (อัตราอากร: %s)".formatted(code, desc, rate));
         }

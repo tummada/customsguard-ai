@@ -130,6 +130,9 @@ public class ScanWorkerService {
             // 4b. Enrich items with HS codes from semantic search
             itemsJson = enrichWithHsCodes(itemsJson);
 
+            // 4c. Calculate VAT 7% and total tax for each item
+            itemsJson = calculateTaxes(itemsJson);
+
             jdbcTemplate.update("""
                 UPDATE ai_jobs SET progress = 80, updated_at = NOW()
                 WHERE id = ?::uuid
@@ -284,6 +287,61 @@ public class ScanWorkerService {
 
         } catch (Exception e) {
             log.error("Failed to parse items JSON for enrichment, returning original", e);
+            return itemsJson;
+        }
+    }
+
+    /**
+     * Calculate VAT 7% and total tax due for each item.
+     * Formula: VAT = (CIF_THB + Import Duty) × 7%
+     *          Total Tax = Import Duty + VAT
+     * Note: Excise tax and municipal tax are not yet implemented (backlog).
+     */
+    private String calculateTaxes(String itemsJson) {
+        try {
+            JsonNode root = objectMapper.readTree(itemsJson);
+            if (!root.isArray()) return itemsJson;
+
+            ArrayNode items = (ArrayNode) root;
+            for (int i = 0; i < items.size(); i++) {
+                ObjectNode item = (ObjectNode) items.get(i);
+                try {
+                    String cifStr = item.has("cifPrice") && !item.get("cifPrice").isNull()
+                            ? item.get("cifPrice").asText() : null;
+                    String dutyRateStr = item.has("dutyRate") && !item.get("dutyRate").isNull()
+                            ? item.get("dutyRate").asText() : null;
+
+                    if (cifStr == null || cifStr.isBlank()) continue;
+
+                    java.math.BigDecimal cif = new java.math.BigDecimal(cifStr.replaceAll("[^\\d.]", ""));
+                    java.math.BigDecimal dutyRate = dutyRateStr != null && !dutyRateStr.isBlank()
+                            ? new java.math.BigDecimal(dutyRateStr.replaceAll("[^\\d.]", ""))
+                                    .divide(java.math.BigDecimal.valueOf(100))
+                            : java.math.BigDecimal.ZERO;
+
+                    // Import Duty = CIF × duty rate (ปัดสตางค์ทิ้ง)
+                    java.math.BigDecimal dutyAmount = cif.multiply(dutyRate)
+                            .setScale(2, java.math.RoundingMode.DOWN);
+
+                    // VAT = (CIF + Duty) × 7%
+                    java.math.BigDecimal vatBase = cif.add(dutyAmount);
+                    java.math.BigDecimal vatAmount = vatBase
+                            .multiply(java.math.BigDecimal.valueOf(0.07))
+                            .setScale(2, java.math.RoundingMode.HALF_UP);
+
+                    // Total Tax = Duty + VAT (excise + municipal tax not yet implemented)
+                    java.math.BigDecimal totalTax = dutyAmount.add(vatAmount);
+
+                    item.put("dutyAmount", dutyAmount.toPlainString());
+                    item.put("vatAmount", vatAmount.toPlainString());
+                    item.put("totalTaxDue", totalTax.toPlainString());
+                } catch (Exception e) {
+                    log.warn("Failed to calculate taxes for item {}: {}", i, e.getMessage());
+                }
+            }
+            return objectMapper.writeValueAsString(items);
+        } catch (Exception e) {
+            log.error("Failed to parse items JSON for tax calculation, returning original", e);
             return itemsJson;
         }
     }

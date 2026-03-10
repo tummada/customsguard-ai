@@ -27,6 +27,8 @@ export interface CgDeclarationItem {
   weight?: string;
   unitPrice?: string;
   cifPrice?: string; // Big.js string for customs-grade precision
+  insuranceAmount?: string; // Insurance component of CIF
+  freightAmount?: string; // Freight component of CIF
   dutyRate?: string;
   dutyAmount?: string;
   currency?: string;

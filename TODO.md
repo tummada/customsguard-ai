@@ -20,8 +20,8 @@ Updated: 2026-03-10
 **สิ่งที่ต้องทำเพิ่ม:**
 - [ ] ทดสอบ auto-sync บน dev — boot backend + trigger POST /sync + ตรวจค่า
 - [ ] ทดสอบ HTML parser กับ customs.go.th จริง (page format อาจเปลี่ยน)
-- [ ] เพิ่ม alert เมื่อ sync ล้มเหลว 3 วันติด (Slack/email notification)
-- [ ] เพิ่มสกุลเงิน: SGD, HKD, AUD, CHF ฯลฯ (parser รองรับแล้ว แต่ยังไม่มี seed)
+- [x] เพิ่ม alert เมื่อ sync ล้มเหลว 3 วันติด — consecutiveFailures counter + log.error ALERT (2026-03-10)
+- [x] เพิ่มสกุลเงิน SGD, HKD, AUD, CHF, CAD, NZD, TWD, MYR, IDR, INR, VND, PHP — V1015 migration (2026-03-10)
 
 ---
 
@@ -51,12 +51,11 @@ Updated: 2026-03-10
 - [x] **RAG text "Form TAL" ผิด** — แก้ใน cg_document_chunks + cg_regulations (V1014)
 
 **ต้องทำเพิ่ม (ก่อนเปิดให้ลูกค้าใช้):**
-- [ ] **คำนวณ VAT 7%** — ปัจจุบันแสดงแค่อากร ไม่รวม VAT → ลูกค้าเห็นต้นทุนต่ำกว่าจริง
-  - สูตร: VAT = (CIF + Import Duty) × 7%
-  - ต้องเพิ่ม columns: `vat_amount`, `total_tax_due` ใน DB + UI
-- [ ] **เช็ค De Minimis 2026** — ⚠️ กฎเปลี่ยนแล้ว! ตั้งแต่ 1 ม.ค. 2026 ยกเลิกยกเว้น ≤1,500 บาท → สินค้าทุกรายการต้องจ่ายอากร+VAT ตั้งแต่ 1 บาท → ถ้ามี logic ยกเว้นอยู่ต้องลบออก
+- [x] **คำนวณ VAT 7%** — เพิ่ม `calculateTaxes()` ใน ScanWorkerService: VAT = (CIF + Duty) × 7%, ปัดสตางค์ทิ้ง (2026-03-10)
+  - Frontend มี vatAmount + totalTaxDue fields + total cost summary ใน ScanPanel แล้ว (จาก audit fix D6/D7)
+- [x] **เช็ค De Minimis 2026** — ไม่มี logic ยกเว้นใน codebase (ถูกต้องแล้ว), V1015 migration อัพเดท seed text ระบุว่ายกเลิกแล้ว (2026-03-10)
 - [ ] **Excise tax สำหรับสินค้าเฉพาะ** — เหล้า, บุหรี่, รถยนต์ มีสรรพสามิตเพิ่ม (ทำทีหลังได้)
-- [ ] **วันที่ พ.ศ. ครบทุกจุด** — ตอนนี้แค่ ExchangeRateBanner แปลง พ.ศ. ที่อื่นยังเป็น ค.ศ.
+- [x] **วันที่ พ.ศ. ครบทุกจุด** — ตรวจแล้ว: ExchangeRateBanner เป็นจุดเดียวที่แสดงวันที่ให้ user และมี +543 แล้ว (2026-03-10)
 
 ---
 
@@ -117,12 +116,12 @@ Updated: 2026-03-10
 
 ---
 
-### 🟡 UsageBadge ไม่ sync ระหว่าง tab (Bug)
+### 🟡 UsageBadge ไม่ sync ระหว่าง tab (Bug) — ✅ แก้แล้ว
 
 **ปัญหา:** เปิด 2 tab ของ extension พร้อมกัน — Tab A ใช้ quota ไปแล้ว แต่ Tab B ยังแสดงค่าเก่า
 **สาเหตุ:** React state เป็น per-tab, ไม่มี cross-tab notification
-**แก้:** ใช้ `chrome.storage.onChanged` listener หรือ BroadcastChannel API เพื่อ sync state
-- [ ] เพิ่ม cross-tab quota sync
+**แก้แล้ว (2026-03-10):** เพิ่ม `chrome.storage.session` + `chrome.storage.onChanged` listener ใน `useUsage.ts`
+- [x] เพิ่ม cross-tab quota sync
 
 ---
 
@@ -210,7 +209,7 @@ Updated: 2026-03-10
   - [x] Excise → 187 PDFs processed → **41 excise rates** (5 failed JSON parse)
 - [x] **รัน embed** — 51 chunks ใหม่ (LPI 9 + Excise 42), total 4,729 chunks ✅ (2026-03-09)
 - [x] **รัน eval** — ⚠️ Regression: 90.1% → 81% เพราะ test suite ใหม่ยากกว่า (MFN duty N/A, red team bypass) ✅ (2026-03-09)
-- [ ] **แก้ regression:** MFN duty rates "N/A" + redteam_offtopic/gibberish bypass ChatGuard
+- [x] **แก้ regression:** MFN duty "N/A" → เปลี่ยนเป็น "ไม่ระบุ (ตรวจสอบที่ customs.go.th)" ใน RagService + ChatGuard เพิ่ม strong off-topic keywords + gibberish-with-customs detection (2026-03-10)
 - [x] **🐛 Bug: ChatGuard Thai NFKC normalization** — แก้แล้ว: เพิ่ม `nfkc()`, `nfkcPattern()`, `nfkcSet()`, `nfkcList()` helpers pre-normalize ทุก Thai pattern/keyword ด้วย NFKC ตอน class load ✅ (2026-03-09)
 - [ ] ทดสอบ end-to-end บน dev แล้วค่อย deploy production
 
@@ -337,7 +336,7 @@ Updated: 2026-03-10
 
 ---
 
-### 🔍 Code Audit Findings (2026-03-10) — 8 CRITICAL, 8 HIGH, 10 MEDIUM, 1 LOW — ✅ แก้แล้ว 24/27
+### 🔍 Code Audit Findings (2026-03-10) — 8 CRITICAL, 8 HIGH, 10 MEDIUM, 1 LOW — ✅ แก้แล้ว 25/27
 
 **ที่มา:** Full Audit โดย vollos-code-auditor v2 (รวม Domain Compliance) — static analysis ทุก layer
 **สรุป:** 27 findings | Security 6 | Logic 5 | Quality 3 | Architecture 4 | Domain 9
@@ -372,7 +371,7 @@ Updated: 2026-03-10
 - [x] **D6: Frontend ขาด vatAmount/totalTax** — เพิ่มใน CgDeclarationItem type
 - [x] **D7: ไม่แสดง total cost** — เพิ่ม Duty + VAT + Total Tax summary ใน ScanPanel
 
-#### 🟡 MEDIUM (10 รายการ) — ✅ แก้ 8/10
+#### 🟡 MEDIUM (10 รายการ) — ✅ แก้ 9/10
 
 - [x] **S5: SQL string concat** — False positive (countColumn จาก code logic ไม่ใช่ user input) เพิ่ม SAFE comment
 - [x] **S6: dangerouslySetInnerHTML** — False positive (config เป็น dev-controlled TS files ไม่ใช่ user input)
@@ -382,7 +381,7 @@ Updated: 2026-03-10
 - [x] **Q2: No exponential backoff** — เปลี่ยนจาก fixed 15s → exponential backoff (15s, 30s, 60s)
 - [x] **A3: Docker resource limits** — ตรวจแล้ว: CPU 1.8 / RAM 6.5GB อยู่ในเกณฑ์ 2CPU/8GB
 - [x] **A4: Hardcoded MinIO defaults** — ลบ `:-minioadmin` defaults ต้องตั้งใน .env
-- [ ] **D8: CIF ไม่แยก Insurance+Freight** — backlog (ต้องออกแบบ UI เพิ่ม input fields)
+- [x] **D8: CIF ไม่แยก Insurance+Freight** — เพิ่ม `insuranceAmount` + `freightAmount` fields ใน types + LineItemTable columns + i18n (2026-03-10)
 - [ ] **D9: ไม่รองรับ Specific Duty** — backlog (ต้อง lookup duty type ต่อ HS Code จาก DB)
 
 #### 🟢 LOW (1 รายการ)

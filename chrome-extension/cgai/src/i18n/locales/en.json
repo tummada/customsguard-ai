@@ -57,6 +57,8 @@
     "qty": "Qty",
     "weight": "Weight (KG)",
     "unitPrice": "Unit Price",
+    "insurance": "Insurance",
+    "freight": "Freight",
     "cif": "CIF",
     "confirm": "Confirm",
     "vat": "VAT 7%",

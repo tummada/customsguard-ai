@@ -57,6 +57,8 @@
     "qty": "จำนวน",
     "weight": "น้ำหนัก (KG)",
     "unitPrice": "ราคาต่อหน่วย",
+    "insurance": "ประกันภัย",
+    "freight": "ค่าขนส่ง",
     "cif": "CIF",
     "confirm": "ยืนยัน",
     "vat": "VAT 7%",
