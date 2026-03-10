@@ -37,6 +37,7 @@ public class DocumentChunkService {
         List<RegulationEntity> regulations = regulationRepo.findAll();
         int chunked = 0;
         int embedded = 0;
+        int failed = 0;
 
         // Pre-fetch all regulation IDs that already have chunks to avoid N+1 queries
         java.util.Set<String> alreadyChunked = new java.util.HashSet<>(
@@ -79,6 +80,7 @@ public class DocumentChunkService {
                     log.warn("Embedding interrupted at chunk {}", i);
                     return Map.of("chunked", chunked, "embedded", embedded);
                 } catch (Exception e) {
+                    failed++;
                     log.error("Failed to embed chunk {} of '{}': {}", i, reg.getTitle(), e.getMessage());
                 }
             }
@@ -86,8 +88,11 @@ public class DocumentChunkService {
             log.info("Completed regulation '{}': {} chunks", reg.getTitle(), chunks.size());
         }
 
-        log.info("Chunk & embed complete: chunked={}, embedded={}", chunked, embedded);
-        return Map.of("chunked", chunked, "embedded", embedded);
+        if (failed > 0) {
+            log.error("ALERT: Chunk & embed completed with {} failures — some chunks missing from RAG", failed);
+        }
+        log.info("Chunk & embed complete: chunked={}, embedded={}, failed={}", chunked, embedded, failed);
+        return Map.of("chunked", chunked, "embedded", embedded, "failed", failed);
     }
 
     /**

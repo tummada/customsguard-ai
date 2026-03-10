@@ -17,14 +17,17 @@ public class SecretValidationConfig {
 
     private final String jwtSecret;
     private final String adminSecret;
+    private final String geminiApiKey;
     private final Environment environment;
 
     public SecretValidationConfig(
             @Value("${jwt.secret:}") String jwtSecret,
             @Value("${admin.secret:}") String adminSecret,
+            @Value("${gemini.api-key:}") String geminiApiKey,
             Environment environment) {
         this.jwtSecret = jwtSecret;
         this.adminSecret = adminSecret;
+        this.geminiApiKey = geminiApiKey;
         this.environment = environment;
     }
 
@@ -33,22 +36,41 @@ public class SecretValidationConfig {
         boolean isDevProfile = Arrays.asList(environment.getActiveProfiles()).contains("dev")
                 || Arrays.asList(environment.getActiveProfiles()).isEmpty();
 
-        if (jwtSecret.contains("vollos-dev-secret") || jwtSecret.contains("change-in-production")) {
+        // Reject empty or blank secrets in any profile
+        if (jwtSecret == null || jwtSecret.isBlank()) {
             if (isDevProfile) {
-                log.warn("⚠️ JWT secret is using default dev value. Change in production!");
+                log.warn("JWT_SECRET not set — set it via env var before production");
             } else {
-                log.error("🚨 CRITICAL: JWT secret is using default dev value in non-dev profile! Set JWT_SECRET env var.");
+                log.error("CRITICAL: JWT_SECRET is empty in non-dev profile! Set JWT_SECRET env var.");
+                throw new IllegalStateException("JWT_SECRET must be set in production");
+            }
+        } else if (jwtSecret.contains("vollos-dev-secret") || jwtSecret.contains("change-in-production")) {
+            if (isDevProfile) {
+                log.warn("JWT secret is using default dev value. Change in production!");
+            } else {
+                log.error("CRITICAL: JWT secret is using default dev value in non-dev profile!");
                 throw new IllegalStateException("Default JWT secret not allowed in production");
             }
         }
 
-        if (adminSecret.contains("vollos-admin-secret-change-me")) {
+        if (adminSecret == null || adminSecret.isBlank()) {
             if (isDevProfile) {
-                log.warn("⚠️ Admin secret is using default value. Change in production!");
+                log.warn("ADMIN_SECRET not set — set it via env var before production");
             } else {
-                log.error("🚨 CRITICAL: Admin secret is using default value in non-dev profile! Set ADMIN_SECRET env var.");
+                log.error("CRITICAL: ADMIN_SECRET is empty in non-dev profile! Set ADMIN_SECRET env var.");
+                throw new IllegalStateException("ADMIN_SECRET must be set in production");
+            }
+        } else if (adminSecret.contains("vollos-admin-secret-change-me")) {
+            if (isDevProfile) {
+                log.warn("Admin secret is using default value. Change in production!");
+            } else {
+                log.error("CRITICAL: Admin secret is using default value in non-dev profile!");
                 throw new IllegalStateException("Default admin secret not allowed in production");
             }
+        }
+
+        if (geminiApiKey == null || geminiApiKey.isBlank()) {
+            log.warn("GEMINI_API_KEY not set — AI features (RAG, scan, embedding) will fail silently");
         }
     }
 }

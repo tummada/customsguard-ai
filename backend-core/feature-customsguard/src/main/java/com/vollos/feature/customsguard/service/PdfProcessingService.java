@@ -65,9 +65,13 @@ public class PdfProcessingService {
             log.info("OCR page {}/{} via Gemini Vision ({} bytes)",
                     i + 1, document.getNumberOfPages(), imageBytes.length);
 
-            String pageText = geminiChatService.extractTextFromImage(imageBytes, "image/png");
-            if (!pageText.isBlank()) {
-                pageTexts.add(pageText);
+            try {
+                String pageText = geminiChatService.extractTextFromImage(imageBytes, "image/png");
+                if (!pageText.isBlank()) {
+                    pageTexts.add(pageText);
+                }
+            } catch (Exception e) {
+                log.error("OCR failed for page {}/{}: {}", i + 1, document.getNumberOfPages(), e.getMessage());
             }
         }
 

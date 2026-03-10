@@ -10,6 +10,7 @@ import com.vollos.feature.customsguard.repository.FtaRateRepository;
 import com.vollos.feature.customsguard.repository.HsCodeRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,14 +49,14 @@ public class RagService {
             "ตอบโต้การทุ่มตลาด"
     );
 
-    private static final double MIN_SIMILARITY_THRESHOLD = 0.65;
+    private final double minSimilarityThreshold;
     private static final String NO_RELEVANT_DATA_MSG =
             "ยังไม่พบข้อมูลที่ตรงกับคำถามในฐานข้อมูลครับ " +
             "ลองระบุชื่อสินค้าให้ชัดเจนขึ้น เช่น \"พิกัดกุ้งแช่แข็ง\" หรือ \"อัตราอากรคอมพิวเตอร์\" " +
             "หรือตรวจสอบเพิ่มเติมที่ กรมศุลกากร https://www.customs.go.th";
 
     private static final int HS_CODE_CONTEXT_LIMIT = 8;
-    private static final double HS_CODE_SIMILARITY_THRESHOLD = 0.55;
+    private final double hsCodeSimilarityThreshold;
     // Matches HS code patterns: 0101, 0306.17, 0306.17.00, etc.
     private static final Pattern HS_CODE_IN_QUERY = Pattern.compile("\\b(\\d{4})(?:\\.\\d{2}(?:\\.\\d{2})?)?\\b");
 
@@ -70,12 +71,16 @@ public class RagService {
                       DocumentChunkRepository chunkRepo,
                       HsCodeRepository hsCodeRepo,
                       FtaRateRepository ftaRateRepo,
-                      GeminiChatService chatService) {
+                      GeminiChatService chatService,
+                      @Value("${customsguard.rag.min-similarity-threshold:0.65}") double minSimilarityThreshold,
+                      @Value("${customsguard.rag.hs-code-similarity-threshold:0.55}") double hsCodeSimilarityThreshold) {
         this.embeddingService = embeddingService;
         this.chunkRepo = chunkRepo;
         this.hsCodeRepo = hsCodeRepo;
         this.ftaRateRepo = ftaRateRepo;
         this.chatService = chatService;
+        this.minSimilarityThreshold = minSimilarityThreshold;
+        this.hsCodeSimilarityThreshold = hsCodeSimilarityThreshold;
     }
 
     /**
@@ -214,7 +219,7 @@ public class RagService {
         // 3. Filter by similarity threshold
         double topScore = chunks.isEmpty() ? 0 : ((Number) chunks.get(0)[7]).doubleValue();
         List<Object[]> relevant = chunks.stream()
-                .filter(row -> row[7] != null && ((Number) row[7]).doubleValue() >= MIN_SIMILARITY_THRESHOLD)
+                .filter(row -> row[7] != null && ((Number) row[7]).doubleValue() >= minSimilarityThreshold)
                 .toList();
 
         // 3.5 Hybrid search HS codes (full-text + semantic) for complementary context
@@ -251,6 +256,11 @@ public class RagService {
 
         // 5. Call Gemini chat with context + query
         String answer = chatService.generateAnswer(query, context);
+
+        // 5.5 Confidence disclaimer — if only low-similarity chunks and no HS context
+        if (hsContext == null && prefixContext == null && topScore < minSimilarityThreshold) {
+            answer = answer + "\n\n⚠️ ข้อมูลนี้มีความเกี่ยวข้องต่ำ กรุณาตรวจสอบเพิ่มเติมที่ กรมศุลกากร https://www.customs.go.th";
+        }
 
         // 6. Map chunks to DTOs
         List<RagChunkDto> sources = relevant.stream()
@@ -294,7 +304,7 @@ public class RagService {
                 // 3. Filter by similarity threshold
                 double topScore = chunks.isEmpty() ? 0 : ((Number) chunks.get(0)[7]).doubleValue();
                 List<Object[]> relevant = chunks.stream()
-                        .filter(row -> row[7] != null && ((Number) row[7]).doubleValue() >= MIN_SIMILARITY_THRESHOLD)
+                        .filter(row -> row[7] != null && ((Number) row[7]).doubleValue() >= minSimilarityThreshold)
                         .toList();
 
                 // 3.5 Hybrid search HS codes
@@ -351,7 +361,8 @@ public class RagService {
             } catch (Exception e) {
                 log.error("SSE stream error", e);
                 try {
-                    emitter.send(SseEmitter.event().name("error").data(e.getMessage()));
+                    emitter.send(SseEmitter.event().name("error")
+                            .data("เกิดข้อผิดพลาดในการค้นหา กรุณาลองใหม่อีกครั้ง"));
                     emitter.complete();
                 } catch (IOException ex) {
                     log.warn("Failed to send SSE error event: {}", ex.getMessage());

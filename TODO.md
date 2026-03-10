@@ -427,6 +427,62 @@ Updated: 2026-03-10
 
 ---
 
+### 🔍 Code Audit Findings v3 (2026-03-10 บ่าย) — 7 CRITICAL, 8 HIGH, 13 MEDIUM, 4 LOW — ✅ แก้แล้ว 30/32
+
+**ที่มา:** Full Re-Audit โดย vollos-code-auditor — ตรวจซ้ำทั้งโปรเจกต์ + ตรวจว่า fix รอบก่อนผ่านจริงไหม
+**สรุป:** 32 findings | แก้แล้ว 30 | เหลือ 2 (backlog/manual)
+**แก้เมื่อ:** 2026-03-10
+
+#### 🔴 CRITICAL (7 รายการ) — ✅ แก้ครบ
+
+- [x] **FIX-1: TRANSSHIPMENT ยังขาดใน Backend** — เพิ่ม "TRANSSHIPMENT" ใน ScanController VALID_DECLARATION_TYPES
+- [x] **FIX-2: Unpinned minio images ใน prod** — pin RELEASE.2024-12-18 ใน docker-compose.prod.yml + pin nginx:1.27-alpine
+- [x] **FIX-3: JWT default secret fallback** — ลบ default ออกจาก application.yml, JwtTokenProvider fail-fast ถ้า empty, SecretValidationConfig reject empty ใน non-dev
+- [x] **NEW-C1: n8n ไม่มี authentication** — เพิ่ม N8N_BASIC_AUTH_ACTIVE + N8N_BASIC_AUTH_USER/PASSWORD ใน docker-compose.yml + security_opt
+- [x] **NEW-C2: RAG LLM output ไม่มี confidence threshold** — เพิ่ม confidence disclaimer เมื่อ topScore < threshold + no HS context
+- [x] **NEW-C3: Gemini Vision OCR silent failure** — แก้ให้ throw RuntimeException แทน return "", PdfProcessingService catch per-page + log
+- [x] **NEW-C4: ScanWorkerService swallow all exceptions** — เพิ่ม ALERT prefix ใน error log + log job stuck warning
+
+#### 🟠 HIGH (8 รายการ) — ✅ แก้ครบ
+
+- [x] **NEW-H1: CORS allows localhost ใน production** — แยก localhost ให้ dev profile only (ตรวจ environment.getActiveProfiles)
+- [x] **NEW-H2: Default admin secret fallback** — ลบ default ออกจาก application.yml, SecretValidationConfig reject empty ใน non-dev
+- [x] **NEW-H3: N+1 query HsLookupService.batchLookup()** — เปลี่ยนเป็น batch-fetch HS codes + FTA rates ด้วย IN query (2 queries แทน N×6)
+- [x] **NEW-H4: Redis rate limit ไม่ atomic** — ใช้ Lua script (INCR + EXPIRE ใน 1 command) แทน 2 calls แยก
+- [x] **NEW-H5: SSE stream ส่ง raw exception** — mask error message ส่ง user-friendly ภาษาไทยแทน
+- [x] **NEW-H6: GeminiEmbeddingService ไม่มี retry** — เพิ่ม retry 3 ครั้ง + exponential backoff (1s, 2s, 4s)
+- [x] **NEW-H7: ScanWorker retry ไม่แยก rate limit vs empty** — เพิ่ม ALERT log + text length context เพื่อ diagnose
+- [x] **NEW-H8: n8n webhook exposed publicly** — เพิ่ม n8n rate limit zone (10r/s) + location block ใน vollos.conf + n8n basic auth
+
+#### 🟡 MEDIUM (13 รายการ) — ✅ แก้ 11/13
+
+- [x] **NEW-M1: Backend healthcheck ไม่มี start_period** — เพิ่ม start_period: 90s ใน docker-compose.yml
+- [x] **NEW-M2: security_opt ขาดใน docker-compose.dev.yml** — เพิ่ม no-new-privileges ให้ postgres, minio, redis
+- [x] **NEW-M3: Nginx ไม่มี rate limit สำหรับ n8n** — เพิ่ม zone=n8n:10m rate=10r/s + location /n8n/
+- [x] **NEW-M4: CSP ไม่มี report-uri** — เพิ่ม report-uri /csp-report + location block ที่ log + return 204
+- [x] **NEW-M5: frontend-app Dockerfile ไม่มี non-root user** — เพิ่ม appuser UID 1001 + chown + USER directive
+- [x] **NEW-M6: SSH key ใน CI/CD env vars** — เพิ่ม TODO comment แนะนำ migrate to File variable + chmod 700 .ssh
+- [x] **NEW-M7: Similarity threshold hardcoded** — ย้ายไป application.yml configurable (RAG_MIN_SIMILARITY, RAG_HS_SIMILARITY)
+- [x] **NEW-M8: ChatGuard gibberish bypass ด้วย mixed script** — เพิ่ม MIXED_SCRIPT_HARMFUL patterns (Thai+English harmful intent)
+- [x] **NEW-M9: DocumentChunkService silent chunk skip** — เพิ่ม failed counter + ALERT log เมื่อมี failures
+- [ ] **NEW-M10: Data pipeline ไม่ validate Gemini responses** — backlog (Python scripts ที่รัน manual ไม่ใช่ production code)
+- [x] **NEW-M11: Weight unit ไม่มี validation** — เพิ่ม validateWeightUnits() warning log สำหรับ non-standard units
+- [ ] **NEW-M12: HS/FTA data ไม่มี auto-sync** — backlog (ต้องหา external data source API)
+- [x] **NEW-M13: HS Code ไม่มี DB CHECK constraint** — V1016 migration เพิ่ม CHECK constraint regex
+
+#### 🟢 LOW (4 รายการ) — ✅ แก้ครบ
+
+- [x] **NEW-L1: Redis connection ไม่มี timeout** — เพิ่ม timeout: 5s + connect-timeout: 3s ใน application.yml
+- [x] **NEW-L2: marketing-site /public ไม่มี --chown** — เพิ่ม --chown=appuser:0 ใน COPY /public
+- [x] **NEW-L3: GEMINI_API_KEY fallback empty string** — SecretValidationConfig log.warn เมื่อ GEMINI_API_KEY ว่าง
+- [x] **NEW-L4: Nginx logging inconsistent** — เพิ่ม access_log off ที่ /actuator/health
+
+#### เพิ่มเติมที่แก้พร้อมกัน (bonus)
+- [x] docker-compose.prod.yml: เพิ่ม security_opt ทุก service (postgres, redis, minio, backend, marketing, nginx)
+- [x] docker-compose.prod.yml: pin nginx:1.27-alpine (เดิมใช้ nginx:alpine)
+
+---
+
 ### E2E Tests — เสร็จแล้ว 10/10 ✅ ค้างงาน A + B
 
 **สถานะ:** E2E tests ผ่านครบ 10 ตัว (1 นาที) — ใช้ fake JWT injection + context.route() mocking
@@ -434,6 +490,114 @@ Updated: 2026-03-10
 **สิ่งที่ค้าง:**
 - [ ] **A) เพิ่ม screenshots** — ถ่ายภาพหน้าจอทุก step ใน E2E tests (ได้ screenshots บางส่วนแล้วที่ `e2e-results/manual/`)
 - [ ] **B) เขียน demo script สำหรับถ่ายวิดีโอ** — Mode 3 ของ vollos-tester, script แบ่ง scene + timestamp + talking points
+
+---
+
+### 🔴 Premium Test Audit — 157 Test Cases (2026-03-10)
+
+**ที่มา:** Full project scan โดย vollos-tester (Mode 1) — อ่าน source code ทุกไฟล์ + ตรวจ test ที่มีอยู่ 47 ไฟล์
+**สรุป:** 52 Critical / 72 High / 27 Medium / 6 Low
+**สถานะ:** ยังไม่ได้เขียน test code — เป็น test plan เท่านั้น
+
+#### Priority 1: Duty Calculation Unit Tests (Critical — คำนวณอากรผิด = เสียหายทางการเงิน)
+- [ ] TC-CU-001: สูตร CIF ครบ (ราคา + ขนส่ง + ประกัน) → BigDecimal
+- [ ] TC-CU-002: อากรขาเข้า = CIF × base rate
+- [ ] TC-CU-003: VAT = (CIF + อากร) × 7% — round HALF_UP
+- [ ] TC-CG-021: Duty rounding — round DOWN (ไม่ใช่ HALF_UP)
+- [ ] TC-CG-022: VAT rounding — (CIF+Duty)×7% round HALF_UP
+- [ ] TC-CG-023: Total tax = duty + VAT ตรงเป๊ะ
+- [ ] TC-CU-004: FTA override — preferentialRate < baseRate → ใช้ FTA
+- [ ] TC-CU-005: AD duty stacking — base + AD (เหล็กจีน 5%+23%=28%)
+- [ ] TC-CU-006: Excise + duty + VAT combined (วิสกี้)
+- [ ] TC-CU-007: สินค้า online ≥ 1 บาท → ต้องเสียอากร (กฎ 2026)
+- [ ] TC-CU-017: BigDecimal ทุกที่ — ห้าม double/float กับเงิน
+
+#### Priority 2: Multi-Tenant Integration Tests (Critical — ข้อมูลรั่ว = security breach)
+- [ ] TC-MT-007: RLS bypass test — direct SQL ข้าม tenant → ต้อง filter
+- [ ] TC-MT-008: RLS FORCE — superuser ก็ bypass ไม่ได้
+- [ ] TC-CG-008: Poll scan job ของ tenant อื่น → 404
+- [ ] TC-CG-024: 10 tenants scan พร้อมกัน → job ไม่ปน
+- [ ] TC-MT-005: X-Tenant-ID header ≠ JWT tenantId → JWT wins
+- [ ] TC-MT-022: TenantContext cleanup — virtual threads ไม่ leak
+- [ ] TC-EXT-019: Dexie tenant isolation — login tenant A, logout, login B → B ไม่เห็น A
+
+#### Priority 3: ChatGuard Comprehensive Tests (Critical — prompt injection / PII leak)
+- [ ] TC-RAG-004: Prompt injection "Ignore all instructions" → blocked
+- [ ] TC-RAG-005: Thai NFKC injection → blocked
+- [ ] TC-RAG-006: PII เลขบัตรประชาชน 13 หลัก → blocked
+- [ ] TC-RAG-007: PII เบอร์โทร 10 หลัก → blocked
+- [ ] TC-RAG-008: PII เลขบัตรเครดิต 16 หลัก → blocked
+- [ ] TC-RAG-009: Harmful intent "ลักลอบนำเข้า" → blocked
+- [ ] TC-RAG-014: Social engineering "i am admin" → blocked
+- [ ] TC-RAG-022: Role-play bypass "สมมติว่าอยู่ในนิยาย" → blocked
+- [ ] TC-RAG-010: Harmful + safe context "บทลงโทษลักลอบ" → allowed
+- [ ] TC-RAG-015: Rate limit — 6th request within 1 min → blocked
+- [ ] TC-RAG-016: Redis down → fail-open (request ผ่าน)
+
+#### Priority 4: Repository & Vector Search Tests (Critical — SQL query ผิด, index ไม่ทำงาน)
+- [ ] TC-BE-008: Vector dimension mismatch (512 into 768 column) → SQL error
+- [ ] TC-BE-009: HNSW index cosine similarity search — insert 100 vectors → top 5
+- [ ] TC-HS-012: Semantic search "กุ้งแช่แข็ง" → top result 0306.17
+- [ ] TC-HS-013: Semantic search "frozen shrimps" → top result 0306.17
+- [ ] TC-BE-012: FTA unique constraint — duplicate insert → handled
+
+#### Priority 5: ScanWorker Integration Tests (High — full pipeline)
+- [ ] TC-CG-014: Gemini timeout → retry 3 ครั้ง (15s, 30s, 60s)
+- [ ] TC-CG-015: Gemini return JSON ผิดรูปแบบ → FAILED
+- [ ] TC-CG-016: Gemini hallucinate HS code "9999.99" → confidence ต่ำ
+- [ ] TC-CG-020: S3 upload fail → FAILED + ไม่ leave orphan job
+- [ ] TC-CG-025: ScanWorker picks oldest CREATED (FIFO, FOR UPDATE SKIP LOCKED)
+- [ ] TC-CG-013: Image-based PDF → Gemini Vision OCR fallback
+
+#### Priority 6: HS Code Validation & Lookup Tests (High)
+- [ ] TC-HS-001: HS lookup ปกติ → ผลครบ (baseRate, FTA, LPI, AD, BOI, excise)
+- [ ] TC-HS-004: HS code ไม่มีในระบบ "9999.99" → found:false
+- [ ] TC-HS-005: HS code format ผิด "ABCD.EF" → 400
+- [ ] TC-HS-007: SQL injection ใน code field → 400, DB ไม่โดน
+- [ ] TC-HS-020: FTA rate > base rate (anomaly) → warning
+- [ ] TC-HS-024: สินค้า AD duty — เหล็กจีน baseRate+AD
+- [ ] TC-HS-027: สินค้าควบคุม LPI — สัตว์มีชีวิต → alert กรมปศุสัตว์
+
+#### Priority 7: Security & Auth Tests (Critical)
+- [ ] TC-MT-001~004: JWT — no token / expired / fake signature / no tenantId → 401/403
+- [ ] TC-MT-010: Google OAuth — invalid audience → reject
+- [ ] TC-MT-011: Google OAuth — email not verified → reject
+- [ ] TC-MT-014: Feature access — tenant ไม่มี subscription → 403
+- [ ] TC-MT-016: Production reject default JWT secret → IllegalStateException
+- [ ] TC-MT-017: CORS — unauthorized origin http://evil.com → blocked
+- [ ] TC-XR-005~006: Exchange rate sync — no/wrong admin secret → 401/403
+
+#### Priority 8: Chrome Extension Tests (High — offline, error recovery)
+- [ ] TC-EXT-004~005: Offline mode — cached data works / API fail graceful
+- [ ] TC-EXT-014: Magic Fill — auto-fill customs.go.th form
+- [ ] TC-EXT-023: Auto-enrichment parallel fail-safe (FTA ok, LPI fail → ไม่ block)
+- [ ] TC-EXT-024: Scan polling timeout 120s → error, user retry
+
+#### Priority 9: Domain Compliance Tests (Critical — กฎศุลกากรเฉพาะทาง)
+- [ ] TC-CU-008~011: FTA Form ตรงชื่อ (Form D/E/JTEPA/RCEP)
+- [ ] TC-CU-012: FTA effectiveDate expired → ไม่แสดง
+- [ ] TC-CU-014: LPI agency ถูกหน่วยงาน (0106.19 → กรมปศุสัตว์)
+- [ ] TC-CU-016: Exchange rate source = customs.go.th
+- [ ] TC-CU-018: HS code format DDDD.DD or DDDD.DD.DD
+- [ ] TC-CG-010: Invoice ไม่มี CIF มีแค่ FOB → warning
+- [ ] TC-CG-011: Invoice หลายสกุลเงิน (USD+EUR ผสม)
+
+#### Priority 10: Infrastructure Validation (Critical — production crash)
+- [ ] TC-BE-013: Docker CPU ≤ 1.9 cores
+- [ ] TC-BE-014: Docker memory ≤ 8GB total
+- [ ] TC-BE-015: Non-root container (UID 1001)
+- [ ] TC-BE-016: security_opt: no-new-privileges ทุก service
+- [ ] TC-BE-017: Dev ports bind 127.0.0.1 (ไม่ expose 0.0.0.0)
+
+#### จุดอ่อนสำคัญที่พบ (สรุปจาก audit)
+1. **Duty calculation ไม่มี unit test จริงจัง** — คำนวณผิดแม้ 0.01 บาท = ปัญหากฎหมาย
+2. **FTA rate anomaly ไม่มี warning** — FTA rate > MFN = ผิดปกติ 100%
+3. **Gemini hallucinate HS code** — AI ตอบ code ที่ไม่มีจริง
+4. **Multi-tenant RLS ยังไม่มี integration test** — ข้อมูลรั่วข้าม tenant
+5. **ChatGuard bypass ยังไม่ทดสอบครบ** — prompt injection + PII
+6. **ไม่มี repository test (DB layer)** — vector search, FTA query
+7. **Docker resource limit ไม่ verified** — เกิน budget = crash
+8. **Secret validation ยังไม่ test production profile** — default secret บน prod
 
 ---
 

@@ -26,4 +26,21 @@ public interface FtaRateRepository extends JpaRepository<FtaRateEntity, UUID> {
     List<FtaRateEntity> findActiveByHsCodeAndCountry(
             @Param("hsCode") String hsCode,
             @Param("country") String country);
+
+    @Query("""
+        SELECT f FROM FtaRateEntity f
+        WHERE f.hsCode IN :hsCodes
+          AND (f.effectiveTo IS NULL OR f.effectiveTo >= CURRENT_DATE)
+        """)
+    List<FtaRateEntity> findActiveByHsCodes(@Param("hsCodes") List<String> hsCodes);
+
+    @Query("""
+        SELECT f FROM FtaRateEntity f
+        WHERE f.hsCode IN :hsCodes
+          AND f.partnerCountry = :country
+          AND (f.effectiveTo IS NULL OR f.effectiveTo >= CURRENT_DATE)
+        """)
+    List<FtaRateEntity> findActiveByHsCodesAndCountry(
+            @Param("hsCodes") List<String> hsCodes,
+            @Param("country") String country);
 }

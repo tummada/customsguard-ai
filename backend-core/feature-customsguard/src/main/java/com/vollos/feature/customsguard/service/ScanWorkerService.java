@@ -107,7 +107,7 @@ public class ScanWorkerService {
                 WHERE id = ?::uuid
                 """, jobId);
 
-            // 4. Send to Gemini for item extraction (with retry for rate limits)
+            // 4. Send to Gemini for item extraction (with retry for rate limits/empty)
             String itemsJson = null;
             for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
                 itemsJson = extractItemsWithGemini(extractedText);
@@ -115,19 +115,24 @@ public class ScanWorkerService {
 
                 if (attempt < MAX_RETRIES) {
                     long delay = BASE_RETRY_DELAY_MS * (1L << (attempt - 1)); // exponential backoff
-                    log.warn("Gemini returned empty (attempt {}/{}), retrying in {}s...",
+                    log.warn("Gemini returned empty items (attempt {}/{}) — could be rate-limited or no data, retrying in {}s...",
                             attempt, MAX_RETRIES, delay / 1000);
                     Thread.sleep(delay);
                 }
             }
             log.info("Gemini extraction result: {} chars", itemsJson.length());
 
-            // If still empty after retries, mark as FAILED
+            // If still empty after retries — may be rate limit or genuinely empty PDF
             if ("[]".equals(itemsJson)) {
-                throw new RuntimeException("Gemini returned empty result after " + MAX_RETRIES + " retries");
+                log.error("ALERT: Gemini returned empty result after {} retries for job {}. Text length: {} chars. Possible rate limit (429) or empty PDF.",
+                        MAX_RETRIES, jobId, extractedText.length());
+                throw new RuntimeException("Gemini returned no items after " + MAX_RETRIES + " retries (text=" + extractedText.length() + " chars)");
             }
 
-            // 4b. Enrich items with HS codes from semantic search
+            // 4b. Validate and warn on non-standard weight units
+            validateWeightUnits(itemsJson);
+
+            // 4c. Enrich items with HS codes from semantic search
             itemsJson = enrichWithHsCodes(itemsJson);
 
             // 4c. Calculate VAT 7% and total tax for each item
@@ -155,7 +160,7 @@ public class ScanWorkerService {
             log.info("Scan job COMPLETED: jobId={}", jobId);
 
         } catch (Exception e) {
-            log.error("Scan job FAILED: jobId={}", jobId, e);
+            log.error("ALERT: Scan job FAILED: jobId={}, error={}", jobId, e.getMessage(), e);
 
             try {
                 jdbcTemplate.queryForObject(
@@ -170,7 +175,7 @@ public class ScanWorkerService {
                     WHERE ai_job_id = ?::uuid
                     """, jobId);
             } catch (Exception ex) {
-                log.error("Failed to update job status to FAILED", ex);
+                log.error("ALERT: Failed to update job status to FAILED — job may be stuck: jobId={}", jobId, ex);
             }
         } finally {
             TenantContext.clear();
@@ -343,6 +348,30 @@ public class ScanWorkerService {
         } catch (Exception e) {
             log.error("Failed to parse items JSON for tax calculation, returning original", e);
             return itemsJson;
+        }
+    }
+
+    private static final java.util.Set<String> STANDARD_WEIGHT_UNITS = java.util.Set.of(
+            "KG", "KGS", "KGM", "G", "GRM", "T", "TNE", "MT", "LTR", "L", "M", "MTR",
+            "PCS", "PC", "UNIT", "CTN", "PKG", "SET", "DOZ", "PR", "PAIR");
+
+    private void validateWeightUnits(String itemsJson) {
+        try {
+            JsonNode root = objectMapper.readTree(itemsJson);
+            if (!root.isArray()) return;
+            for (int i = 0; i < root.size(); i++) {
+                JsonNode item = root.get(i);
+                if (item.has("weight") && !item.get("weight").isNull()) {
+                    String weight = item.get("weight").asText().toUpperCase().trim();
+                    boolean hasStandardUnit = STANDARD_WEIGHT_UNITS.stream()
+                            .anyMatch(weight::endsWith);
+                    if (!hasStandardUnit && !weight.isEmpty()) {
+                        log.warn("Non-standard weight unit in item {}: '{}'", i, weight);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to validate weight units: {}", e.getMessage());
         }
     }
 

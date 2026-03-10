@@ -73,6 +73,7 @@ services:
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
       interval: 30s
+      start_period: 90s
     tmpfs: /tmp
     deploy:
       resources:
@@ -83,12 +84,16 @@ services:
     image: n8nio/n8n:1.76.1
     container_name: saas-n8n
     restart: always
+    security_opt: [no-new-privileges:true]
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
     environment:
       - N8N_MODE=queue
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_DATABASE=n8n_db
       - DB_POSTGRESDB_HOST=postgres
@@ -109,7 +114,7 @@ services:
     container_name: saas-n8n-worker
     command: worker
     restart: always
-    # [FIXED] เพิ่มความเสถียรตามคำแนะนำหัวหน้า
+    security_opt: [no-new-privileges:true]
     depends_on:
       redis: { condition: service_healthy }
       postgres: { condition: service_healthy }

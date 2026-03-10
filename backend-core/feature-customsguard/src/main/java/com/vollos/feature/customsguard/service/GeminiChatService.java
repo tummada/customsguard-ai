@@ -70,24 +70,30 @@ public class GeminiChatService {
                     HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() != 200) {
-                log.error("Gemini vision error: status={}, body={}", response.statusCode(),
+                log.error("Gemini vision OCR FAILED: status={}, body={}", response.statusCode(),
                         truncateForLog(response.body()));
-                return "";
+                throw new RuntimeException("Gemini Vision OCR failed with status " + response.statusCode());
             }
 
             JsonNode root = objectMapper.readTree(response.body());
             JsonNode candidates = root.path("candidates");
             if (candidates.isMissingNode() || !candidates.isArray() || candidates.isEmpty()) {
-                log.warn("Gemini vision returned empty candidates");
-                return "";
+                log.error("Gemini vision OCR FAILED: empty candidates returned");
+                throw new RuntimeException("Gemini Vision OCR returned empty candidates");
             }
-            return candidates.get(0)
+            String text = candidates.get(0)
                     .path("content").path("parts").path(0)
                     .path("text").asText("");
+            if (text.isBlank()) {
+                log.warn("Gemini vision OCR returned blank text — image may not contain readable text");
+            }
+            return text;
 
+        } catch (RuntimeException e) {
+            throw e;
         } catch (Exception e) {
-            log.error("Failed to extract text from image via Gemini Vision", e);
-            return "";
+            log.error("Gemini Vision OCR FAILED with exception", e);
+            throw new RuntimeException("Gemini Vision OCR failed: " + e.getMessage(), e);
         }
     }
 

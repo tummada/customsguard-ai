@@ -20,8 +20,11 @@ public class JwtTokenProvider {
     private final long expirationHours;
 
     public JwtTokenProvider(
-            @Value("${jwt.secret}") String secret,
+            @Value("${jwt.secret:}") String secret,
             @Value("${jwt.expiration-hours:24}") long expirationHours) {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException("JWT_SECRET must be set. Export JWT_SECRET env var before starting the application.");
+        }
         this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationHours = expirationHours;
     }

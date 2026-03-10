@@ -20,7 +20,7 @@ import java.util.UUID;
 @RequiresFeature("customsguard")
 public class ScanController {
 
-    private static final Set<String> VALID_DECLARATION_TYPES = Set.of("IMPORT", "EXPORT", "TRANSIT");
+    private static final Set<String> VALID_DECLARATION_TYPES = Set.of("IMPORT", "EXPORT", "TRANSIT", "TRANSSHIPMENT");
     private final ScanService scanService;
     private final UsageQuotaService usageQuotaService;
 
@@ -36,7 +36,7 @@ public class ScanController {
         UUID tenantId = TenantContext.getCurrentTenantId();
 
         if (!VALID_DECLARATION_TYPES.contains(declarationType)) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Invalid declarationType. Allowed: IMPORT, EXPORT, TRANSIT"));
+            return ResponseEntity.badRequest().body(Map.of("error", "Invalid declarationType. Allowed: IMPORT, EXPORT, TRANSIT, TRANSSHIPMENT"));
         }
 
         // Check scan quota before processing (throws QuotaExceededException → 429)

@@ -356,9 +356,32 @@ public class ChatGuardService {
         return Optional.empty();
     }
 
+    // Mixed-script harmful patterns — Thai customs keywords + English harmful intent
+    private static final List<Pattern> MIXED_SCRIPT_HARMFUL = List.of(
+            Pattern.compile("(?i)[\\u0E00-\\u0E7F].{0,30}(smuggl|bypass|evade|exploit|hack|steal)"),
+            Pattern.compile("(?i)(smuggl|bypass|evade|exploit|hack|steal).{0,30}[\\u0E00-\\u0E7F]")
+    );
+
     private Optional<String> checkHarmfulIntent(String query) {
         String lower = query.toLowerCase();
         String stripped = stripObfuscation(lower);
+
+        // Check mixed-script harmful patterns (Thai + English harmful intent)
+        for (Pattern pattern : MIXED_SCRIPT_HARMFUL) {
+            if (pattern.matcher(query).find()) {
+                // Check safe context first
+                boolean safe = false;
+                for (String safeWord : HARMFUL_SAFE_CONTEXT) {
+                    if (lower.contains(safeWord.toLowerCase())) { safe = true; break; }
+                }
+                if (!safe) {
+                    log.warn("GUARD_BLOCK category=harmful_mixed_script tenant={} query_prefix='{}'",
+                            TenantContext.getCurrentTenantId(),
+                            query.substring(0, Math.min(50, query.length())));
+                    return Optional.of("ขออภัย ระบบนี้ไม่สามารถให้คำแนะนำเกี่ยวกับการกระทำที่ผิดกฎหมายได้ หากต้องการสอบถามเกี่ยวกับพิกัดหรืออัตราอากร สามารถถามได้เลยครับ");
+                }
+            }
+        }
 
         boolean hasHarmful = false;
         for (String keyword : HARMFUL_INTENT_KEYWORDS) {
@@ -398,16 +421,22 @@ public class ChatGuardService {
         return Optional.empty();
     }
 
+    // Atomic rate limit Lua script: increment + set TTL in single command
+    private static final org.springframework.data.redis.core.script.RedisScript<Long> RATE_LIMIT_SCRIPT =
+            org.springframework.data.redis.core.script.RedisScript.of(
+                    "local count = redis.call('INCR', KEYS[1])\n" +
+                    "if count == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end\n" +
+                    "return count",
+                    Long.class);
+
     private Optional<String> checkRateLimit() {
         UUID tenantId = TenantContext.getCurrentTenantId();
-        if (tenantId == null) return Optional.empty(); // shouldn't happen
+        if (tenantId == null) return Optional.empty();
 
         String key = "rag:rate:" + tenantId;
         try {
-            Long count = redisTemplate.opsForValue().increment(key);
-            if (count != null && count == 1) {
-                redisTemplate.expire(key, WINDOW);
-            }
+            Long count = redisTemplate.execute(RATE_LIMIT_SCRIPT,
+                    List.of(key), String.valueOf(WINDOW.toSeconds()));
             if (count != null && count > maxRequestsPerMinute) {
                 log.warn("GUARD_BLOCK category=rate_limit keyword='{}' tenant={} query_prefix='{}'",
                         count + "/min", tenantId, "");

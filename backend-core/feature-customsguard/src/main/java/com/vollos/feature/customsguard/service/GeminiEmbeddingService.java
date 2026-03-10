@@ -35,7 +35,31 @@ public class GeminiEmbeddingService {
         this.dimensions = dimensions;
     }
 
+    private static final int MAX_RETRIES = 3;
+    private static final long BASE_RETRY_DELAY_MS = 1_000;
+
     public float[] embed(String text) {
+        RuntimeException lastException = null;
+        for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                return doEmbed(text);
+            } catch (RuntimeException e) {
+                lastException = e;
+                if (attempt < MAX_RETRIES) {
+                    long delay = BASE_RETRY_DELAY_MS * (1L << (attempt - 1));
+                    log.warn("Embedding failed (attempt {}/{}), retrying in {}ms: {}",
+                            attempt, MAX_RETRIES, delay, e.getMessage());
+                    try { Thread.sleep(delay); } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw e;
+                    }
+                }
+            }
+        }
+        throw lastException;
+    }
+
+    private float[] doEmbed(String text) {
         try {
             String requestBody = objectMapper.writeValueAsString(
                     new EmbedRequest(new Content(new Part[]{new Part(text)}), dimensions));
@@ -51,15 +75,14 @@ public class GeminiEmbeddingService {
 
             if (response.statusCode() != 200) {
                 log.error("Gemini embedding API error: status={}", response.statusCode());
-                throw new RuntimeException("Embedding service unavailable");
+                throw new RuntimeException("Embedding service unavailable (status=" + response.statusCode() + ")");
             }
 
             JsonNode root = objectMapper.readTree(response.body());
             JsonNode values = root.path("embedding").path("values");
 
             if (values.isMissingNode() || !values.isArray() || values.isEmpty()) {
-                log.error("Gemini embedding returned no values. Response: {}",
-                        response.body().substring(0, Math.min(500, response.body().length())));
+                log.error("Gemini embedding returned no values");
                 throw new RuntimeException("Embedding service returned empty values");
             }
 

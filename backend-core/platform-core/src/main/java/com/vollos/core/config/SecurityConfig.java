@@ -10,15 +10,20 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 @Configuration
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtFilter;
+    private final org.springframework.core.env.Environment environment;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtFilter) {
+    public SecurityConfig(JwtAuthenticationFilter jwtFilter,
+                          org.springframework.core.env.Environment environment) {
         this.jwtFilter = jwtFilter;
+        this.environment = environment;
     }
 
     @Bean
@@ -40,12 +45,18 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of(
+        List<String> origins = new ArrayList<>(List.of(
                 "https://vollos.ai",
                 "https://*.vollos.ai",
-                "chrome-extension://*",
-                "http://localhost:[*]"
+                "chrome-extension://*"
         ));
+        // Only allow localhost in dev profile
+        boolean isDev = Arrays.asList(environment.getActiveProfiles()).contains("dev")
+                || environment.getActiveProfiles().length == 0;
+        if (isDev) {
+            origins.add("http://localhost:[*]");
+        }
+        config.setAllowedOriginPatterns(origins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Content-Type", "Authorization", "X-Tenant-ID", "X-Admin-Secret"));
         config.setExposedHeaders(List.of("X-Request-Id"));

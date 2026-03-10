@@ -20,7 +20,7 @@ FROM node:22-slim
 WORKDIR /app
 RUN adduser --system --uid 1001 appuser
 
-COPY --from=builder /app/public ./public
+COPY --from=builder --chown=appuser:0 /app/public ./public
 COPY --from=builder --chown=appuser:0 /app/.next/standalone ./
 COPY --from=builder --chown=appuser:0 /app/.next/static ./.next/static
 
