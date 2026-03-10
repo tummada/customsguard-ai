@@ -37,7 +37,8 @@ public class ExchangeRateSyncService {
     private static final Set<String> TARGET_CURRENCIES = Set.of(
             "USD", "EUR", "JPY", "GBP", "CNY", "KRW",
             "SGD", "HKD", "AUD", "CHF", "CAD", "NZD",
-            "TWD", "MYR", "IDR", "INR", "VND", "PHP"
+            "TWD", "MYR", "IDR", "INR", "VND", "PHP",
+            "AED" // UAE — คู่ค้าสำคัญ
     );
 
     private final ExchangeRateRepository exchangeRateRepo;

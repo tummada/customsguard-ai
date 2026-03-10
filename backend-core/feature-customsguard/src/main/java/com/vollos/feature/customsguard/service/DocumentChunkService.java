@@ -8,6 +8,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -23,13 +25,16 @@ public class DocumentChunkService {
     private final RegulationRepository regulationRepo;
     private final DocumentChunkRepository chunkRepo;
     private final GeminiEmbeddingService embeddingService;
+    private final ObjectMapper objectMapper;
 
     public DocumentChunkService(RegulationRepository regulationRepo,
                                 DocumentChunkRepository chunkRepo,
-                                GeminiEmbeddingService embeddingService) {
+                                GeminiEmbeddingService embeddingService,
+                                ObjectMapper objectMapper) {
         this.regulationRepo = regulationRepo;
         this.chunkRepo = chunkRepo;
         this.embeddingService = embeddingService;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -46,10 +51,14 @@ public class DocumentChunkService {
         for (RegulationEntity reg : regulations) {
             String sourceId = reg.getId().toString();
 
-            // Skip if already chunked
+            // Skip if already chunked (unless regulation was updated after last chunk)
             if (alreadyChunked.contains(sourceId)) {
-                log.info("Skipping regulation '{}' — already chunked", reg.getTitle());
-                continue;
+                if (reg.getUpdatedAt() == null || !isChunkStale(sourceId, reg.getUpdatedAt())) {
+                    log.info("Skipping regulation '{}' — already chunked", reg.getTitle());
+                    continue;
+                }
+                log.info("Re-embedding regulation '{}' — content updated since last chunk", reg.getTitle());
+                chunkRepo.deleteBySourceTypeAndSourceId("REGULATION", sourceId);
             }
 
             List<String> chunks = chunkText(reg.getContent());
@@ -89,7 +98,8 @@ public class DocumentChunkService {
         }
 
         if (failed > 0) {
-            log.error("ALERT: Chunk & embed completed with {} failures — some chunks missing from RAG", failed);
+            log.error("ALERT: Chunk & embed completed with {} failures out of {} total — " +
+                    "some chunks missing from RAG search. Re-run to retry failed chunks.", failed, chunked + failed);
         }
         log.info("Chunk & embed complete: chunked={}, embedded={}, failed={}", chunked, embedded, failed);
         return Map.of("chunked", chunked, "embedded", embedded, "failed", failed);
@@ -123,12 +133,13 @@ public class DocumentChunkService {
 
             chunks.add(text.substring(start, end).trim());
 
-            // Next chunk starts with overlap
-            start = end - OVERLAP;
-            if (start <= chunks.size() * (CHUNK_SIZE - OVERLAP) - OVERLAP) {
-                // Prevent infinite loop — force advance
-                start = end;
+            // Next chunk starts with overlap (back up OVERLAP chars from end)
+            int nextStart = end - OVERLAP;
+            if (nextStart <= start) {
+                // Prevent infinite loop — force advance past current chunk
+                nextStart = end;
             }
+            start = nextStart;
         }
 
         return chunks;
@@ -148,10 +159,11 @@ public class DocumentChunkService {
                 return i;
             }
         }
-        // Priority 3: Thai sentence-ending characters (ครับ/ค่ะ followed by space, or period)
+        // Priority 3: Thai sentence-ending characters (Thai period ๆ, fullstop, CJK period)
         for (int i = end; i > start + CHUNK_SIZE / 2; i--) {
             char c = text.charAt(i - 1);
-            if (c == '.' || c == '。' || (c == ' ' && i > 1 && text.charAt(i - 2) == '.')) {
+            if (c == '.' || c == '。' || c == '\u0E2F' /* ฯ Thai abbreviation */
+                    || (c == ' ' && i > 1 && text.charAt(i - 2) == '.')) {
                 return i;
             }
         }
@@ -166,25 +178,31 @@ public class DocumentChunkService {
     }
 
     private String buildMetadata(RegulationEntity reg, int sectionNumber) {
-        StringBuilder sb = new StringBuilder("{");
-        sb.append("\"doc_type\":\"").append(escape(reg.getDocType())).append("\"");
-        sb.append(",\"title\":\"").append(escape(reg.getTitle())).append("\"");
-        if (reg.getDocNumber() != null) {
-            sb.append(",\"doc_number\":\"").append(escape(reg.getDocNumber())).append("\"");
+        try {
+            ObjectNode node = objectMapper.createObjectNode();
+            node.put("doc_type", reg.getDocType());
+            node.put("title", reg.getTitle());
+            if (reg.getDocNumber() != null) node.put("doc_number", reg.getDocNumber());
+            if (reg.getIssuer() != null) node.put("issuer", reg.getIssuer());
+            if (reg.getSourceUrl() != null) node.put("source_url", reg.getSourceUrl());
+            node.put("section_number", sectionNumber + 1);
+            return objectMapper.writeValueAsString(node);
+        } catch (Exception e) {
+            log.warn("Failed to build metadata JSON: {}", e.getMessage());
+            return "{}";
         }
-        if (reg.getIssuer() != null) {
-            sb.append(",\"issuer\":\"").append(escape(reg.getIssuer())).append("\"");
-        }
-        if (reg.getSourceUrl() != null) {
-            sb.append(",\"source_url\":\"").append(escape(reg.getSourceUrl())).append("\"");
-        }
-        sb.append(",\"section_number\":").append(sectionNumber + 1);
-        sb.append("}");
-        return sb.toString();
     }
 
-    private String escape(String s) {
-        return s.replace("\\", "\\\\").replace("\"", "\\\"");
+    private boolean isChunkStale(String sourceId, java.time.Instant regulationUpdatedAt) {
+        try {
+            java.time.LocalDateTime lastChunked = chunkRepo.findLatestCreatedAtBySourceId(sourceId);
+            if (lastChunked == null) return true;
+            java.time.Instant lastChunkedInstant = lastChunked.atZone(java.time.ZoneOffset.UTC).toInstant();
+            return regulationUpdatedAt.isAfter(lastChunkedInstant);
+        } catch (Exception e) {
+            log.warn("Failed to check chunk staleness for {}: {}", sourceId, e.getMessage());
+            return false;
+        }
     }
 
     private int countTotalChunks(List<RegulationEntity> regulations, int currentChunkSize) {

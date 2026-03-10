@@ -138,14 +138,20 @@ export class FuzzySelectorEngine {
 
       // Cross-origin: use postMessage with origin validation
       if (iframe.contentWindow) {
-        iframe.contentWindow.postMessage(
-          {
-            type: "VOLLOS_MAGIC_FILL",
-            payload: data,
-            origin: this.extensionOrigin,
-          },
-          "*" // Target any origin (validated on receive side)
-        );
+        const iframeSrc = iframe.src || "";
+        const targetOrigin = ALLOWED_ORIGINS.find((o) => iframeSrc.startsWith(o));
+        if (targetOrigin) {
+          iframe.contentWindow.postMessage(
+            {
+              type: "VOLLOS_MAGIC_FILL",
+              payload: data,
+              origin: this.extensionOrigin,
+            },
+            targetOrigin
+          );
+        } else {
+          console.warn(`[VOLLOS] Skipped postMessage to untrusted iframe: ${iframeSrc}`);
+        }
       }
     }
     return results;
@@ -183,9 +189,7 @@ export class FuzzySelectorEngine {
 
   // Validate incoming postMessage origin
   isAllowedOrigin(origin: string): boolean {
-    return ALLOWED_ORIGINS.some(
-      (allowed) => origin === allowed || origin.endsWith(".customs.go.th")
-    );
+    return ALLOWED_ORIGINS.includes(origin);
   }
 }
 

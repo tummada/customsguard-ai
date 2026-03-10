@@ -49,7 +49,7 @@ public class AdminController {
 
     @PostMapping("/upgrade")
     public ResponseEntity<?> upgradeTenant(
-            @RequestHeader(value = "X-Admin-Secret", required = false) String secret,
+            @RequestHeader(value = "X-Admin-Secret") String secret,
             @Valid @RequestBody UpgradeRequest body) {
 
         // 1. Verify admin secret
@@ -113,7 +113,7 @@ public class AdminController {
 
     @GetMapping("/plans")
     public ResponseEntity<?> listPlans(
-            @RequestHeader(value = "X-Admin-Secret", required = false) String secret) {
+            @RequestHeader(value = "X-Admin-Secret") String secret) {
 
         if (!verifySecret(secret)) {
             return forbidden();
@@ -128,7 +128,7 @@ public class AdminController {
 
     @PostMapping("/plans")
     public ResponseEntity<?> createPlan(
-            @RequestHeader(value = "X-Admin-Secret", required = false) String secret,
+            @RequestHeader(value = "X-Admin-Secret") String secret,
             @Valid @RequestBody CreatePlanRequest body) {
 
         if (!verifySecret(secret)) {
@@ -168,12 +168,17 @@ public class AdminController {
 
     @PutMapping("/plans/{id}")
     public ResponseEntity<?> updatePlan(
-            @RequestHeader(value = "X-Admin-Secret", required = false) String secret,
-            @PathVariable String id,
+            @RequestHeader(value = "X-Admin-Secret") String secret,
+            @PathVariable @jakarta.validation.constraints.NotBlank String id,
             @RequestBody Map<String, Object> body) {
 
         if (!verifySecret(secret)) {
             return forbidden();
+        }
+
+        if (body == null || body.isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Request body is required"));
         }
 
         // Check plan exists

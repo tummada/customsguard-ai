@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.beans.factory.annotation.Value;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -38,6 +39,9 @@ public class ScanWorkerService {
     private final HsCodeService hsCodeService;
     private final TaxCalculationService taxService;
     private final ObjectMapper objectMapper;
+
+    @Value("${customsguard.scan.high-confidence-threshold:0.95}")
+    private double highConfidenceThreshold;
 
     public ScanWorkerService(JdbcTemplate jdbcTemplate,
                              S3StorageService s3Service,
@@ -118,7 +122,7 @@ public class ScanWorkerService {
             String itemsJson = null;
             for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
                 itemsJson = extractItemsWithGemini(extractedText);
-                if (!"[]".equals(itemsJson)) break;
+                if (itemsJson != null && !"[]".equals(itemsJson.strip()) && !"[ ]".equals(itemsJson.strip())) break;
 
                 if (attempt < MAX_RETRIES) {
                     long delay = BASE_RETRY_DELAY_MS * (1L << (attempt - 1)); // exponential backoff
@@ -130,7 +134,7 @@ public class ScanWorkerService {
             log.info("Gemini extraction result: {} chars", itemsJson.length());
 
             // If still empty after retries — legitimately empty PDF (no line items)
-            if ("[]".equals(itemsJson)) {
+            if (itemsJson == null || "[]".equals(itemsJson.strip()) || "[ ]".equals(itemsJson.strip())) {
                 log.warn("No items found in PDF for job {} after {} retries (text={} chars) — marking as NO_ITEMS_FOUND",
                         jobId, MAX_RETRIES, extractedText.length());
                 int rows = jdbcTemplate.update("""
@@ -293,7 +297,7 @@ public class ScanWorkerService {
 
                     // Filter candidates above minimum threshold
                     List<SemanticSearchResponse> validCandidates = candidates.stream()
-                            .filter(c -> c.similarity() != null && c.similarity() >= 0.65
+                            .filter(c -> c.similarity() != null && c.similarity() >= 0.80
                                     && c.code() != null && isValidHsCode(c.code()))
                             .toList();
 
@@ -305,7 +309,7 @@ public class ScanWorkerService {
                     }
 
                     // If only 1 candidate or top candidate has very high similarity, use directly
-                    if (validCandidates.size() == 1 || validCandidates.get(0).similarity() >= 0.95) {
+                    if (validCandidates.size() == 1 || validCandidates.get(0).similarity() >= highConfidenceThreshold) {
                         SemanticSearchResponse best = validCandidates.get(0);
                         setHsCodeResult(item, best.code(), best.similarity(),
                                 "Semantic match: " + descText(best), false);
@@ -361,6 +365,9 @@ public class ScanWorkerService {
                         c.descriptionEn() != null ? c.descriptionEn() : ""));
             }
 
+            // M1: Sanitize item description to reduce prompt injection from invoice text
+            String safeDesc = itemDescription.replaceAll("[\\x00-\\x1F]", " ")
+                    .replace("\"", "'").replace("\\", "");
             String prompt = """
                 สินค้าจาก invoice: "%s"
 
@@ -372,7 +379,7 @@ public class ScanWorkerService {
                 3. ถ้าไม่มีตัวเลือกไหนตรงเลย ตอบ NONE
 
                 ตอบเฉพาะเลขพิกัด (เช่น 0306.17.00) หรือ NONE:
-                """.formatted(itemDescription, options.toString());
+                """.formatted(safeDesc, options.toString());
 
             String response = geminiChat.rawPrompt(prompt);
             String cleaned = response.strip();
@@ -420,9 +427,9 @@ public class ScanWorkerService {
 
                     if (cifStr == null || cifStr.isBlank()) continue;
 
-                    java.math.BigDecimal cif = new java.math.BigDecimal(cifStr.replaceAll("[^\\d.]", ""));
+                    java.math.BigDecimal cif = new java.math.BigDecimal(normalizeNumber(cifStr));
                     java.math.BigDecimal dutyRatePercent = dutyRateStr != null && !dutyRateStr.isBlank()
-                            ? new java.math.BigDecimal(dutyRateStr.replaceAll("[^\\d.]", ""))
+                            ? new java.math.BigDecimal(normalizeNumber(dutyRateStr))
                             : java.math.BigDecimal.ZERO;
 
                     // C4: Pass hsCode for excise lookup + quantity for specific duty
@@ -447,6 +454,7 @@ public class ScanWorkerService {
                     item.put("totalTaxDue", result.totalTaxDue().toPlainString());
                 } catch (Exception e) {
                     log.warn("Failed to calculate taxes for item {}: {}", i, e.getMessage());
+                    item.put("taxError", "ไม่สามารถคำนวณภาษีได้: " + e.getMessage());
                 }
             }
             return objectMapper.writeValueAsString(items);
@@ -478,8 +486,13 @@ public class ScanWorkerService {
             for (int i = 0; i < items.size(); i++) {
                 ObjectNode item = (ObjectNode) items.get(i);
                 if (item.has("weight") && !item.get("weight").isNull()) {
-                    String weight = item.get("weight").isTextual()
-                            ? item.get("weight").asText().trim() : "";
+                    // M5: Check type before asText() — object/array → skip with warning
+                    if (!item.get("weight").isTextual() && !item.get("weight").isNumber()) {
+                        log.warn("Weight field for item {} is not text/number: {}", i, item.get("weight").getNodeType());
+                        item.put("weightWarning", "น้ำหนักอยู่ในรูปแบบที่ไม่รองรับ กรุณาระบุใหม่");
+                        continue;
+                    }
+                    String weight = item.get("weight").asText().trim();
                     if (weight.isEmpty()) continue;
 
                     String weightUpper = weight.toUpperCase();
@@ -521,6 +534,25 @@ public class ScanWorkerService {
             log.warn("Failed to validate weight units: {}", e.getMessage());
             return itemsJson;
         }
+    }
+
+    /**
+     * C5: Normalize number strings to handle EU format (1.234,56) and US format (1,234.56).
+     * Detects format by checking which separator appears last (decimal separator).
+     */
+    private static String normalizeNumber(String input) {
+        String s = input.replaceAll("[^\\d.,]", "");
+        if (s.isEmpty()) return "0";
+        int lastDot = s.lastIndexOf('.');
+        int lastComma = s.lastIndexOf(',');
+        if (lastComma > lastDot) {
+            // EU format: 1.234,56 → remove dots, replace comma with dot
+            s = s.replace(".", "").replace(",", ".");
+        } else {
+            // US format: 1,234.56 → remove commas
+            s = s.replace(",", "");
+        }
+        return s;
     }
 
     /** Validate Thai customs HS code format: DDDD.DD or DDDD.DD.DD */

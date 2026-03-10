@@ -32,8 +32,8 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
-      timeout: 5s
-      connect-timeout: 3s
+      timeout: ${REDIS_TIMEOUT:5s}
+      connect-timeout: ${REDIS_CONNECT_TIMEOUT:3s}
       lettuce:
         pool:
           max-active: 8
@@ -75,6 +75,8 @@ admin:
 customsguard:
   chat-guard:
     max-requests-per-minute: ${CHATGUARD_RATE_LIMIT:20}
+  scan:
+    high-confidence-threshold: ${SCAN_HIGH_CONFIDENCE:0.95}
   rag:
     min-similarity-threshold: ${RAG_MIN_SIMILARITY:0.65}
     hs-code-similarity-threshold: ${RAG_HS_SIMILARITY:0.55}

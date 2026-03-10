@@ -222,7 +222,12 @@ class ApiClient {
 
     if (!resp.ok) {
       const text = await resp.text();
-      throw new Error(`API ${resp.status}: ${text}`);
+      const hint = resp.status === 400 ? " — ตรวจสอบข้อมูลที่กรอกอีกครั้ง"
+        : resp.status === 403 ? " — ไม่มีสิทธิ์เข้าถึง กรุณาล็อกอินใหม่"
+        : resp.status === 404 ? " — ไม่พบข้อมูลที่ต้องการ"
+        : resp.status >= 500 ? " — เซิร์ฟเวอร์มีปัญหา กรุณาลองใหม่ภายหลัง"
+        : "";
+      throw new Error(`API ${resp.status}: ${text}${hint}`);
     }
     return resp.json();
   }

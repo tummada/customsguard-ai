@@ -57,8 +57,10 @@ public class HsLookupService {
                 .toList();
     }
 
-    /** C5: Warn when FTA rate data is older than 2 years */
-    private static final LocalDate STALE_THRESHOLD = LocalDate.now().minusYears(2);
+    /** C5: Compute stale threshold dynamically so it updates after midnight */
+    private static LocalDate staleThreshold() {
+        return LocalDate.now().minusYears(2);
+    }
 
     private HsLookupResponse buildResponse(String code, HsCodeEntity hs, List<FtaRateEntity> ftas) {
         if (hs == null) return HsLookupResponse.notFound(code);
@@ -67,7 +69,7 @@ public class HsLookupService {
         List<FtaAlertDto> ftaAlerts = ftas.stream()
                 .filter(f -> f.getPreferentialRate().compareTo(baseRate) < 0)
                 .map(f -> {
-                    String warning = (f.getEffectiveFrom() != null && f.getEffectiveFrom().isBefore(STALE_THRESHOLD))
+                    String warning = (f.getEffectiveFrom() != null && f.getEffectiveFrom().isBefore(staleThreshold()))
                             ? "⚠️ อัตรานี้อาจไม่เป็นปัจจุบัน (ข้อมูลจากปี " + f.getEffectiveFrom().getYear()
                               + ") กรุณาตรวจสอบที่ กรมศุลกากร customs.go.th" : null;
                     return new FtaAlertDto(f.getFtaName(), f.getPartnerCountry(), f.getFormType(),
@@ -102,7 +104,7 @@ public class HsLookupService {
                 boiPrivileges, exciseRates, true);
     }
 
-    @Cacheable(value = "hs-lookup", key = "#code + ':' + #originCountry")
+    @Cacheable(value = "hs-lookup", key = "T(com.vollos.core.tenant.TenantContext).getCurrentTenantId() + ':' + #code + ':' + #originCountry")
     @Transactional(readOnly = true)
     public HsLookupResponse lookupSingleCode(String code, String originCountry) {
         HsCodeEntity hs = hsCodeRepo.findById(code).orElse(null);
@@ -119,7 +121,7 @@ public class HsLookupService {
         List<FtaAlertDto> ftaAlerts = ftas.stream()
                 .filter(f -> f.getPreferentialRate().compareTo(baseRate) < 0)
                 .map(f -> {
-                    String warning = (f.getEffectiveFrom() != null && f.getEffectiveFrom().isBefore(STALE_THRESHOLD))
+                    String warning = (f.getEffectiveFrom() != null && f.getEffectiveFrom().isBefore(staleThreshold()))
                             ? "⚠️ อัตรานี้อาจไม่เป็นปัจจุบัน (ข้อมูลจากปี " + f.getEffectiveFrom().getYear()
                               + ") กรุณาตรวจสอบที่ กรมศุลกากร customs.go.th" : null;
                     return new FtaAlertDto(

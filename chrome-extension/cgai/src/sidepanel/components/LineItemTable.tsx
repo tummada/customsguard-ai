@@ -22,6 +22,13 @@ function isValidHsCode(code: string): boolean {
   return /^\d{4}\.\d{2}(\.\d{2})?$/.test(code);
 }
 
+/** Validate weight has a standard customs unit (KG, G, T, LTR, PCS etc.) */
+const STANDARD_WEIGHT_UNITS = /\b(KG|KGS|KGM|G|GRM|T|TNE|MT|LTR|L|M|MTR|PCS|PC|UNIT|CTN|PKG|SET|DOZ|PR|PAIR)\s*$/i;
+function isValidWeight(weight: string): boolean {
+  if (!weight) return true;
+  return STANDARD_WEIGHT_UNITS.test(weight.trim());
+}
+
 interface EditingCell {
   localId: number;
   field: EditableField;
@@ -129,11 +136,15 @@ export default function LineItemTable({ items, riskMap, onEditItem, onConfirmIte
                         } ${
                           col.key === "hsCode" && cellValue && !isValidHsCode(cellValue)
                             ? "text-red-600"
+                            : col.key === "weight" && cellValue && !isValidWeight(cellValue)
+                            ? "text-orange-600"
                             : ""
                         }`}
                         title={
                           col.key === "hsCode" && cellValue && !isValidHsCode(cellValue)
                             ? `${cellValue} — รูปแบบไม่ถูกต้อง (ต้องเป็น DDDD.DD เช่น 0306.17)`
+                            : col.key === "weight" && cellValue && !isValidWeight(cellValue)
+                            ? `${cellValue} — หน่วยน้ำหนักไม่ตรงมาตรฐาน กรุณาแก้เป็น KG`
                             : cellValue
                         }
                       >

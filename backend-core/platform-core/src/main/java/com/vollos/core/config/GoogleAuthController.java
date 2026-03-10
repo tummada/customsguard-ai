@@ -53,7 +53,7 @@ public class GoogleAuthController {
 
     @PostMapping("/google")
     @Transactional
-    public ResponseEntity<?> googleLogin(@RequestBody Map<String, String> body) {
+    public ResponseEntity<?> googleLogin(@jakarta.validation.Valid @RequestBody Map<String, String> body) {
         String idToken = body.get("idToken");
         if (idToken == null || idToken.isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("error", "idToken is required"));

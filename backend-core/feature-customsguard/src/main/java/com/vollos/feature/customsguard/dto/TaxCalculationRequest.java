@@ -10,7 +10,9 @@ public record TaxCalculationRequest(
         @NotNull @DecimalMin("0") BigDecimal dutyRatePercent,
         String currency,
         String hsCode,
-        BigDecimal quantity
+        BigDecimal quantity,
+        BigDecimal insuranceAmount,
+        BigDecimal freightAmount
 ) {
     public TaxCalculationRequest {
         if (currency == null) currency = "THB";

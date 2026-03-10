@@ -116,7 +116,14 @@ public class TaxCalculationService {
         BigDecimal specific = BigDecimal.ZERO;
         if (excise.getExciseRateSpecific() != null && quantity != null) {
             try {
-                BigDecimal specificRate = new BigDecimal(excise.getExciseRateSpecific().replaceAll("[^\\d.]", ""));
+                String rateStr = excise.getExciseRateSpecific().trim();
+                // Handle range format "100-150" → use the higher rate (conservative)
+                if (rateStr.matches("\\d+\\.?\\d*\\s*-\\s*\\d+\\.?\\d*")) {
+                    String[] parts = rateStr.split("\\s*-\\s*");
+                    rateStr = parts[parts.length - 1]; // take higher bound
+                    log.info("Excise specific rate range detected '{}' → using upper bound: {}", excise.getExciseRateSpecific(), rateStr);
+                }
+                BigDecimal specificRate = new BigDecimal(rateStr.replaceAll("[^\\d.]", ""));
                 specific = quantity.multiply(specificRate).setScale(2, RoundingMode.DOWN);
             } catch (NumberFormatException e) {
                 log.warn("Cannot parse excise specific rate: {}", excise.getExciseRateSpecific());

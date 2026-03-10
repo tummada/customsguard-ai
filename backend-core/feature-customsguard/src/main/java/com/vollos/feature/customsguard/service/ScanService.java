@@ -127,7 +127,8 @@ public class ScanService {
                                     items = objectMapper.readValue(itemsJson,
                                             new TypeReference<List<ScanJobResponse.ExtractedItem>>() {});
                                 } catch (Exception e) {
-                                    log.warn("Failed to parse items JSON for job {}", jobId, e);
+                                    log.error("ALERT: Failed to parse items JSON for job {} — items will be null in response: {}",
+                                            jobId, e.getMessage());
                                 }
                             }
                         }

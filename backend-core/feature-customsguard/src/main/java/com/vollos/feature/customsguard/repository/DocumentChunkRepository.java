@@ -29,6 +29,13 @@ public interface DocumentChunkRepository extends JpaRepository<DocumentChunkEnti
     List<String> findSourceIdsBySourceType(@Param("sourceType") String sourceType);
 
     @Modifying
+    @Query("DELETE FROM DocumentChunkEntity dc WHERE dc.sourceType = :sourceType AND dc.sourceId = :sourceId")
+    void deleteBySourceTypeAndSourceId(@Param("sourceType") String sourceType, @Param("sourceId") String sourceId);
+
+    @Query(value = "SELECT MAX(dc.created_at) FROM cg_document_chunks dc WHERE dc.source_id = :sourceId", nativeQuery = true)
+    java.time.LocalDateTime findLatestCreatedAtBySourceId(@Param("sourceId") String sourceId);
+
+    @Modifying
     @Query(value = """
         INSERT INTO cg_document_chunks
         (id, source_type, source_id, chunk_index, chunk_text, content_summary, embedding, metadata, created_at, updated_at)

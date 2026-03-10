@@ -44,6 +44,9 @@ public class PdfProcessingService {
 
             if (fullText.strip().length() >= MIN_TEXT_LENGTH * pageCount) {
                 log.info("PDFBox extracted {} chars (text-based PDF)", fullText.length());
+                if (!looksLikeInvoice(fullText)) {
+                    log.warn("Extracted text does not appear to contain invoice/commercial fields");
+                }
                 return fullText;
             }
 
@@ -76,6 +79,17 @@ public class PdfProcessingService {
         }
 
         return String.join("\n---\n", pageTexts);
+    }
+
+    /** Quick heuristic: does extracted text contain typical invoice/commercial keywords? */
+    private boolean looksLikeInvoice(String text) {
+        String lower = text.toLowerCase();
+        int hits = 0;
+        for (String keyword : new String[]{"invoice", "quantity", "amount", "total", "price",
+                "ใบกำกับ", "จำนวน", "ราคา", "สินค้า", "น้ำหนัก", "weight", "unit"}) {
+            if (lower.contains(keyword)) hits++;
+        }
+        return hits >= 2;
     }
 
     private byte[] bufferedImageToPng(BufferedImage image) throws IOException {

@@ -64,7 +64,7 @@ sast:
     reports:
       dependency_scanning: backend-core/build/reports/dependency-check-report.json
     when: always
-  allow_failure: true
+  allow_failure: false
 
 # ─── Stage 2: Build Docker Image ──────────────────────────
 

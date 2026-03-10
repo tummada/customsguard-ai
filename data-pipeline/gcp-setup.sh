@@ -21,7 +21,7 @@ ZONE="us-central1-a"
 SQL_INSTANCE_NAME="customsguard-db"
 SQL_TIER="db-f1-micro"       # เล็กสุด ~$9/เดือน (scale up สัปดาห์ 4)
 SQL_DB_NAME="ai_saas_db"
-SQL_DB_PASSWORD="CustomsGuard2026!"  # เปลี่ยนได้
+SQL_DB_PASSWORD="${SQL_DB_PASSWORD:?SQL_DB_PASSWORD env var is required}"
 
 # Compute Engine VM
 VM_NAME="customsguard-pipeline"

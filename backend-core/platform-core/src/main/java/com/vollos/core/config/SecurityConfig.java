@@ -47,8 +47,8 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
         List<String> origins = new ArrayList<>(List.of(
                 "https://vollos.ai",
-                "https://*.vollos.ai",
-                "chrome-extension://*"
+                "https://api.vollos.ai",
+                "https://www.vollos.ai"
         ));
         // Only allow localhost in dev profile
         boolean isDev = Arrays.asList(environment.getActiveProfiles()).contains("dev")

@@ -220,8 +220,35 @@ async def scrape_fta_chapter(page, fta_name, fta_info, chapter, progress):
                     break;
                 }
 
+                // Extract MFN rate from the first nested table (non-FTA table)
+                // MFN table structure: headers=[Ad valorem(%), Specific, Quota, Normal, Quota, Normal]
+                // MFN "Normal" ad-valorem rate is in the 2nd td (index 1)
+                let mfnRate = null;
+                for (const nt of nestedTables) {
+                    const firstTh = nt.querySelector('th');
+                    if (!firstTh) continue;
+                    const thText = firstTh.textContent.trim();
+                    // Skip FTA year table
+                    if (thText === 'Year' || thText === '\\u0e1b\\u0e35') continue;
+                    // This is the MFN table — get "Normal" ad-valorem column (2nd td)
+                    // Use querySelectorAll('td') directly because tbody tr may include thead rows
+                    const cells = nt.querySelectorAll('td');
+                    // Normal ad-valorem is index 1 (cells: [Quota, Normal, Quota, Normal])
+                    const normalCell = cells.length >= 2 ? cells[1] : cells[0];
+                    if (normalCell) {
+                        const val = normalCell.textContent.trim();
+                        if (val === '-' || val === '' || val.toUpperCase() === 'FREE') {
+                            mfnRate = '0';
+                        } else {
+                            const m = val.match(/^(\\d+(?:\\.\\d+)?)/);
+                            if (m) mfnRate = m[1];
+                        }
+                    }
+                    break;
+                }
+
                 if (hsCode && ftaRate !== null) {
-                    results.push({ hs_code: hsCode, rate: ftaRate });
+                    results.push({ hs_code: hsCode, rate: ftaRate, mfn_rate: mfnRate });
                 }
             }
             return results;
@@ -245,12 +272,15 @@ async def scrape_fta_chapter(page, fta_name, fta_info, chapter, progress):
             if not valid:
                 continue
 
+            mfn_rate = parse_rate_text(item.get("mfn_rate"))
+
             for country in fta_info["countries"]:
                 rates.append({
                     "hs_code": hs_code,
                     "fta_name": fta_name,
                     "partner_country": country,
                     "preferential_rate": pref_rate,
+                    "mfn_rate": mfn_rate,
                     "form_type": fta_info["form"],
                     "conditions": None,
                     "effective_from": str(date.today().replace(month=1, day=1)),

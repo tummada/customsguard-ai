@@ -39,6 +39,12 @@ public class ScanController {
             return ResponseEntity.badRequest().body(Map.of("error", "Invalid declarationType. Allowed: IMPORT, EXPORT, TRANSIT, TRANSSHIPMENT"));
         }
 
+        // Sanitize filename — prevent path traversal
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename != null && (originalFilename.contains("..") || originalFilename.contains("/") || originalFilename.contains("\\"))) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Invalid filename"));
+        }
+
         // Check scan quota before processing (throws QuotaExceededException → 429)
         usageQuotaService.checkAndIncrement(tenantId, "scan");
 

@@ -65,8 +65,9 @@ public class GeminiEmbeddingService {
                     new EmbedRequest(new Content(new Part[]{new Part(text)}), dimensions));
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(modelUrl + "?key=" + apiKey))
+                    .uri(URI.create(modelUrl))
                     .header("Content-Type", "application/json")
+                    .header("x-goog-api-key", apiKey)
                     .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                     .build();
 

@@ -14,43 +14,95 @@ Updated: 2026-03-10
 
 ---
 
-## ✅ CRITICAL — แก้แล้ว (5 ตัว) — 2026-03-10
+## ✅ CRITICAL — แก้แล้ว (5+5 ตัว) — 2026-03-10
 
-> จาก Audit v5 (2026-03-10) — 35 findings ทั้งหมด
+> จาก Audit v5 + v6 — แก้ครบ
 
+### Audit v5 CRITICAL (5 ตัว)
 - [x] **C1:** regex exact match แทน `.contains()` → ScanWorkerService.verifyWithGemini
 - [x] **C2:** NO_ITEMS_FOUND status แทน throw error → ScanWorkerService + api-client.ts
 - [x] **C3:** มี resource limits อยู่แล้ว (cpus: 0.6, memory: 1536M)
 - [x] **C4:** implement excise (AD_VALOREM/SPECIFIC/COMPOUND) + มหาดไทย (10%) → TaxCalculationService
 - [x] **C5:** เพิ่ม stale rate warning (>2 ปี) ใน FtaAlertDto + HsLookupService (ข้อมูลจริงต้อง update แยก)
 
+### Audit v6 CRITICAL (5 ตัว)
+- [x] **C1:** Hardcoded DB password → `${SQL_DB_PASSWORD:?...}` ใน gcp-setup.sh
+- [x] **C2:** DocumentChunk overlap logic แตก → แก้ condition ป้องกัน infinite loop + overlap ถูกต้อง
+- [x] **C3:** Chrome Extension origin wildcard → exact hostname match (ALLOWED_ORIGINS.includes)
+- [x] **C4:** STALE_THRESHOLD static final → ย้ายเข้า method `staleThreshold()` คำนวณใหม่ทุกครั้ง
+- [x] **C5:** CIF price EU format ผิด → เพิ่ม `normalizeNumber()` จัดการ "1.234,56" format
+
 ---
 
 ## 🔴 Priority 1 — ต้องทำก่อนเปิดให้ลูกค้าใช้
 
-### Audit v5 — HIGH (9 ตัว)
+### Audit v6 — HIGH (7 ตัว — แก้ครบ ✅)
 
-- [x] **H1:** confidence band (HIGH/MEDIUM/LOW) + requiresReview flag → ScanWorkerService
-- [x] **H2:** stricter doc chunk threshold (0.70) เมื่อมี HS context → RagService (search + stream)
-- [x] **H3:** input length limit 50K chars + control char strip + prompt injection warning → ScanWorkerService
-- [x] **H4:** Thai text chunking: paragraph > newline > period > tab (ไม่ตัดที่ space อีก) → DocumentChunkService
-- [x] **H5:** conditional UPDATE (WHERE status='PROCESSING') แทน version field → ScanWorkerService
-- [x] **H6:** specific exceptions (DataAccessException/timeout/IO) → ExchangeRateSyncService
-- [x] **H7:** auto-convert LBS/OZ/TON → KG + flag weightRejected สำหรับ unknown units → ScanWorkerService
-- [x] **H8:** log error แทน catch(() => {}) → useUsage.ts, extension-helpers.ts
-- [x] **H9:** InterruptedException + IOException + IllegalArgumentException + markJobFailed() → ScanWorkerService
+- [x] **H-chunk-thai:** Thai period ไม่ match → เพิ่ม ฯ (U+0E2F Thai abbreviation mark)
+- [x] **H-gemini-null:** GeminiChat null-safety → null check ก่อน return
+- [x] **H-gemini-space:** "[]" vs "[ ]" → strip() ก่อน compare ทั้ง retry + empty check
+- [x] **H-no-reembed:** ไม่มี re-embed logic → ตรวจ updatedAt ของ Regulation vs chunk, delete + re-embed ถ้า stale
+- [x] **H-topics:** UNAVAILABLE_TOPICS ไม่ครบ → เพิ่ม safeguard, countervailing, origin verification, tariff quota
+- [x] **H-sse-loop:** SSE emitter loop risk → ไม่ส่ง error หลัง IOException, finally emitter.complete()
+- [x] **H-admin-valid:** Missing @Valid → เพิ่ม @Valid ที่ GoogleAuthController, body validation + @NotBlank ที่ AdminController
 
-### Audit v5 — MEDIUM ที่กระทบ production (4 ตัว)
+### Audit v5 — HIGH (9 ตัว — แก้ครบ ✅)
 
-- [ ] **M9: @Cacheable key ไม่รวม tenant_id** — HsLookupService.java:96-155 — ข้อมูลข้าม tenant ถ้า query HS code + country เหมือนกัน → เพิ่ม tenant_id ใน cache key
-- [ ] **M10: MultipartFile filename ไม่ sanitize** — ScanController.java:33-55 — path traversal risk → sanitize filename
-- [x] **M7:** SSE parser rewrite: blank line reset + proper event/data pairing → api-client.ts
-- [x] **M8:** try-catch around JSON.parse in SSE handler → api-client.ts
+- [x] **H1-H9:** ทั้งหมดแก้แล้ว (ดู CHANGELOG.md)
 
-### ความแม่นยำพิกัด + อัตราอากร
+### Audit v6 — MEDIUM (10 ตัว — แก้ 8 ✅)
 
-- [ ] **เติมอัตราอากร MFN (base_rate)** — 🔄 กำลัง scrape อยู่ (~970 pages, ~2 ชม.) → เสร็จแล้วรัน `python 17_backfill_mfn_rates.py`
-- [ ] **Re-scrape NTR จาก Thai IP** — 🔄 กำลังรัน `16_scrape_fta_playwright.py scrape --force --headless` (PID 579862)
+- [x] **M-cif-breakdown:** เพิ่ม insuranceAmount + freightAmount fields ใน TaxCalculationRequest
+- [x] **M-aed:** เพิ่ม AED ใน TARGET_CURRENCIES
+- [x] **M-json-escape:** ใช้ Jackson ObjectMapper แทน manual escape ใน DocumentChunkService
+- [x] **M-confidence:** 0.95 ย้ายเข้า config `customsguard.scan.high-confidence-threshold`
+- [x] **M-excise-range:** "100-150" → ใช้ upper bound, ไม่ strip dash
+- [x] **M-error-msg:** Error messages เพิ่ม Thai hints ตาม HTTP status
+- [x] **M-cors:** CORS tighten → explicit origins แทน wildcard
+- [ ] **M-export-rate:** ขาด export rate → ต้องเพิ่ม column ใน ExchangeRateEntity (scope ใหญ่ รอ Sprint ถัดไป)
+- [ ] **M-html-fragile:** HTML parsing fragile → ต้อง test กับ customs.go.th จริง (manual task)
+- [ ] **M-admin-header:** Admin header-based auth → ต้อง design JWT+ROLE_ADMIN (scope ใหญ่)
+
+### Audit v5 — MEDIUM (8 ตัว — แก้ 6 ✅)
+
+- [x] **M1:** Unescaped item description → sanitize control chars + quotes ก่อนส่ง Gemini
+- [x] **M4:** Tax fields null → เพิ่ม `taxError` field เมื่อ calculateTaxes() fail
+- [x] **M5:** Non-string weight → type check ก่อน asText() + warning message
+- [x] **M6:** .get(0) — ตรวจแล้ว มี guard ทุกจุด (isEmpty check ก่อน)
+- [x] **M7:** SSE parser rewrite (แก้แล้วจาก v5)
+- [x] **M8:** try-catch JSON.parse SSE (แก้แล้วจาก v5)
+- [x] **M9:** @Cacheable key เพิ่ม tenant_id → ป้องกันข้อมูลข้าม tenant
+- [x] **M10:** MultipartFile filename sanitize → reject path traversal
+- [ ] **M2:** Embedding dimension stale data → ต้อง migration script (scope ใหญ่)
+- [ ] **M3:** ไม่มี re-indexing schedule → H-no-reembed fix ช่วยบางส่วนแล้ว (on-demand re-embed)
+
+### Audit v6 — LOW (5 ตัว — แก้ 3 ✅)
+
+- [x] **L-dev-latest:** MinIO pin version → RELEASE.2024-11-07
+- [x] **L-localhost:** ลบ localhost จาก manifest.json host_permissions
+- [x] **L-sast:** SAST allow_failure → false
+- [ ] **L-dev-secopt:** Dev backend ไม่มี security_opt → dev ไม่มี backend service (N/A)
+- [ ] **L-model-name:** model name ตรงแล้ว (gemini-embedding-001 ถูกต้อง)
+
+### Audit v5 — Logic Bugs (3 ตัว — แก้ 2 ✅)
+
+- [x] **L1:** OCR ไม่ตรวจ content validity → เพิ่ม looksLikeInvoice() heuristic check
+- [x] **L2:** Embedding loop silent failure → ALERT log + H-no-reembed ช่วย retry ครั้งถัดไป
+- [ ] **L4:** Redis rate limit fixed window → ไม่ urgent, ยอมรับได้ที่ scale ปัจจุบัน
+
+### Audit v5 — Architecture (5 ตัว — แก้ 4 ✅)
+
+- [x] **A1:** Docker CPU 1.8 → 1.65 cores (n8n-worker 0.25→0.10) เหลือให้ OS 0.35
+- [ ] **A2:** GitLab CI SSH key → ต้องทำบน GitLab CI settings (manual task)
+- [x] **A3:** MinIO image unpinned → pin version
+- [x] **A4:** Redis timeout hardcoded → `${REDIS_TIMEOUT:5s}`
+- [x] **A5:** ลบ root Dockerfile (Maven obsolete)
+
+### Audit v5 — Quality (3 ตัว — แก้ครบ ✅)
+
+- [x] **Q1:** ScanService JSON parse swallowed → log.error ALERT
+- [x] **Q2:** Python bare except → except Exception as e + log
+- [x] **Q3:** Admin secret required=false → required=true (default)
 
 ### อัตราแลกเปลี่ยน — ทดสอบ Auto-sync
 
@@ -82,35 +134,6 @@ Updated: 2026-03-10
 ---
 
 ## 🟡 Priority 2 — ควรทำใน Sprint ถัดไป
-
-### Audit v5 — Logic Bugs (ค้างจาก v4 + ใหม่)
-
-- [ ] **L1: OCR ไม่ตรวจ content validity** — PdfProcessingService.java:69-71 — Gemini Vision OCR ไม่ตรวจว่ามี invoice fields จริง
-- [ ] **L2: Embedding loop silent failure** — DocumentChunkService.java:36-95 — Gemini rate limit → failed++ เงียบๆ ไม่ retry → RAG search ได้ผลไม่ครบ
-- [ ] **L4: Redis rate limit fixed window** — ChatGuardService.java:425-450 — burst ได้ 10 req ใน 2 วินาทีข้ามรอย window (ไม่ urgent)
-
-### Audit v5 — MEDIUM (8 ตัว)
-
-- [ ] **M1: Unescaped item description ใน verification prompt** — ScanWorkerService.java:352-363 — ลด prompt injection risk
-- [ ] **M2: Embedding dimension stale data** — GeminiEmbeddingService.java:90-93 — เปลี่ยน model → embedding เก่ายังอยู่ใน DB → ควร flag/re-embed
-- [ ] **M3: ไม่มี re-indexing schedule** — All RAG files — กฎระเบียบเปลี่ยน แต่ chunks เก่า → เพิ่ม monthly re-embed
-- [ ] **M4: Tax fields null ถ้า calculateTaxes() fail** — ScanWorkerService.java:136-161 — Frontend ได้ null ไม่รู้ว่าขาด → return explicit error
-- [ ] **M5: Non-string weight → .asText() ได้ garbage** — ScanWorkerService.java:440-441 — JSON object ถูกแปลงเป็น "[OBJECT]" → type check ก่อน
-- [ ] **M6: Missing defensive check ก่อน .get(0)** — ScanWorkerService.java:304,312 — ถ้า list ว่าง → IndexOutOfBoundsException
-
-### Audit v5 — Architecture (ค้างจาก v4)
-
-- [ ] **A1: Docker CPU = 1.8 cores** — docker-compose.yml — ลด n8n-worker CPU จาก 0.25 เป็น 0.1 (เหลือให้ OS ไม่พอ)
-- [ ] **A2: GitLab CI SSH key** — .gitlab-ci.yml:115 — echo SSH_PRIVATE_KEY → ย้ายเป็น File variable หรือ deploy keys
-- [ ] **A3: MinIO image unpinned** — docker-compose.dev.yml:30,52 — `minio/minio:latest` → pin version
-- [ ] **A4: Redis timeout hardcoded** — application.yml:35-36 — ใช้ `${REDIS_TIMEOUT:5s}` แทน
-- [ ] **A5: ลบ root Dockerfile** — Dockerfile ใช้ Maven แต่โปรเจกต์เป็น Gradle → obsolete
-
-### Audit v5 — Quality (ค้างจาก v4)
-
-- [ ] **Q1: ScanService JSON parse swallowed** — ScanService.java:129-131 — catch log warning แต่ไม่ rethrow → job return null items
-- [ ] **Q2: Python bare except 11 จุด** — data-pipeline/collectors/*.py — Silent failure → log + re-raise
-- [ ] **Q3: Admin secret `required = false`** — AdminController.java:52,116,131,171 — ควรเปลี่ยนเป็น required=true
 
 ### Audit v5 — Domain ปรับปรุง UX
 

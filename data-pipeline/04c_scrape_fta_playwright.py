@@ -29,8 +29,8 @@ async def main():
                     body = await response.json()
                     api_responses.append({"url": url, "data": body})
                     print(f"    JSON: {json.dumps(body, ensure_ascii=False)[:300]}")
-            except:
-                pass
+            except Exception as e:
+                print(f"    [WARN] Failed to parse response from {url}: {e}")
 
         page.on("response", handle_response)
 

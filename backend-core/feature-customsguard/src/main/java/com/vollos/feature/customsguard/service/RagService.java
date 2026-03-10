@@ -42,11 +42,16 @@ public class RagService {
      */
     private static final Map<String, String> UNAVAILABLE_TOPICS = Map.of(
             "anti-dumping", "ข้อมูลอากรตอบโต้การทุ่มตลาด (Anti-Dumping) กำลังอยู่ในช่วงอัปเดต กรุณาตรวจสอบที่ กรมการค้าต่างประเทศ https://www.dft.go.th",
-            "อากร ad", "ข้อมูลอากรตอบโต้การทุ่มตลาด (Anti-Dumping) กำลังอยู่ในช่วงอัปเดต กรุณาตรวจสอบที่ กรมการค้าต่างประเทศ https://www.dft.go.th"
+            "อากร ad", "ข้อมูลอากรตอบโต้การทุ่มตลาด (Anti-Dumping) กำลังอยู่ในช่วงอัปเดต กรุณาตรวจสอบที่ กรมการค้าต่างประเทศ https://www.dft.go.th",
+            "safeguard", "ข้อมูลมาตรการปกป้อง (Safeguard) กำลังอยู่ในช่วงอัปเดต กรุณาตรวจสอบที่ กรมการค้าต่างประเทศ https://www.dft.go.th",
+            "countervailing", "ข้อมูลอากรตอบโต้การอุดหนุน (Countervailing) กำลังอยู่ในช่วงอัปเดต กรุณาตรวจสอบที่ กรมการค้าต่างประเทศ https://www.dft.go.th",
+            "origin verification", "ข้อมูลการตรวจสอบแหล่งกำเนิดสินค้า (Origin Verification) กำลังอยู่ในช่วงอัปเดต กรุณาตรวจสอบที่ กรมศุลกากร https://www.customs.go.th",
+            "tariff quota", "ข้อมูลโควตาภาษี (Tariff Quota) กำลังอยู่ในช่วงอัปเดต กรุณาตรวจสอบที่ กรมการค้าต่างประเทศ https://www.dft.go.th"
     );
 
     private static final List<String> UNAVAILABLE_KEYWORDS_TH = List.of(
-            "ตอบโต้การทุ่มตลาด"
+            "ตอบโต้การทุ่มตลาด", "มาตรการปกป้อง", "ตอบโต้การอุดหนุน",
+            "ตรวจสอบแหล่งกำเนิด", "โควตาภาษี"
     );
 
     private final double minSimilarityThreshold;
@@ -364,14 +369,16 @@ public class RagService {
 
             } catch (IOException e) {
                 log.warn("SSE connection closed by client");
+                // Do NOT attempt to send error — client already disconnected
             } catch (Exception e) {
                 log.error("SSE stream error", e);
                 try {
                     emitter.send(SseEmitter.event().name("error")
                             .data("เกิดข้อผิดพลาดในการค้นหา กรุณาลองใหม่อีกครั้ง"));
-                    emitter.complete();
                 } catch (IOException ex) {
-                    log.warn("Failed to send SSE error event: {}", ex.getMessage());
+                    log.warn("Failed to send SSE error event (client disconnected): {}", ex.getMessage());
+                } finally {
+                    emitter.complete();
                 }
             }
         });
