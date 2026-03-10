@@ -5,10 +5,10 @@ import com.vollos.feature.customsguard.entity.FtaRateEntity;
 import com.vollos.feature.customsguard.repository.DocumentChunkRepository;
 import com.vollos.feature.customsguard.repository.FtaRateRepository;
 import com.vollos.feature.customsguard.repository.HsCodeRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -38,8 +38,16 @@ class RagServiceTest {
     @Mock
     private GeminiChatService chatService;
 
-    @InjectMocks
     private RagService ragService;
+
+    @BeforeEach
+    void setUp() {
+        ragService = new RagService(
+                embeddingService, chunkRepo, hsCodeRepo, ftaRateRepo, chatService,
+                0.65,   // minSimilarityThreshold
+                0.55    // hsCodeSimilarityThreshold
+        );
+    }
 
     private static final float[] MOCK_EMBEDDING = new float[]{0.1f, 0.2f, 0.3f};
 
@@ -210,5 +218,60 @@ class RagServiceTest {
 
         assertThat(result.answer()).isEqualTo("ข้อมูลกุ้ง");
         assertThat(result.sources()).isEmpty();
+    }
+
+    // --- TC-CG-009: Low similarity chunks → confidence disclaimer appended ---
+    @Test
+    @DisplayName("TC-CG-009: search — chunks มี topScore < minSimilarityThreshold (0.65) ไม่มี HS/prefix context → answer มี confidence disclaimer")
+    void search_lowSimilarityChunks_appendsConfidenceDisclaimer() {
+        // Given: first chunk (topScore source) is below threshold, second chunk is above.
+        // This makes topScore < 0.65 while relevant list still has one passing chunk,
+        // so we get past the "no relevant data" early return but trigger the disclaimer.
+        String query = "สินค้าทดสอบ";
+        when(embeddingService.embed(query)).thenReturn(MOCK_EMBEDDING);
+
+        Object[] lowScoreFirst = {"u1", "REG", "s1", 0, "ข้อมูลไม่เกี่ยว", "sum1", "{}", 0.40};
+        Object[] aboveThreshold = {"u2", "REG", "s2", 1, "สินค้าทดสอบ", "sum2", "{}", 0.70};
+        when(chunkRepo.findBySemantic(anyString(), eq(10))).thenReturn(listOf(lowScoreFirst, aboveThreshold));
+
+        // No HS code context and no prefix context
+        when(hsCodeRepo.hybridSearch(eq(query), anyString(), eq(16))).thenReturn(Collections.emptyList());
+
+        when(chatService.generateAnswer(eq(query), anyString())).thenReturn("คำตอบจาก Gemini");
+
+        // When
+        RagSearchResponse result = ragService.search(query, 5);
+
+        // Then: answer should have the confidence disclaimer appended
+        assertThat(result.answer()).contains("คำตอบจาก Gemini");
+        assertThat(result.answer()).contains("⚠️ ข้อมูลนี้มีความเกี่ยวข้องต่ำ");
+        assertThat(result.answer()).contains("customs.go.th");
+        // Only the above-threshold chunk should be in sources
+        assertThat(result.sources()).hasSize(1);
+        assertThat(result.sources().get(0).chunkText()).contains("สินค้าทดสอบ");
+    }
+
+    // --- TC-CG-010: Four-digit code in query triggers prefix lookup ---
+    @Test
+    @DisplayName("TC-CG-010: search — query มีเลข 4 หลัก '0306' ทำ prefix lookup ด้วย findByCodePrefix")
+    void search_queryWithFourDigitCode_triggersPrefixLookup() {
+        // Given: query contains a 4-digit HS heading → buildCodePrefixContext matches via HS_CODE_IN_QUERY regex
+        String query = "พิกัด 0306 ทั่วไป";
+        when(embeddingService.embed(query)).thenReturn(MOCK_EMBEDDING);
+        when(chunkRepo.findBySemantic(anyString(), eq(10))).thenReturn(Collections.emptyList());
+        when(hsCodeRepo.hybridSearch(eq(query), anyString(), eq(16))).thenReturn(Collections.emptyList());
+
+        Object[] prefixRow = {"0306.17.00", "กุ้งแช่แข็ง", "Frozen shrimps", new BigDecimal("5.00")};
+        when(hsCodeRepo.findByCodePrefix(eq("0306"), eq(15))).thenReturn(listOf(prefixRow));
+
+        when(chatService.generateAnswer(eq(query), anyString())).thenReturn("HS 0306 กุ้งแช่แข็ง");
+
+        // When
+        RagSearchResponse result = ragService.search(query, 5);
+
+        // Then: prefix lookup was called with "0306"
+        assertThat(result.answer()).isNotNull();
+        verify(hsCodeRepo).findByCodePrefix(eq("0306"), eq(15));
+        verify(chatService).generateAnswer(eq(query), anyString());
     }
 }

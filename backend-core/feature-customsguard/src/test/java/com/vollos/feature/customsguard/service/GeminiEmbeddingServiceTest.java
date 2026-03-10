@@ -169,4 +169,56 @@ class GeminiEmbeddingServiceTest {
         String result = GeminiEmbeddingService.toVectorString(new float[]{});
         assertThat(result).isEqualTo("[]");
     }
+
+    // --- TC-CG-042: retry on failure — succeeds on third attempt ---
+    @Test
+    @DisplayName("TC-CG-042: embed — retry on failure, succeeds on third attempt")
+    @SuppressWarnings("unchecked")
+    void embed_retryOnFailure_succeedsOnThirdAttempt() throws Exception {
+        // Given: first two calls throw IOException (wrapped to RuntimeException), third succeeds
+        StringBuilder valuesJson = new StringBuilder("[");
+        for (int i = 0; i < 768; i++) {
+            if (i > 0) valuesJson.append(",");
+            valuesJson.append(0.01 * i);
+        }
+        valuesJson.append("]");
+
+        String responseBody = "{\"embedding\":{\"values\":" + valuesJson + "}}";
+        HttpResponse<String> mockResponse = mock(HttpResponse.class);
+        when(mockResponse.statusCode()).thenReturn(200);
+        when(mockResponse.body()).thenReturn(responseBody);
+
+        when(mockHttpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenThrow(new IOException("Connection refused"))
+                .thenThrow(new IOException("Connection reset"))
+                .thenReturn(mockResponse);
+
+        // When
+        float[] result = service.embed("กุ้งแช่แข็ง");
+
+        // Then: should succeed with correct embedding
+        assertThat(result).hasSize(768);
+        verify(mockHttpClient, times(3)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+    }
+
+    // --- TC-CG-043: all retries exhausted — throws last exception ---
+    @Test
+    @DisplayName("TC-CG-043: embed — all retries exhausted, throws last exception after 3 attempts")
+    @SuppressWarnings("unchecked")
+    void embed_allRetriesExhausted_throwsLastException() throws Exception {
+        // Given: all three attempts fail with IOException
+        when(mockHttpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenThrow(new IOException("Connection refused"))
+                .thenThrow(new IOException("Connection reset"))
+                .thenThrow(new IOException("Connection timed out"));
+
+        // When/Then: should throw RuntimeException wrapping the last IOException
+        assertThatThrownBy(() -> service.embed("test"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Failed to get embedding from Gemini")
+                .hasCauseInstanceOf(IOException.class)
+                .cause().hasMessageContaining("Connection timed out");
+
+        verify(mockHttpClient, times(3)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+    }
 }

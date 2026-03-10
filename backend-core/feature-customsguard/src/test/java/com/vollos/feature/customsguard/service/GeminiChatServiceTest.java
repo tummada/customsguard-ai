@@ -13,6 +13,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -157,19 +158,19 @@ class GeminiChatServiceTest {
         assertThat(result).contains("Extracted invoice text");
     }
 
-    // --- TC-CG-049: extractTextFromImage API error → empty string ---
+    // --- TC-CG-049: extractTextFromImage API error → throws RuntimeException (audit v3 NEW-C3) ---
     @Test
-    @DisplayName("TC-CG-049: extractTextFromImage — API error returns empty string")
+    @DisplayName("TC-CG-049: extractTextFromImage — API error throws RuntimeException")
     @SuppressWarnings("unchecked")
-    void extractTextFromImage_apiError_returnsEmpty() throws Exception {
+    void extractTextFromImage_apiError_throwsRuntimeException() throws Exception {
         HttpResponse<String> mockResponse = mock(HttpResponse.class);
         when(mockResponse.statusCode()).thenReturn(500);
         when(mockResponse.body()).thenReturn("error");
         when(mockHttpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
                 .thenReturn(mockResponse);
 
-        String result = service.extractTextFromImage(new byte[]{1}, "image/png");
-
-        assertThat(result).isEmpty();
+        assertThatThrownBy(() -> service.extractTextFromImage(new byte[]{1}, "image/png"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Gemini Vision OCR failed with status 500");
     }
 }

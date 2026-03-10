@@ -27,26 +27,12 @@ export interface TokenResponse {
   expiresIn: string;
 }
 
-/** POST /v1/auth/dev-token → get a valid JWT */
+/** POST /v1/auth/dev-token → get a valid JWT (dev profile only) */
 export async function getDevToken(): Promise<TokenResponse> {
   const resp = await fetch(`${BASE_URL}/v1/auth/dev-token`, {
     method: "POST",
   });
   if (!resp.ok) throw new Error(`dev-token failed: ${resp.status}`);
-  return resp.json() as Promise<TokenResponse>;
-}
-
-/** POST /v1/auth/login → get a JWT via login endpoint */
-export async function login(
-  email = "e2e@vollos.local",
-  password = "e2e-test"
-): Promise<TokenResponse> {
-  const resp = await fetch(`${BASE_URL}/v1/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
-  if (!resp.ok) throw new Error(`login failed: ${resp.status}`);
   return resp.json() as Promise<TokenResponse>;
 }
 
@@ -65,9 +51,9 @@ export function authHeaders(
 // Test data helpers
 // ---------------------------------------------------------------------------
 
-/** Read test-data/test-invoice.pdf as a Buffer */
-export function readTestPdf(): Buffer {
-  const pdfPath = resolve(__dirname, "../../../test-data/test-invoice.pdf");
+/** Read a test PDF from test-data/ directory */
+export function readTestPdf(filename = "test-invoice.pdf"): Buffer {
+  const pdfPath = resolve(__dirname, "../../../test-data", filename);
   return readFileSync(pdfPath);
 }
 
@@ -77,8 +63,7 @@ export function readTestPdf(): Buffer {
 
 /**
  * Delete CREATED / PROCESSING jobs for the given tenant.
- * Uses mock-worker.sh's DB access pattern via docker exec psql.
- * Silently ignores failures (no running DB in unit-test mode).
+ * Uses docker exec psql. Silently ignores failures.
  */
 export function cleanupTestData(
   _token: string,

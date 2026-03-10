@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
@@ -374,13 +375,13 @@ class HsLookupServiceTest {
         @Test
         @DisplayName("TC-CG-073a: batch 2 codes, 1 found + 1 not found")
         void batchLookup_mixedResults() {
-            // Given
+            // Given — batchLookup uses bulk queries: findAllById + findActiveByHsCodesAndCountry
+            List<String> codes = List.of("1006.30", "9999.99");
             HsCodeEntity hs = buildHsEntity("1006.30", "ข้าว", "Rice",
                     new BigDecimal("30.00"));
-            when(hsCodeRepo.findById("1006.30")).thenReturn(Optional.of(hs));
-            when(hsCodeRepo.findById("9999.99")).thenReturn(Optional.empty());
+            when(hsCodeRepo.findAllById(codes)).thenReturn(List.of(hs)); // only 1 found
 
-            when(ftaRateRepo.findActiveByHsCodeAndCountry("1006.30", "CN"))
+            when(ftaRateRepo.findActiveByHsCodesAndCountry(codes, "CN"))
                     .thenReturn(Collections.emptyList());
             when(lpiControlRepo.findByHsCodePrefix("100630")).thenReturn(Collections.emptyList());
             when(adDutyRepo.findActiveByHsCodePrefix("100630")).thenReturn(Collections.emptyList());
@@ -388,8 +389,7 @@ class HsLookupServiceTest {
             when(exciseRateRepo.findByHsCodePrefix("100630")).thenReturn(Collections.emptyList());
 
             // When
-            List<HsLookupResponse> results = hsLookupService.batchLookup(
-                    List.of("1006.30", "9999.99"), "CN");
+            List<HsLookupResponse> results = hsLookupService.batchLookup(codes, "CN");
 
             // Then
             assertThat(results).hasSize(2);
@@ -408,6 +408,51 @@ class HsLookupServiceTest {
 
             // Then
             assertThat(results).isEmpty();
+        }
+
+        @Test
+        @DisplayName("TC-CG-073c: batchLookup uses bulk FTA query — NOT per-code N+1")
+        void batchLookup_usesBulkFtaQuery() {
+            // Given
+            List<String> codes = List.of("0306.17", "1006.30");
+            HsCodeEntity hs1 = buildHsEntity("0306.17", "กุ้ง", "Shrimp", new BigDecimal("30.00"));
+            HsCodeEntity hs2 = buildHsEntity("1006.30", "ข้าว", "Rice", new BigDecimal("30.00"));
+            when(hsCodeRepo.findAllById(codes)).thenReturn(List.of(hs1, hs2));
+            when(ftaRateRepo.findActiveByHsCodesAndCountry(codes, "CN"))
+                    .thenReturn(Collections.emptyList());
+            when(lpiControlRepo.findByHsCodePrefix(anyString())).thenReturn(Collections.emptyList());
+            when(adDutyRepo.findActiveByHsCodePrefix(anyString())).thenReturn(Collections.emptyList());
+            when(boiPrivilegeRepo.findByHsCodePrefix(anyString())).thenReturn(Collections.emptyList());
+            when(exciseRateRepo.findByHsCodePrefix(anyString())).thenReturn(Collections.emptyList());
+
+            // When
+            hsLookupService.batchLookup(codes, "CN");
+
+            // Then — bulk query called once, per-code query never called
+            verify(ftaRateRepo, times(1)).findActiveByHsCodesAndCountry(codes, "CN");
+            verify(ftaRateRepo, never()).findActiveByHsCodeAndCountry(anyString(), anyString());
+        }
+
+        @Test
+        @DisplayName("TC-CG-073d: batchLookup no country — uses findActiveByHsCodes bulk")
+        void batchLookup_noCountry_usesFindActiveByHsCodes() {
+            // Given
+            List<String> codes = List.of("0306.17", "1006.30");
+            HsCodeEntity hs1 = buildHsEntity("0306.17", "กุ้ง", "Shrimp", new BigDecimal("30.00"));
+            HsCodeEntity hs2 = buildHsEntity("1006.30", "ข้าว", "Rice", new BigDecimal("30.00"));
+            when(hsCodeRepo.findAllById(codes)).thenReturn(List.of(hs1, hs2));
+            when(ftaRateRepo.findActiveByHsCodes(codes)).thenReturn(Collections.emptyList());
+            when(lpiControlRepo.findByHsCodePrefix(anyString())).thenReturn(Collections.emptyList());
+            when(adDutyRepo.findActiveByHsCodePrefix(anyString())).thenReturn(Collections.emptyList());
+            when(boiPrivilegeRepo.findByHsCodePrefix(anyString())).thenReturn(Collections.emptyList());
+            when(exciseRateRepo.findByHsCodePrefix(anyString())).thenReturn(Collections.emptyList());
+
+            // When
+            hsLookupService.batchLookup(codes, null);
+
+            // Then — bulk no-country query called, country-specific never called
+            verify(ftaRateRepo, times(1)).findActiveByHsCodes(codes);
+            verify(ftaRateRepo, never()).findActiveByHsCodesAndCountry(anyList(), anyString());
         }
     }
 
@@ -438,6 +483,154 @@ class HsLookupServiceTest {
             verify(adDutyRepo).findActiveByHsCodePrefix("030617");
             verify(boiPrivilegeRepo).findByHsCodePrefix("030617");
             verify(exciseRateRepo).findByHsCodePrefix("030617");
+        }
+    }
+
+    // ===== P9: Domain Compliance Tests =====
+
+    @Nested
+    @DisplayName("P9: Domain Compliance — FTA form names, HS code format, rate validation")
+    class DomainCompliance {
+
+        @Test
+        @DisplayName("TC-CU-008: FTA Form D → ATIGA (ASEAN) — form name ถูกต้อง")
+        void ftaFormD_atiga() {
+            // Given: ASEAN FTA with Form D
+            HsCodeEntity hs = buildHsEntity("6204.62", "เสื้อผ้า", "Trousers",
+                    new BigDecimal("30.00"));
+            when(hsCodeRepo.findById("6204.62")).thenReturn(Optional.of(hs));
+
+            FtaRateEntity fta = buildFtaRate("6204.62", "ATIGA", "VN",
+                    new BigDecimal("0.00"), "Form D");
+            when(ftaRateRepo.findActiveByHsCodeAndCountry("6204.62", "VN"))
+                    .thenReturn(List.of(fta));
+            when(lpiControlRepo.findByHsCodePrefix("620462")).thenReturn(Collections.emptyList());
+            when(adDutyRepo.findActiveByHsCodePrefix("620462")).thenReturn(Collections.emptyList());
+            when(boiPrivilegeRepo.findByHsCodePrefix("620462")).thenReturn(Collections.emptyList());
+            when(exciseRateRepo.findByHsCodePrefix("620462")).thenReturn(Collections.emptyList());
+
+            // When
+            HsLookupResponse result = hsLookupService.lookupSingleCode("6204.62", "VN");
+
+            // Then: Form D + ATIGA
+            assertThat(result.ftaAlerts()).hasSize(1);
+            assertThat(result.ftaAlerts().get(0).formType()).isEqualTo("Form D");
+            assertThat(result.ftaAlerts().get(0).ftaName()).isEqualTo("ATIGA");
+            assertThat(result.ftaAlerts().get(0).savingPercent())
+                    .isEqualByComparingTo(new BigDecimal("30.00"));
+        }
+
+        @Test
+        @DisplayName("TC-CU-009: FTA Form E → ACFTA (จีน) — form name ถูกต้อง")
+        void ftaFormE_acfta() {
+            HsCodeEntity hs = buildHsEntity("0306.17", "กุ้งแช่แข็ง", "Frozen shrimps",
+                    new BigDecimal("30.00"));
+            when(hsCodeRepo.findById("0306.17")).thenReturn(Optional.of(hs));
+
+            FtaRateEntity fta = buildFtaRate("0306.17", "ACFTA", "CN",
+                    new BigDecimal("5.00"), "Form E");
+            when(ftaRateRepo.findActiveByHsCodeAndCountry("0306.17", "CN"))
+                    .thenReturn(List.of(fta));
+            when(lpiControlRepo.findByHsCodePrefix("030617")).thenReturn(Collections.emptyList());
+            when(adDutyRepo.findActiveByHsCodePrefix("030617")).thenReturn(Collections.emptyList());
+            when(boiPrivilegeRepo.findByHsCodePrefix("030617")).thenReturn(Collections.emptyList());
+            when(exciseRateRepo.findByHsCodePrefix("030617")).thenReturn(Collections.emptyList());
+
+            HsLookupResponse result = hsLookupService.lookupSingleCode("0306.17", "CN");
+
+            assertThat(result.ftaAlerts()).hasSize(1);
+            assertThat(result.ftaAlerts().get(0).formType()).isEqualTo("Form E");
+            assertThat(result.ftaAlerts().get(0).ftaName()).isEqualTo("ACFTA");
+        }
+
+        @Test
+        @DisplayName("TC-CU-010: FTA Form JTEPA → JTEPA (ญี่ปุ่น) — form name ถูกต้อง")
+        void ftaFormJtepa() {
+            HsCodeEntity hs = buildHsEntity("8471.30", "แล็ปท็อป", "Laptop",
+                    new BigDecimal("10.00"));
+            when(hsCodeRepo.findById("8471.30")).thenReturn(Optional.of(hs));
+
+            FtaRateEntity fta = buildFtaRate("8471.30", "JTEPA", "JP",
+                    new BigDecimal("0.00"), "Form JTEPA");
+            when(ftaRateRepo.findActiveByHsCodeAndCountry("8471.30", "JP"))
+                    .thenReturn(List.of(fta));
+            when(lpiControlRepo.findByHsCodePrefix("847130")).thenReturn(Collections.emptyList());
+            when(adDutyRepo.findActiveByHsCodePrefix("847130")).thenReturn(Collections.emptyList());
+            when(boiPrivilegeRepo.findByHsCodePrefix("847130")).thenReturn(Collections.emptyList());
+            when(exciseRateRepo.findByHsCodePrefix("847130")).thenReturn(Collections.emptyList());
+
+            HsLookupResponse result = hsLookupService.lookupSingleCode("8471.30", "JP");
+
+            assertThat(result.ftaAlerts()).hasSize(1);
+            assertThat(result.ftaAlerts().get(0).formType()).isEqualTo("Form JTEPA");
+        }
+
+        @Test
+        @DisplayName("TC-CU-014: LPI agency — สัตว์มีชีวิต 0106.19 → กรมปศุสัตว์ (DLD)")
+        void lpiAgency_liveAnimals_dld() {
+            HsCodeEntity hs = buildHsEntity("0106.19", "สัตว์มีชีวิต", "Live animals",
+                    new BigDecimal("5.00"));
+            when(hsCodeRepo.findById("0106.19")).thenReturn(Optional.of(hs));
+            when(ftaRateRepo.findActiveByHsCode("0106.19")).thenReturn(Collections.emptyList());
+
+            LpiControlEntity lpi = buildLpiControl("010619", "LICENSE", "DLD");
+            when(lpi.getAgencyNameTh()).thenReturn("กรมปศุสัตว์");
+            when(lpi.getAgencyNameEn()).thenReturn("Department of Livestock Development");
+            when(lpi.getRequirementTh()).thenReturn("ต้องมีใบอนุญาตนำเข้าสัตว์มีชีวิต");
+            when(lpiControlRepo.findByHsCodePrefix("010619")).thenReturn(List.of(lpi));
+            when(adDutyRepo.findActiveByHsCodePrefix("010619")).thenReturn(Collections.emptyList());
+            when(boiPrivilegeRepo.findByHsCodePrefix("010619")).thenReturn(Collections.emptyList());
+            when(exciseRateRepo.findByHsCodePrefix("010619")).thenReturn(Collections.emptyList());
+
+            HsLookupResponse result = hsLookupService.lookupSingleCode("0106.19", null);
+
+            assertThat(result.lpiAlerts()).hasSize(1);
+            assertThat(result.lpiAlerts().get(0).agencyCode()).isEqualTo("DLD");
+            assertThat(result.lpiAlerts().get(0).agencyNameTh()).isEqualTo("กรมปศุสัตว์");
+            assertThat(result.lpiAlerts().get(0).controlType()).isEqualTo("LICENSE");
+        }
+
+        @Test
+        @DisplayName("TC-CU-018: HS code format — normalizeCode ลบจุดออกสำหรับ prefix search")
+        void hsCodeFormat_normalization() {
+            // Given: code "0306.17.00" with extra suffix
+            HsCodeEntity hs = buildHsEntity("0306.17.00", "กุ้ง", "Shrimp",
+                    new BigDecimal("10.00"));
+            when(hsCodeRepo.findById("0306.17.00")).thenReturn(Optional.of(hs));
+            when(ftaRateRepo.findActiveByHsCode("0306.17.00")).thenReturn(Collections.emptyList());
+            when(lpiControlRepo.findByHsCodePrefix("03061700")).thenReturn(Collections.emptyList());
+            when(adDutyRepo.findActiveByHsCodePrefix("03061700")).thenReturn(Collections.emptyList());
+            when(boiPrivilegeRepo.findByHsCodePrefix("03061700")).thenReturn(Collections.emptyList());
+            when(exciseRateRepo.findByHsCodePrefix("03061700")).thenReturn(Collections.emptyList());
+
+            HsLookupResponse result = hsLookupService.lookupSingleCode("0306.17.00", null);
+
+            // Then: normalized for prefix search → "03061700"
+            assertThat(result.found()).isTrue();
+            verify(lpiControlRepo).findByHsCodePrefix("03061700");
+        }
+
+        @Test
+        @DisplayName("TC-HS-020: FTA rate anomaly — FTA rate ≥ base rate → ไม่แสดง alert (anomaly)")
+        void ftaRateAnomaly_noAlert() {
+            // Given: FTA rate (12%) > base rate (10%) → ผิดปกติ, ไม่มีประโยชน์
+            HsCodeEntity hs = buildHsEntity("1234.56", "สินค้าทดสอบ", "Test item",
+                    new BigDecimal("10.00"));
+            when(hsCodeRepo.findById("1234.56")).thenReturn(Optional.of(hs));
+
+            FtaRateEntity fta = buildFtaRate("1234.56", "TEST-FTA", "XX",
+                    new BigDecimal("12.00"), "Form X");
+            when(ftaRateRepo.findActiveByHsCodeAndCountry("1234.56", "XX"))
+                    .thenReturn(List.of(fta));
+            when(lpiControlRepo.findByHsCodePrefix("123456")).thenReturn(Collections.emptyList());
+            when(adDutyRepo.findActiveByHsCodePrefix("123456")).thenReturn(Collections.emptyList());
+            when(boiPrivilegeRepo.findByHsCodePrefix("123456")).thenReturn(Collections.emptyList());
+            when(exciseRateRepo.findByHsCodePrefix("123456")).thenReturn(Collections.emptyList());
+
+            HsLookupResponse result = hsLookupService.lookupSingleCode("1234.56", "XX");
+
+            // Then: no FTA alert because FTA rate is higher than base rate
+            assertThat(result.ftaAlerts()).isEmpty();
         }
     }
 

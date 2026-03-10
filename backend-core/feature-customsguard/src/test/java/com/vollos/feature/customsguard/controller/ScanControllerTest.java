@@ -231,6 +231,46 @@ class ScanControllerTest {
                 .andExpect(status().isTooManyRequests());
     }
 
+    // --- TC-CG-028: TRANSIT declarationType → 202 ---
+    @Test
+    @DisplayName("TC-CG-028: POST /scan — TRANSIT declarationType ได้ 202")
+    void uploadPdf_transitType_returns202() throws Exception {
+        UUID jobId = UUID.randomUUID();
+        when(usageQuotaService.checkAndIncrement(any(UUID.class), eq("scan"))).thenReturn(2);
+        when(scanService.submitScanJob(eq(TENANT_ID), any(), eq("TRANSIT")))
+                .thenReturn(new ScanJobResponse(jobId, "CREATED", (short) 0, "s3key"));
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "invoice.pdf", "application/pdf", VALID_PDF_CONTENT);
+
+        mockMvc.perform(multipart("/v1/customsguard/scan")
+                        .file(file)
+                        .param("declarationType", "TRANSIT"))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.jobId").value(jobId.toString()))
+                .andExpect(jsonPath("$.status").value("CREATED"));
+    }
+
+    // --- TC-CG-029: TRANSSHIPMENT declarationType → 202 ---
+    @Test
+    @DisplayName("TC-CG-029: POST /scan — TRANSSHIPMENT declarationType ได้ 202")
+    void uploadPdf_transshipmentType_returns202() throws Exception {
+        UUID jobId = UUID.randomUUID();
+        when(usageQuotaService.checkAndIncrement(any(UUID.class), eq("scan"))).thenReturn(2);
+        when(scanService.submitScanJob(eq(TENANT_ID), any(), eq("TRANSSHIPMENT")))
+                .thenReturn(new ScanJobResponse(jobId, "CREATED", (short) 0, "s3key"));
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "invoice.pdf", "application/pdf", VALID_PDF_CONTENT);
+
+        mockMvc.perform(multipart("/v1/customsguard/scan")
+                        .file(file)
+                        .param("declarationType", "TRANSSHIPMENT"))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.jobId").value(jobId.toString()))
+                .andExpect(jsonPath("$.status").value("CREATED"));
+    }
+
     // --- TC-CG-027: No tenant context for getJobStatus → 403 ---
     @Test
     @DisplayName("TC-CG-027: GET /scan/{jobId} — no tenant context ได้ 403")

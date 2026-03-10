@@ -2,6 +2,7 @@ package com.vollos.feature.customsguard.controller;
 
 import com.vollos.feature.customsguard.dto.ExchangeRateDto;
 import com.vollos.feature.customsguard.service.ExchangeRateService;
+import com.vollos.feature.customsguard.service.ExchangeRateSyncService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -12,6 +13,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -32,6 +34,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @WebMvcTest(ExchangeRateController.class)
 @Import(ExchangeRateControllerTest.TestSecurityConfig.class)
+@TestPropertySource(properties = "admin.secret=test-secret")
 class ExchangeRateControllerTest {
 
     @TestConfiguration
@@ -49,6 +52,9 @@ class ExchangeRateControllerTest {
 
     @MockitoBean
     private ExchangeRateService exchangeRateService;
+
+    @MockitoBean
+    private ExchangeRateSyncService exchangeRateSyncService;
 
     private ExchangeRateDto buildUsdRate() {
         return new ExchangeRateDto("USD", "US Dollar",

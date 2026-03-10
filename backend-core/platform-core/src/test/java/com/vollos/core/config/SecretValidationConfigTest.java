@@ -12,7 +12,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 /**
- * TC-BE-047 ~ TC-BE-048: SecretValidationConfig tests.
+ * TC-BE-047 ~ TC-BE-049: SecretValidationConfig tests.
  */
 @ExtendWith(MockitoExtension.class)
 class SecretValidationConfigTest {
@@ -28,6 +28,7 @@ class SecretValidationConfigTest {
         SecretValidationConfig config = new SecretValidationConfig(
                 "vollos-dev-secret-key-change-in-production-min-32-chars!!",
                 "safe-admin-secret-value",
+                "real-gemini-api-key",
                 environment);
 
         assertThatThrownBy(config::validateSecrets)
@@ -43,6 +44,7 @@ class SecretValidationConfigTest {
         SecretValidationConfig config = new SecretValidationConfig(
                 "real-production-jwt-secret-at-least-32-chars-long!!!!",
                 "vollos-admin-secret-change-me",
+                "real-gemini-api-key",
                 environment);
 
         assertThatThrownBy(config::validateSecrets)
@@ -58,6 +60,7 @@ class SecretValidationConfigTest {
         SecretValidationConfig config = new SecretValidationConfig(
                 "vollos-dev-secret-key-change-in-production-min-32-chars!!",
                 "vollos-admin-secret-change-me",
+                "real-gemini-api-key",
                 environment);
 
         assertThatNoException().isThrownBy(config::validateSecrets);
@@ -71,6 +74,7 @@ class SecretValidationConfigTest {
         SecretValidationConfig config = new SecretValidationConfig(
                 "vollos-dev-secret-key-change-in-production-min-32-chars!!",
                 "vollos-admin-secret-change-me",
+                "real-gemini-api-key",
                 environment);
 
         assertThatNoException().isThrownBy(config::validateSecrets);
@@ -84,6 +88,7 @@ class SecretValidationConfigTest {
         SecretValidationConfig config = new SecretValidationConfig(
                 "real-production-jwt-secret-at-least-32-chars-long!!!!",
                 "real-production-admin-secret-value",
+                "real-gemini-api-key",
                 environment);
 
         assertThatNoException().isThrownBy(config::validateSecrets);
@@ -97,9 +102,38 @@ class SecretValidationConfigTest {
         SecretValidationConfig config = new SecretValidationConfig(
                 "my-custom-secret-but-has-change-in-production-marker!!!",
                 "real-admin-secret",
+                "real-gemini-api-key",
                 environment);
 
         assertThatThrownBy(config::validateSecrets)
                 .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    @DisplayName("TC-BE-049: geminiApiKey blank → warn แต่ไม่ throw (ทุก profile)")
+    void validateSecrets_withBlankGeminiKey_shouldNotThrow() {
+        when(environment.getActiveProfiles()).thenReturn(new String[]{"prod"});
+
+        SecretValidationConfig config = new SecretValidationConfig(
+                "real-production-jwt-secret-at-least-32-chars-long!!!!",
+                "real-production-admin-secret-value",
+                "",
+                environment);
+
+        assertThatNoException().isThrownBy(config::validateSecrets);
+    }
+
+    @Test
+    @DisplayName("TC-BE-049b: geminiApiKey null → warn แต่ไม่ throw")
+    void validateSecrets_withNullGeminiKey_shouldNotThrow() {
+        when(environment.getActiveProfiles()).thenReturn(new String[]{"prod"});
+
+        SecretValidationConfig config = new SecretValidationConfig(
+                "real-production-jwt-secret-at-least-32-chars-long!!!!",
+                "real-production-admin-secret-value",
+                null,
+                environment);
+
+        assertThatNoException().isThrownBy(config::validateSecrets);
     }
 }

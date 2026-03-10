@@ -18,20 +18,19 @@ VALUES
     (gen_random_uuid(), 'INR', 'Indian Rupee', 0.3620, '2026-03-10', 'CUSTOMS_DEPT', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     (gen_random_uuid(), 'VND', 'Vietnamese Dong', 0.1230, '2026-03-10', 'CUSTOMS_DEPT', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     (gen_random_uuid(), 'PHP', 'Philippine Peso', 0.5450, '2026-03-10', 'CUSTOMS_DEPT', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-ON CONFLICT (currency_code) DO UPDATE SET
+ON CONFLICT (currency_code, effective_date) DO UPDATE SET
     currency_name = EXCLUDED.currency_name,
     mid_rate = EXCLUDED.mid_rate,
-    effective_date = EXCLUDED.effective_date,
     source = EXCLUDED.source,
     updated_at = CURRENT_TIMESTAMP;
 
 -- Update V1011 seed regulation: mark De Minimis as repealed since Jan 1, 2026
 UPDATE cg_regulations
-SET body_text = REPLACE(
-    body_text,
+SET content = REPLACE(
+    content,
     'ยกเว้นอากรสำหรับสินค้ามูลค่าไม่เกิน 1,500 บาท',
     'ยกเว้นอากรสำหรับสินค้ามูลค่าไม่เกิน 1,500 บาท [ยกเลิกแล้ว ตั้งแต่ 1 ม.ค. 2569 — สินค้าทุกรายการต้องเสียอากร+VAT ตั้งแต่ 1 บาท]'
 ),
     updated_at = CURRENT_TIMESTAMP
-WHERE body_text LIKE '%ยกเว้นอากรสำหรับสินค้ามูลค่าไม่เกิน 1,500 บาท%'
-  AND body_text NOT LIKE '%ยกเลิกแล้ว%';
+WHERE content LIKE '%ยกเว้นอากรสำหรับสินค้ามูลค่าไม่เกิน 1,500 บาท%'
+  AND content NOT LIKE '%ยกเลิกแล้ว%';

@@ -134,4 +134,20 @@ class JwtTokenProviderTest {
 
         assertThat(result).isEqualTo(userId);
     }
+
+    @Test
+    @DisplayName("TC-BE-008: blank secret — throw IllegalStateException")
+    void constructor_blankSecret_throwsIllegalStateException() {
+        assertThatThrownBy(() -> new JwtTokenProvider("   ", 24))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("JWT_SECRET must be set");
+    }
+
+    @Test
+    @DisplayName("TC-BE-009: null secret — throw IllegalStateException")
+    void constructor_nullSecret_throwsIllegalStateException() {
+        assertThatThrownBy(() -> new JwtTokenProvider(null, 24))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("JWT_SECRET must be set");
+    }
 }

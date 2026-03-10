@@ -11,7 +11,6 @@ import {
   DEV_TENANT_ID,
   SECOND_TENANT_ID,
   getDevToken,
-  login,
   authHeaders,
   readTestPdf,
   cleanupTestData,
@@ -28,12 +27,10 @@ let uploadedJobId = "";
 // ---------------------------------------------------------------------------
 
 beforeAll(() => {
-  // Attempt to clean stale jobs before running
   cleanupTestData("", DEV_TENANT_ID);
 });
 
 afterAll(() => {
-  // Cleanup any leftover test data
   if (token) {
     cleanupTestData(token, tenantId);
   }
@@ -65,15 +62,6 @@ describe("Auth", () => {
   });
 
   it("3. Dev token → 200 with accessToken + tenantId", async () => {
-    if (BASE_URL.includes("vollos.ai")) {
-      // Production: /dev-token disabled, use /login instead
-      const data = await login("e2e-tester@vollos.local", "password123");
-      expect(data.accessToken).toBeTruthy();
-      expect(data.tenantId).toBe(DEV_TENANT_ID);
-      token = data.accessToken;
-      tenantId = data.tenantId;
-      return;
-    }
     const data = await getDevToken();
     expect(data.accessToken).toBeTruthy();
     expect(data.tenantId).toBe(DEV_TENANT_ID);
@@ -84,15 +72,18 @@ describe("Auth", () => {
     tenantId = data.tenantId;
   });
 
-  it("4. Login endpoint → 200 with accessToken", async () => {
-    const data = await login("e2e-tester@vollos.local", "password123");
-    expect(data.accessToken).toBeTruthy();
-    expect(data.tenantId).toBe(DEV_TENANT_ID);
-    expect(data.email).toBe("e2e-tester@vollos.local");
+  it("4. Google auth without idToken → 400", async () => {
+    const resp = await fetch(`${BASE_URL}/v1/auth/google`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    expect(resp.status).toBe(400);
+    const data = await resp.json();
+    expect(data.error).toBeTruthy();
   });
 
   it("16. Tampered token → 403", async () => {
-    // Take valid token and mangle the signature
     const tampered = token.slice(0, -5) + "XXXXX";
     const resp = await fetch(
       `${BASE_URL}/v1/customsguard/hs-codes?query=test&page=0&size=10`,
@@ -119,13 +110,11 @@ describe("HS Codes", () => {
     });
     expect(resp.status).toBe(200);
     const data = await resp.json();
-    // First run: seeded >= 21. Subsequent runs: seeded = 0 (already exists).
     expect(data).toHaveProperty("seeded");
     expect(typeof data.seeded).toBe("number");
   });
 
   it("6. List HS codes → content.length > 0", async () => {
-    // GET /hs-codes requires `query` param + Spring Pageable (page, size)
     const resp = await fetch(
       `${BASE_URL}/v1/customsguard/hs-codes?query=&page=0&size=20`,
       {
@@ -138,7 +127,6 @@ describe("HS Codes", () => {
   });
 
   it('7. Semantic search "กุ้ง" → results > 0', async () => {
-    // First ensure embeddings are generated
     const embedResp = await fetch(
       `${BASE_URL}/v1/customsguard/hs-codes/embed-all`,
       {
@@ -146,7 +134,6 @@ describe("HS Codes", () => {
         headers: authHeaders(token, tenantId),
       }
     );
-    // embed-all might take a moment; it's OK if it was already done
     expect([200, 202].includes(embedResp.status)).toBe(true);
 
     const resp = await fetch(
@@ -174,7 +161,6 @@ describe("HS Codes", () => {
 describe("PDF Scan", () => {
   it("8. Upload PDF → CREATED", async () => {
     const pdfBuffer = readTestPdf();
-    // Use Uint8Array to ensure proper binary handling in Node.js Blob
     const blob = new Blob([new Uint8Array(pdfBuffer)], {
       type: "application/pdf",
     });
@@ -183,14 +169,11 @@ describe("PDF Scan", () => {
     form.append("file", blob, "test-invoice.pdf");
     form.append("declarationType", "IMPORT");
 
-    // Only pass auth headers — do NOT set Content-Type; fetch auto-sets
-    // multipart/form-data with boundary when body is FormData.
     const resp = await fetch(`${BASE_URL}/v1/customsguard/scan`, {
       method: "POST",
       headers: authHeaders(token, tenantId),
       body: form,
     });
-    // Backend returns 202 Accepted
     expect([200, 202].includes(resp.status)).toBe(true);
 
     const data = await resp.json();
@@ -241,7 +224,6 @@ describe("PDF Scan", () => {
 
   it("11. Poll job → COMPLETED with items", async () => {
     if (BASE_URL.includes("vollos.ai")) {
-      // Production: no worker yet, job stays CREATED — skip
       console.log("  ⏭ Skipped on production (no scan worker deployed yet)");
       return;
     }
@@ -258,7 +240,6 @@ describe("PDF Scan", () => {
 
 describe("FTA Lookup", () => {
   it("12. FTA lookup CN shrimp → response structure valid", async () => {
-    // Use code format matching the DB: pipeline uses 8-10 digit, seed uses 6-digit
     const testCode = BASE_URL.includes("vollos.ai") ? "0306.17.10" : "0306.17";
     const resp = await fetch(`${BASE_URL}/v1/customsguard/hs/lookup`, {
       method: "POST",
@@ -292,7 +273,6 @@ describe("FTA Lookup", () => {
     });
     const data = await resp.json();
     const first = data[0];
-    // baseRate may be number or null (pipeline data may not have rates)
     expect(first.baseRate === null || typeof first.baseRate === "number").toBe(true);
   });
 
@@ -353,7 +333,6 @@ describe("RAG Search", () => {
     expect(data).toHaveProperty("sources");
     expect(Array.isArray(data.sources)).toBe(true);
 
-    // If sources exist, verify provenance keys are present (values may be null)
     if (data.sources.length > 0) {
       const source = data.sources[0];
       expect(source).toHaveProperty("sourceUrl");
@@ -375,9 +354,6 @@ describe("Cross-Tenant Isolation", () => {
       return;
     }
 
-    // Use the same token (issued for tenant A) but switch X-Tenant-ID to tenant B.
-    // JWT filter detects tenant mismatch → 403 (before RLS even kicks in).
-    // This is the correct security behavior: double-layer protection.
     const resp = await fetch(
       `${BASE_URL}/v1/customsguard/scan/${uploadedJobId}`,
       {
@@ -392,6 +368,66 @@ describe("Cross-Tenant Isolation", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Usage & Features (new endpoints)
+// ---------------------------------------------------------------------------
+
+describe("Usage & Features", () => {
+  it("25. GET /v1/usage → returns usage data", async () => {
+    const resp = await fetch(`${BASE_URL}/v1/usage`, {
+      headers: authHeaders(token, tenantId),
+    });
+    expect(resp.status).toBe(200);
+    const data = await resp.json();
+    // Should have usage info (exact fields depend on UsageQuotaService)
+    expect(data).toBeTruthy();
+    expect(typeof data).toBe("object");
+  });
+
+  it("26. GET /v1/features → returns feature list with subscribed status", async () => {
+    const resp = await fetch(`${BASE_URL}/v1/features`, {
+      headers: authHeaders(token, tenantId),
+    });
+    expect(resp.status).toBe(200);
+    const data = await resp.json();
+    expect(Array.isArray(data)).toBe(true);
+    expect(data.length).toBeGreaterThan(0);
+
+    const cg = data.find((f: { featureId: string }) => f.featureId === "customsguard");
+    expect(cg).toBeTruthy();
+    expect(cg).toHaveProperty("displayName");
+    expect(cg).toHaveProperty("subscribed");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Exchange Rates
+// ---------------------------------------------------------------------------
+
+describe("Exchange Rates", () => {
+  it("27. GET /exchange-rates → returns array of rates", async () => {
+    const resp = await fetch(`${BASE_URL}/v1/customsguard/exchange-rates`, {
+      headers: authHeaders(token, tenantId),
+    });
+    expect(resp.status).toBe(200);
+    const data = await resp.json();
+    expect(Array.isArray(data)).toBe(true);
+    // May be empty if not synced yet — that's OK
+    if (data.length > 0) {
+      expect(data[0]).toHaveProperty("currencyCode");
+      expect(data[0]).toHaveProperty("midRate");
+      expect(data[0]).toHaveProperty("source");
+    }
+  });
+
+  it("28. GET /exchange-rates/NOTEXIST → 404", async () => {
+    const resp = await fetch(`${BASE_URL}/v1/customsguard/exchange-rates/NOTEXIST`, {
+      headers: authHeaders(token, tenantId),
+    });
+    expect(resp.status).toBe(404);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Additional robustness tests
 // ---------------------------------------------------------------------------
 
@@ -402,7 +438,6 @@ describe("Edge Cases", () => {
     });
     // Current behavior: backend accepts missing tenant header (JWT is valid).
     // TenantInterceptor may default to JWT's tenantId.
-    // Acceptable: 200 (default tenant) or 400/403 (strict validation).
     expect([200, 400, 403]).toContain(resp.status);
   });
 
@@ -427,7 +462,6 @@ describe("Edge Cases", () => {
         body: JSON.stringify({ query: "", limit: 3 }),
       }
     );
-    // Empty query: might return 200 with empty results, 400 validation, or 403 (rejected)
     expect([200, 400, 403]).toContain(resp.status);
   });
 
@@ -460,7 +494,6 @@ describe("Edge Cases", () => {
     expect(data.status).toBe("COMPLETED");
     expect(data.progress).toBe(100);
 
-    // Validate first item structure
     const item = data.items[0];
     expect(item).toHaveProperty("hsCode");
     expect(item).toHaveProperty("descriptionEn");
@@ -484,7 +517,6 @@ describe("Edge Cases", () => {
     });
     expect(resp.status).toBe(200);
     const data = await resp.json();
-    // Should return one result per code
     expect(data.length).toBe(3);
   });
 });
