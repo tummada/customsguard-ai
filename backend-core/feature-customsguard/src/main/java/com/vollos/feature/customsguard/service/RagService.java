@@ -216,19 +216,22 @@ public class RagService {
         // 2. Retrieve top-K chunks from cg_document_chunks
         List<Object[]> chunks = chunkRepo.findBySemantic(embStr, limit * 2);
 
-        // 3. Filter by similarity threshold
-        double topScore = chunks.isEmpty() ? 0 : ((Number) chunks.get(0)[7]).doubleValue();
-        List<Object[]> relevant = chunks.stream()
-                .filter(row -> row[7] != null && ((Number) row[7]).doubleValue() >= minSimilarityThreshold)
-                .toList();
-
         // 3.5 Hybrid search HS codes (full-text + semantic) for complementary context
         String hsContext = buildHsCodeContext(query, embStr);
         // 3.6 If query mentions a specific HS code, look up by prefix
         String prefixContext = buildCodePrefixContext(query);
 
-        log.info("Similarity filter: query='{}', chunks={}/{}, topScore={}, hsContext={}, prefixContext={}",
-                query, relevant.size(), chunks.size(), topScore, hsContext != null, prefixContext != null);
+        // 3. Filter by similarity threshold
+        // H2: When HS context exists, use stricter threshold for doc chunks to prevent hallucination
+        double docThreshold = (hsContext != null || prefixContext != null)
+                ? Math.max(minSimilarityThreshold, 0.70) : minSimilarityThreshold;
+        double topScore = chunks.isEmpty() ? 0 : ((Number) chunks.get(0)[7]).doubleValue();
+        List<Object[]> relevant = chunks.stream()
+                .filter(row -> row[7] != null && ((Number) row[7]).doubleValue() >= docThreshold)
+                .toList();
+
+        log.info("Similarity filter: query='{}', chunks={}/{}, topScore={}, docThreshold={}, hsContext={}, prefixContext={}",
+                query, relevant.size(), chunks.size(), topScore, docThreshold, hsContext != null, prefixContext != null);
 
         if (relevant.isEmpty() && hsContext == null && prefixContext == null) {
             return new RagSearchResponse(
@@ -301,18 +304,21 @@ public class RagService {
 
                 List<Object[]> chunks = chunkRepo.findBySemantic(embStr, limit * 2);
 
-                // 3. Filter by similarity threshold
-                double topScore = chunks.isEmpty() ? 0 : ((Number) chunks.get(0)[7]).doubleValue();
-                List<Object[]> relevant = chunks.stream()
-                        .filter(row -> row[7] != null && ((Number) row[7]).doubleValue() >= minSimilarityThreshold)
-                        .toList();
-
                 // 3.5 Hybrid search HS codes
                 String hsContext = buildHsCodeContext(query, embStr);
                 String prefixContext = buildCodePrefixContext(query);
 
-                log.info("Similarity filter (stream): query='{}', chunks={}/{}, topScore={}, hsContext={}, prefixContext={}",
-                        query, relevant.size(), chunks.size(), topScore, hsContext != null, prefixContext != null);
+                // 3. Filter by similarity threshold
+                // H2: Stricter threshold when HS context exists
+                double docThreshold = (hsContext != null || prefixContext != null)
+                        ? Math.max(minSimilarityThreshold, 0.70) : minSimilarityThreshold;
+                double topScore = chunks.isEmpty() ? 0 : ((Number) chunks.get(0)[7]).doubleValue();
+                List<Object[]> relevant = chunks.stream()
+                        .filter(row -> row[7] != null && ((Number) row[7]).doubleValue() >= docThreshold)
+                        .toList();
+
+                log.info("Similarity filter (stream): query='{}', chunks={}/{}, topScore={}, docThreshold={}, hsContext={}, prefixContext={}",
+                        query, relevant.size(), chunks.size(), topScore, docThreshold, hsContext != null, prefixContext != null);
 
                 if (relevant.isEmpty() && hsContext == null && prefixContext == null) {
                     emitter.send(SseEmitter.event().name("done")

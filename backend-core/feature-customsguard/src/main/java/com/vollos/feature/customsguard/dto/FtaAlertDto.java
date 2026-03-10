@@ -9,5 +9,6 @@ public record FtaAlertDto(
         BigDecimal preferentialRate,
         BigDecimal savingPercent,
         String conditions,
-        String sourceUrl
+        String sourceUrl,
+        String rateWarning
 ) {}

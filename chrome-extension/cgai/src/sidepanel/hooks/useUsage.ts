@@ -15,7 +15,9 @@ export function useUsage() {
       const data = await apiClient.fetchUsage();
       setUsage(data);
       // Persist to chrome.storage for cross-tab sync
-      chrome.storage.session.set({ [USAGE_STORAGE_KEY]: data }).catch(() => {});
+      chrome.storage.session.set({ [USAGE_STORAGE_KEY]: data }).catch((err) => {
+        console.warn("[VOLLOS] Failed to persist usage to storage:", err);
+      });
     } catch (err) {
       console.warn("[VOLLOS] Failed to fetch usage:", err);
     } finally {

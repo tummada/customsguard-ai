@@ -102,14 +102,14 @@ export async function waitForSplashEnd(page: Page): Promise<"login" | "ready"> {
   const tabButtons = page.locator("button:has(svg.lucide-scan-line)");
 
   await Promise.race([
-    googleBtn.first().waitFor({ state: "visible", timeout: 8_000 }).catch(() => {}),
-    tabButtons.first().waitFor({ state: "visible", timeout: 8_000 }).catch(() => {}),
+    googleBtn.first().waitFor({ state: "visible", timeout: 8_000 }).catch(() => { /* timeout expected */ }),
+    tabButtons.first().waitFor({ state: "visible", timeout: 8_000 }).catch(() => { /* timeout expected */ }),
   ]);
 
   // If Google login button visible → login screen
-  if (await googleBtn.first().isVisible().catch(() => false)) {
+  if (await googleBtn.first().isVisible().catch(() => false as const)) {
     // Double-check it's not the main UI (which also has buttons)
-    const hasTabs = await tabButtons.first().isVisible().catch(() => false);
+    const hasTabs = await tabButtons.first().isVisible().catch(() => false as const);
     if (!hasTabs) return "login";
   }
   return "ready";

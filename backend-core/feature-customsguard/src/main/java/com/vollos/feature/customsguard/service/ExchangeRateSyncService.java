@@ -72,9 +72,15 @@ public class ExchangeRateSyncService {
                 log.warn("ExchangeRate sync returned 0 rates (consecutive failures: {})", consecutiveFailures);
                 checkAndAlert();
             }
+        } catch (org.springframework.dao.DataAccessException e) {
+            consecutiveFailures++;
+            log.error("ALERT: ExchangeRate sync DB error — possible data inconsistency (consecutive failures: {}): {}",
+                    consecutiveFailures, e.getMessage(), e);
+            checkAndAlert();
         } catch (Exception e) {
             consecutiveFailures++;
-            log.warn("ExchangeRate sync failed (consecutive failures: {}): {}", consecutiveFailures, e.getMessage());
+            log.error("ExchangeRate sync unexpected error (consecutive failures: {}): {}",
+                    consecutiveFailures, e.getMessage(), e);
             checkAndAlert();
         }
     }
@@ -113,8 +119,10 @@ public class ExchangeRateSyncService {
             try {
                 upsertRate(parsed);
                 upserted++;
+            } catch (org.springframework.dao.DataAccessException e) {
+                log.error("DB error upserting rate for {}: {}", parsed.currencyCode, e.getMessage());
             } catch (Exception e) {
-                log.warn("Failed to upsert rate for {}: {}", parsed.currencyCode, e.getMessage());
+                log.warn("Failed to upsert rate for {} ({}): {}", parsed.currencyCode, e.getClass().getSimpleName(), e.getMessage());
             }
         }
         return upserted;
@@ -137,8 +145,15 @@ public class ExchangeRateSyncService {
                 return null;
             }
             return response.body();
-        } catch (Exception e) {
-            log.warn("Failed to fetch customs.go.th: {}", e.getMessage());
+        } catch (java.net.http.HttpTimeoutException e) {
+            log.warn("Timeout fetching customs.go.th: {}", e.getMessage());
+            return null;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("Interrupted fetching customs.go.th");
+            return null;
+        } catch (java.io.IOException e) {
+            log.warn("I/O error fetching customs.go.th: {}", e.getMessage());
             return null;
         }
     }

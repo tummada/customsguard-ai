@@ -135,16 +135,30 @@ public class DocumentChunkService {
     }
 
     private int findSentenceBreak(String text, int start, int end) {
-        // Look backwards from 'end' for sentence boundaries
+        // H4: Thai text has no spaces between words — prioritize newline/paragraph breaks
+        // Priority 1: Double newline (paragraph break)
         for (int i = end; i > start + CHUNK_SIZE / 2; i--) {
-            char c = text.charAt(i - 1);
-            if (c == '\n' || (c == ' ' && i > 1 && text.charAt(i - 2) == '.')) {
+            if (i > 1 && text.charAt(i - 1) == '\n' && text.charAt(i - 2) == '\n') {
                 return i;
             }
         }
-        // Fallback: break at last space
+        // Priority 2: Single newline
         for (int i = end; i > start + CHUNK_SIZE / 2; i--) {
-            if (text.charAt(i - 1) == ' ') {
+            if (text.charAt(i - 1) == '\n') {
+                return i;
+            }
+        }
+        // Priority 3: Thai sentence-ending characters (ครับ/ค่ะ followed by space, or period)
+        for (int i = end; i > start + CHUNK_SIZE / 2; i--) {
+            char c = text.charAt(i - 1);
+            if (c == '.' || c == '。' || (c == ' ' && i > 1 && text.charAt(i - 2) == '.')) {
+                return i;
+            }
+        }
+        // Priority 4: Tab or multiple spaces (common in Thai legal documents)
+        for (int i = end; i > start + CHUNK_SIZE / 2; i--) {
+            char c = text.charAt(i - 1);
+            if (c == '\t' || (c == ' ' && i > 1 && text.charAt(i - 2) == ' ')) {
                 return i;
             }
         }

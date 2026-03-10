@@ -41,7 +41,7 @@ export class QuotaExceededError extends Error {
 
 export interface ScanJobResult {
   jobId: string;
-  status: "CREATED" | "PROCESSING" | "COMPLETED" | "FAILED";
+  status: "CREATED" | "PROCESSING" | "COMPLETED" | "FAILED" | "NO_ITEMS_FOUND";
   progress: number;
   s3Key: string;
   items?: ExtractedLineItem[];
@@ -150,11 +150,11 @@ class ApiClient {
   async configure(token: string, tenantId: string) {
     const baseUrl = await this.getBackendUrl();
     this.config = { baseUrl, token, tenantId };
-    await chrome.storage.local.set({ vollosApiConfig: this.config });
+    await chrome.storage.session.set({ vollosApiConfig: this.config });
   }
 
   async loadConfig(): Promise<boolean> {
-    const result = await chrome.storage.local.get("vollosApiConfig");
+    const result = await chrome.storage.session.get("vollosApiConfig");
     if (result.vollosApiConfig) {
       const config = result.vollosApiConfig as ApiConfig;
       // Check token expiry before accepting
@@ -178,7 +178,7 @@ class ApiClient {
 
   async logout() {
     this.config = null;
-    await chrome.storage.local.remove("vollosApiConfig");
+    await chrome.storage.session.remove("vollosApiConfig");
   }
 
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -312,6 +312,7 @@ class ApiClient {
         const reader = resp.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
+        let currentEvent = "";
 
         while (true) {
           const { done, value } = await reader.read();
@@ -322,15 +323,23 @@ class ApiClient {
           buffer = lines.pop() || "";
 
           for (const line of lines) {
-            if (line.startsWith("event:")) {
-              const eventName = line.slice(6).trim();
-              const dataLine = lines[lines.indexOf(line) + 1];
-              if (dataLine?.startsWith("data:")) {
-                const data = JSON.parse(dataLine.slice(5).trim());
+            const trimmed = line.trim();
+            if (trimmed === "") {
+              currentEvent = ""; // Reset on blank line (SSE spec)
+              continue;
+            }
+            if (trimmed.startsWith("event:")) {
+              currentEvent = trimmed.slice(6).trim();
+            } else if (trimmed.startsWith("data:")) {
+              const eventName = currentEvent || "message";
+              try {
+                const data = JSON.parse(trimmed.slice(5).trim());
                 if (eventName === "status") onStatus(data);
                 else if (eventName === "sources") onSources(data);
                 else if (eventName === "done") onDone(data);
                 else if (eventName === "error") onError(data);
+              } catch {
+                console.warn("[VOLLOS] Malformed SSE JSON, skipping:", trimmed);
               }
             }
           }

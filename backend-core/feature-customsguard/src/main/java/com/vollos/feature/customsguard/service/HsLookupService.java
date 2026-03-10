@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -56,15 +57,23 @@ public class HsLookupService {
                 .toList();
     }
 
+    /** C5: Warn when FTA rate data is older than 2 years */
+    private static final LocalDate STALE_THRESHOLD = LocalDate.now().minusYears(2);
+
     private HsLookupResponse buildResponse(String code, HsCodeEntity hs, List<FtaRateEntity> ftas) {
         if (hs == null) return HsLookupResponse.notFound(code);
 
         BigDecimal baseRate = hs.getBaseRate() != null ? hs.getBaseRate() : BigDecimal.ZERO;
         List<FtaAlertDto> ftaAlerts = ftas.stream()
                 .filter(f -> f.getPreferentialRate().compareTo(baseRate) < 0)
-                .map(f -> new FtaAlertDto(f.getFtaName(), f.getPartnerCountry(), f.getFormType(),
-                        f.getPreferentialRate(), baseRate.subtract(f.getPreferentialRate()),
-                        f.getConditions(), f.getSourceUrl()))
+                .map(f -> {
+                    String warning = (f.getEffectiveFrom() != null && f.getEffectiveFrom().isBefore(STALE_THRESHOLD))
+                            ? "⚠️ อัตรานี้อาจไม่เป็นปัจจุบัน (ข้อมูลจากปี " + f.getEffectiveFrom().getYear()
+                              + ") กรุณาตรวจสอบที่ กรมศุลกากร customs.go.th" : null;
+                    return new FtaAlertDto(f.getFtaName(), f.getPartnerCountry(), f.getFormType(),
+                            f.getPreferentialRate(), baseRate.subtract(f.getPreferentialRate()),
+                            f.getConditions(), f.getSourceUrl(), warning);
+                })
                 .toList();
 
         String normalized = code.trim().replaceAll("[^0-9]", "");
@@ -109,14 +118,20 @@ public class HsLookupService {
 
         List<FtaAlertDto> ftaAlerts = ftas.stream()
                 .filter(f -> f.getPreferentialRate().compareTo(baseRate) < 0)
-                .map(f -> new FtaAlertDto(
-                        f.getFtaName(),
-                        f.getPartnerCountry(),
-                        f.getFormType(),
-                        f.getPreferentialRate(),
-                        baseRate.subtract(f.getPreferentialRate()),
-                        f.getConditions(),
-                        f.getSourceUrl()))
+                .map(f -> {
+                    String warning = (f.getEffectiveFrom() != null && f.getEffectiveFrom().isBefore(STALE_THRESHOLD))
+                            ? "⚠️ อัตรานี้อาจไม่เป็นปัจจุบัน (ข้อมูลจากปี " + f.getEffectiveFrom().getYear()
+                              + ") กรุณาตรวจสอบที่ กรมศุลกากร customs.go.th" : null;
+                    return new FtaAlertDto(
+                            f.getFtaName(),
+                            f.getPartnerCountry(),
+                            f.getFormType(),
+                            f.getPreferentialRate(),
+                            baseRate.subtract(f.getPreferentialRate()),
+                            f.getConditions(),
+                            f.getSourceUrl(),
+                            warning);
+                })
                 .toList();
 
         String normalized = code.trim().replaceAll("[^0-9]", "");

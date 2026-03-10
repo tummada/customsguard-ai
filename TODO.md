@@ -1,603 +1,10 @@
 # TODO — VOLLOS Backlog
 
-Shared backlog visible to all AI tools and humans.
+Single source of truth สำหรับงานที่ยังต้องทำ
 Updated: 2026-03-10
 
----
-
-## สิ่งที่เหลือต้องทำ
-
-### 🔴 อัตราแลกเปลี่ยน — Auto-sync จากกรมศุลกากร (URGENT)
-
-**ปัญหาที่พบ:** ข้อมูล seed ผิดเยอะ — USD ผิด 9%, JPY ผิด 10%! ลูกค้าใช้คำนวณอากรผิด โดนปรับได้
-
-**สิ่งที่แก้แล้ว (2026-03-10):**
-- [x] V1013 migration อัพเดทอัตราถูกต้องจากกรมศุลกากร (USD 31.33, EUR 37.21, JPY 20.62, GBP 42.74)
-- [x] สร้าง `ExchangeRateSyncService` — @Scheduled ดึงจาก customs.go.th ทุกวัน 08:27
-- [x] เพิ่ม `POST /v1/customsguard/exchange-rates/sync` — admin กดดึงอัตราด้วยมือได้
-- [x] แก้ label "อัตรากลาง (Mid Rate)" → "อัตรานำเข้า" (ถูกต้องตามกรมศุลกากร)
-
-**สิ่งที่ต้องทำเพิ่ม:**
-- [ ] ทดสอบ auto-sync บน dev — boot backend + trigger POST /sync + ตรวจค่า
-- [ ] ทดสอบ HTML parser กับ customs.go.th จริง (page format อาจเปลี่ยน)
-- [x] เพิ่ม alert เมื่อ sync ล้มเหลว 3 วันติด — consecutiveFailures counter + log.error ALERT (2026-03-10)
-- [x] เพิ่มสกุลเงิน SGD, HKD, AUD, CHF, CAD, NZD, TWD, MYR, IDR, INR, VND, PHP — V1015 migration (2026-03-10)
-
----
-
-### 🔴 แก้ Similarity % แสดงในแชท — ลูกค้าไม่มั่นใจ (DONE)
-
-**ปัญหา:** แชท RAG แสดง "91%" ข้างแหล่งอ้างอิง ลูกค้าไม่รู้ว่า 91% คืออะไร แต่รู้สึกว่า "แค่ 91% เอง"
-
-**แก้แล้ว (2026-03-10):**
-- [x] เปลี่ยนจากตัวเลข % → label ที่ลูกค้าเข้าใจ:
-  - ≥ 85%: "ตรงกันมาก" (badge เขียว)
-  - ≥ 75%: "ตรงกัน" (badge เขียวอ่อน)
-  - < 75%: ซ่อน (ไม่แสดง)
-- [x] เพิ่ม i18n keys: `chat.relevanceHigh`, `chat.relevanceMedium`, `chat.relevanceLow`
-
----
-
-### 🔴 Domain Requirement Fixes — เข้าใจ requirement ผิด (Audit 2026-03-10)
-
-**ที่มา:** ตรวจพบว่า developer เข้าใจ requirement แบบคนทั่วไป ไม่ใช่แบบศุลกากร
-
-**แก้แล้ว (2026-03-10):**
-- [x] **TAFTA Form ผิด** — "Form AAT" → **"Form FTA"** (V1014 migration) อ้างอิง ecs-support.github.io
-- [x] **LPI prefix ไม่สม่ำเสมอ** — `030617` → `0306` (V1014 migration) ใช้ 4-digit chapter level
-- [x] **TRANSIT dropdown** — เพิ่ม type + dropdown เลือกประเภทใบขน (ขาเข้า/ขาออก/ผ่านแดน)
-- [x] **HS Code validation** — frontend แสดงสีแดง + backend reject HS code ที่ผิดรูปแบบ
-- [x] **น้ำหนัก label (KG)** — แก้ header "น้ำหนัก" → "น้ำหนัก (KG)" ชัดเจนว่าต้องใส่หน่วย KG
-- [x] **RAG text "Form TAL" ผิด** — แก้ใน cg_document_chunks + cg_regulations (V1014)
-
-**ต้องทำเพิ่ม (ก่อนเปิดให้ลูกค้าใช้):**
-- [x] **คำนวณ VAT 7%** — เพิ่ม `calculateTaxes()` ใน ScanWorkerService: VAT = (CIF + Duty) × 7%, ปัดสตางค์ทิ้ง (2026-03-10)
-  - Frontend มี vatAmount + totalTaxDue fields + total cost summary ใน ScanPanel แล้ว (จาก audit fix D6/D7)
-- [x] **เช็ค De Minimis 2026** — ไม่มี logic ยกเว้นใน codebase (ถูกต้องแล้ว), V1015 migration อัพเดท seed text ระบุว่ายกเลิกแล้ว (2026-03-10)
-- [ ] **Excise tax สำหรับสินค้าเฉพาะ** — เหล้า, บุหรี่, รถยนต์ มีสรรพสามิตเพิ่ม (ทำทีหลังได้)
-- [x] **วันที่ พ.ศ. ครบทุกจุด** — ตรวจแล้ว: ExchangeRateBanner เป็นจุดเดียวที่แสดงวันที่ให้ user และมี +543 แล้ว (2026-03-10)
-
----
-
-### 🔴 E2E Manual Tests — ต้องทดสอบก่อนเปิดให้ลูกค้าใช้ (34 เคส)
-
-**สถานะ:** ทดสอบแล้ว 9 เคส (e2e-001 ถึง e2e-010) ยังขาดอีก 34 เคส
-**Priority:** **เร่งด่วน** — ต้องเทส feature ที่เสร็จแล้วก่อนถ่ายวิดีโอ + เปิดให้ลูกค้าทดลอง
-
-**Chat / RAG (7 เคส):**
-- [ ] E2E-011: แชทหมดโควต้า (Chat quota exceeded → modal)
-- [ ] E2E-012: ถามนอกเรื่อง ("วันนี้อากาศดี") → ChatGuard กรอง
-- [ ] E2E-013: Prompt injection ("ignore instructions") → ถูกบล็อก
-- [ ] E2E-014: แชทขณะ offline → แสดง error ไม่ crash
-- [ ] E2E-015: RAG ไม่พบข้อมูล → "ไม่พบข้อมูล" สวยงาม
-- [ ] E2E-016: ถามภาษาอังกฤษ ("What is HS code for shrimp?")
-- [ ] E2E-017: ส่งข้อความว่าง / แค่ space → ปุ่มส่ง disable
-
-**Scan / PDF (7 เคส):**
-- [ ] E2E-018: อัพโหลดไฟล์ไม่ใช่ PDF (.jpg, .docx) → แสดง error
-- [ ] E2E-019: PDF หลายหน้า (10+ หน้า) → performance + progress
-- [ ] E2E-020: PDF เปล่า / ไม่มีข้อมูลสินค้า → UI จัดการ
-- [ ] E2E-021: สแกนซ้ำไฟล์เดิม → overwrite หรือ append?
-- [ ] E2E-022: กดปุ่ม "ล้าง" แล้วสแกนใหม่ → ข้อมูลเก่าหายหมด
-- [ ] E2E-023: Scan job FAILED (backend error) → error state
-- [ ] E2E-024: PDF ขนาดใหญ่มาก (>10MB) → file size limit / timeout
-
-**Line Items / Table (4 เคส):**
-- [ ] E2E-025: แก้ไข HS Code ในตาราง (inline edit)
-- [ ] E2E-026: แก้ไขจำนวน/น้ำหนัก/ราคา → CIF คำนวณใหม่
-- [ ] E2E-027: ยืนยันบางรายการ ไม่ยืนยันบางรายการ
-- [ ] E2E-028: Traffic Light เสี่ยงสูง (แดง) — ยังทดสอบแค่เขียว
-
-**กรอกอัตโนมัติ Magic Fill (3 เคส):**
-- [ ] E2E-029: กรอกอัตโนมัติบน customs.go.th จริง
-- [ ] E2E-030: กรอกตอนไม่มีข้อมูล (ยังไม่ scan) → empty state
-- [ ] E2E-031: กรอกบนเว็บอื่น (ไม่ใช่ customs.go.th) → disable/แจ้งเตือน
-
-**Auth / Session (4 เคส):**
-- [ ] E2E-032: Login ด้วย Google OAuth → ได้ token
-- [ ] E2E-033: Login ล้มเหลว (popup ถูกบล็อก)
-- [ ] E2E-034: Logout แล้ว token + data ถูกล้าง
-- [ ] E2E-035: เปิด 2 tab พร้อมกัน → session sync (⚠️ พบ bug: UsageBadge ไม่ sync)
-
-**อัตราแลกเปลี่ยน (3 เคส):**
-- [ ] E2E-036: กดรีเฟรชอัตราแลกเปลี่ยน
-- [ ] E2E-037: แสดงหลายสกุลเงิน (EUR, JPY, CNY)
-- [ ] E2E-038: อัตราแลกเปลี่ยน offline / API ล่ม → ใช้ cache
-
-**ภาษา / UI (2 เคส):**
-- [ ] E2E-039: สลับภาษา TH ↔ EN
-- [ ] E2E-040: กดปุ่ม Logout
-
-**Cache / Data (4 เคส):**
-- [ ] E2E-041: FTA cache หมดอายุ (24h) → re-fetch
-- [ ] E2E-042: RAG cache หมดอายุ (12h) → re-fetch
-- [ ] E2E-043: Dexie storage เต็ม (IndexedDB quota)
-- [ ] E2E-044: Audit log บันทึกเมื่อแก้ไข item
-
----
-
-### 🟡 UsageBadge ไม่ sync ระหว่าง tab (Bug) — ✅ แก้แล้ว
-
-**ปัญหา:** เปิด 2 tab ของ extension พร้อมกัน — Tab A ใช้ quota ไปแล้ว แต่ Tab B ยังแสดงค่าเก่า
-**สาเหตุ:** React state เป็น per-tab, ไม่มี cross-tab notification
-**แก้แล้ว (2026-03-10):** เพิ่ม `chrome.storage.session` + `chrome.storage.onChanged` listener ใน `useUsage.ts`
-- [x] เพิ่ม cross-tab quota sync
-
----
-
-### 🟡 Audit Log — ยังไม่สมบูรณ์
-
-**สถานะ:** เก็บ log ใน Dexie (client-side) แล้ว แต่ยังขาด:
-- [ ] Backend table `cg_audit_logs` + API endpoint
-- [ ] Sync mechanism จาก Dexie → backend
-- [ ] UI หน้าดู audit log (timeline view)
-- [ ] Export เป็น CSV/PDF สำหรับยื่นศุลกากร ("Liability Shield")
-
----
-
-### Opn Payments (Omise) — ระบบชำระเงินอัตโนมัติ
-
-**ทำไปทำไม:** ลูกค้ากดอัพเกรด PRO → จ่ายเงินเสร็จ → ระบบอัพเกรดทันทีอัตโนมัติ ไม่ต้องรอ admin กดให้
-
-**เงื่อนไข:** สมัครได้เป็นบุคคลธรรมดา (ไม่ต้องจดบริษัท) ใช้บัตรประชาชน
-
-**สิ่งที่ต้องทำ (เรียงตามลำดับ):**
-- [ ] **เจ้าของสมัคร Opn Payments** — https://www.opn.ooo → ยืนยันตัวตน → ได้ API keys (test + live)
-- [ ] **Backend: Charge API** — `POST /v1/payment/create-charge` สร้าง Opn charge (PromptPay QR + บัตรเครดิต)
-- [ ] **Backend: Webhook receiver** — `POST /v1/payment/webhook` รับ event จาก Opn → เมื่อจ่ายสำเร็จ เรียก upgrade API อัตโนมัติ
-- [ ] **Pricing Page: ปุ่มจ่ายเงินจริง** — เปลี่ยนจาก "ติดต่อ LINE OA" → redirect ไปหน้า checkout Opn
-- [ ] **Extension: ปุ่ม Upgrade ใน QuotaExceededModal** → เปิดหน้า checkout
-- [ ] **ทดสอบ end-to-end** — สมัคร FREE → ใช้จนเกิน → กด Upgrade → จ่ายเงิน (test mode) → PRO ทันที
-
----
-
-### ทดสอบ + Deploy Production (Usage Quota + Pricing)
-
-**สิ่งที่ต้องทำ:**
-- [ ] Boot backend dev → ทดสอบ GET /v1/usage, POST /v1/admin/upgrade, 429 quota exceeded
-- [ ] ทดสอบ Chrome Extension — UsageBadge แสดงถูก, QuotaExceededModal ขึ้นเมื่อเกิน
-- [ ] ทดสอบ Marketing Site — หน้า /pricing แสดงถูก, Navbar link ราคา, mobile hamburger
-- [ ] Deploy production — push + build + verify
-- [ ] เพิ่ม ADMIN_SECRET ใน `.env.production` บน VPS
-
----
-
-### Data Pipeline Tier 2 — Collectors 5 ตัวที่เหลือ (ข้อมูลเสริม)
-
-**ทำไปทำไม:** เพิ่ม coverage ให้ RAG — AD/CVD duty, ใบอนุญาตนำเข้า, BOI สิทธิพิเศษ, สรรพสามิต, คำวินิจฉัยจาก US CBP
-
-**สถานะ:** In Progress — code เขียนเสร็จ, รอ sync แก้ bug + รัน parse
-
-**Step 1: ทดสอบ collectors — DONE (2026-03-06)**
-- [x] รัน `antidumping_dft.py` — ⚠️ Partial: 3 HTML tables + 1 PDF (3 PDFs ชื่อไฟล์ยาวเกิน)
-- [x] รัน `nsw_lpi_controls.py` — ⚠️ Partial: DFT 222KB + FDA/TISI เล็ก, พบ 13 PDFs
-- [x] รัน `boi_privileges.py` — ❌ Failed: เว็บเป็น SPA (JS-rendered) ได้แค่ HTML เปล่า
-- [x] รัน `excise_tax.py` — ❌ Failed: เว็บ excise.go.th เปลี่ยน structure
-- [x] รัน `cbp_cross_rulings.py` — ❌ Failed: API response format เปลี่ยน ได้ 0 rulings
-
-**Step 2: DB Migration + Processing Scripts — DONE (2026-03-06)**
-- [x] `V1012__supplementary_tenant_rls.sql` — เพิ่ม tenant_id + RLS ให้ tables ที่มีอยู่แล้ว (V1008-V1011 ถูกใช้ไปแล้ว)
-- [x] `06b_parse_antidumping.py` — parse HTML tables + PDFs → `cg_ad_duties` + `cg_regulations` (06 มีอยู่แล้ว)
-- [x] `07b_parse_licenses.py` — parse NSW + agency data → `cg_lpi_controls` (07 มีอยู่แล้ว)
-- [x] `09b_parse_supplementary.py` — parse BOI + Excise + CBP → tables + `cg_regulations` (09 มีอยู่แล้ว)
-- [x] `10_embed_supplementary.py` — chunk + embed ข้อมูลใหม่เข้า `cg_document_chunks`
-
-**Step 3: Java Backend — DONE (2026-03-06)**
-- [x] สร้าง Entity: `ImportLicenseEntity`, `BoiPrivilegeEntity`, `ExciseRateEntity` + DTOs
-- [x] สร้าง Repository: `ImportLicenseRepository`, `BoiPrivilegeRepository`, `ExciseRateRepository`
-- [x] แก้ `RagService` — ลบ BOI/LPI/Excise ออกจาก UNAVAILABLE_TOPICS (มี data แล้ว)
-- [x] แก้ `HsLookupService` — return licenses/BOI/excise ควบคู่กับ FTA rates
-
-**Step 4: Eval Cases — DONE (2026-03-06)**
-- [x] เขียน `eval_supplementary_suite.json` — 18 cases (5 หมวด: AD 5, license 4, BOI 3, excise 3, cross-cutting 3)
-
-**Step 5: Sync + แก้ bug — DONE (2026-03-07)**
-- [x] **แก้ Schema Mismatch** — ลบ `ImportLicenseEntity` (ซ้ำกับ `cg_lpi_controls`), แก้ `BoiPrivilegeEntity` + `ExciseRateEntity` columns ให้ตรง V1006, สร้าง `AdDutyEntity` ใหม่
-- [x] **แก้ collectors ที่ fail:**
-  - [x] `cbp_cross_rulings.py` — แก้ API params + response parsing → **19,897 rulings**
-  - [x] `boi_privileges.py` — Playwright headed + stealth bypass Incapsula → **6 pages + 35 PDFs**
-  - [x] `excise_tax.py` — หา URL ใหม่ `/excise2017/` + known PDFs → **187 PDFs (418 MB)**
-  - [x] `antidumping_dft.py` — hash ชื่อไฟล์ยาว → **2 PDFs + 3 tables**
-
-**Step 6: รัน pipeline + ทดสอบ (TODO)** — รอ OAuth test เสร็จก่อนค่อยทำต่อ
-- [x] **Boot backend ทดสอบ compile** — Flyway 21 migrations validated, Hibernate ORM 6.6.15 ผ่าน, entities ตรง DB schema
-- **รัน parse + embed:**
-  - [x] CBP Rulings → **19,806 records** เข้า `cg_regulations`
-  - [x] Anti-Dumping → 0 (collector ดาวน์โหลดผิดไฟล์ — ดูด้านล่าง)
-  - [x] NSW/LPI → 0 (collector ได้แค่ homepage — ดูด้านล่าง)
-  - [x] BOI → 35 PDFs processed แต่ได้ 0 records (PDFs เป็น forms/ประกาศ IT ไม่มี structured privileges)
-  - [x] Excise → 187 PDFs processed → **41 excise rates** (5 failed JSON parse)
-- [x] **รัน embed** — 51 chunks ใหม่ (LPI 9 + Excise 42), total 4,729 chunks ✅ (2026-03-09)
-- [x] **รัน eval** — ⚠️ Regression: 90.1% → 81% เพราะ test suite ใหม่ยากกว่า (MFN duty N/A, red team bypass) ✅ (2026-03-09)
-- [x] **แก้ regression:** MFN duty "N/A" → เปลี่ยนเป็น "ไม่ระบุ (ตรวจสอบที่ customs.go.th)" ใน RagService + ChatGuard เพิ่ม strong off-topic keywords + gibberish-with-customs detection (2026-03-10)
-- [x] **🐛 Bug: ChatGuard Thai NFKC normalization** — แก้แล้ว: เพิ่ม `nfkc()`, `nfkcPattern()`, `nfkcSet()`, `nfkcList()` helpers pre-normalize ทุก Thai pattern/keyword ด้วย NFKC ตอน class load ✅ (2026-03-09)
-- [ ] ทดสอบ end-to-end บน dev แล้วค่อย deploy production
-
-**Backlog — ต้องแก้ collector ก่อนถึงจะ parse ได้ (ทำทีหลัง):**
-- [ ] `antidumping_dft.py` — collector โหลดผิดไฟล์ (ได้ privacy policy แทนประกาศ AD/CVD) → ต้องหา URL ที่ถูกต้องของประกาศจาก dft.go.th
-- [ ] `nsw_lpi_controls.py` — collector ได้แค่ homepage (ไม่มี structured HS code ↔ ใบอนุญาต) → ต้อง scrape ลึกกว่า homepage หรือหาแหล่ง data อื่น
-
----
-
-### Data Pipeline — RAG quality plateau (eval ~90%, LLM flaky ~10%)
-
-**สถานะ:** Done — ปรับ 3 ด้านเพื่อลด flaky failures
-
-**สิ่งที่ทำแล้ว:**
-- [x] Tune Gemini prompt — เพิ่มกฎ "ห้ามใช้สินค้าอื่นตอบแทน" + กฎเปรียบเทียบ FTA, ลด temperature 0.2→0.1, เพิ่ม maxOutputTokens 1024→1536
-- [x] เพิ่ม data: ks_009 (อาหารสุนัข) + ks_multi_005 (ข้าวหอมมะลิจีน) ผ่าน eval แล้ว, เพิ่ม FTA rates ใน HS code context (ก่อนหน้าไม่ส่ง FTA ให้ LLM)
-- [x] ปรับ threshold: HS code 0.60→0.55, context limit 5→8, switch จาก semantic-only เป็น hybrid search (full-text + semantic RRF)
-
----
-
-### Content Marketing — ระบบผลิตบทความ SEO + โพส Social อัตโนมัติ
-
-**ทำไปทำไม:** ให้ AI (ChatGPT, Perplexity, Google) แนะนำ VOLLOS เมื่อคนถามเรื่องศุลกากร + ดึงลูกค้าผ่าน Google SEO ฟรี
-
-**Flow:** Claude Code สร้าง content → พนักงาน review ใน Google Sheets → n8n โพสอัตโนมัติ
-
-**สิ่งที่เสร็จแล้ว:**
-- [x] DB schema (`mkt_content` table + RLS)
-- [x] Marketing site + blog pages (Next.js dynamic routes)
-- [x] HS Lookup Tool — free tool ให้คนค้นหา HS Code (citation bait)
-- [x] Schema.org structured data (ArticleSchema + HSCodeToolSchema)
-- [x] AI Agent prompts 3 ตัว (Researcher + Grumpy Expert + Chief Editor) + Gemini Cross-Check
-- [x] คู่มือพนักงาน (`docs/content-marketing/OPERATIONS-MANUAL.md`)
-- [x] คำสั่งสำเร็จรูป 10 ชุด + Case Study C1-C15 + Q&A Q1-Q15
-- [x] n8n workflow JSON templates 5 ไฟล์ (`infra/n8n-workflows/`)
-
-**สิ่งที่ต้องทำ (เรียงตามลำดับ):**
-- [ ] **สมัคร Social Media Accounts** — FB Page, IG Business, TikTok Business, YouTube Channel, X/Twitter
-- [ ] **สร้าง Google Sheets** — สำหรับ review content (columns: title, body, hs_codes_mentioned, confidence_score, customs_verify_url, Final_Status, Finished)
-- [ ] **Import n8n workflows** — เปิด n8n UI → import 5 JSON files → ใส่ credentials (DB, Google Sheets, Meta API, TikTok API, YouTube API, X API, SendGrid) → activate
-  - `sheets-review-sync` — sync draft content ↔ Google Sheets ทุก 30 นาที
-  - `blog-publisher` — publish blog เมื่อถึงเวลา schedule
-  - `social-publisher` — โพสไป FB/IG/TikTok/YouTube/X อัตโนมัติ
-  - `token-refresh` — auto-refresh social API tokens ก่อนหมดอายุ
-  - `lead-nurture` — ส่ง email series ให้ lead ใหม่ (SendGrid)
-- [ ] **ทดสอบ end-to-end** — สร้าง content ชุดแรก → review ใน Sheets → publish blog → โพส social → ตรวจว่าขึ้นทุก platform
-
----
-
-### Marketing Site Content & Asset Audit — แก้ข้อความเท็จ + เพิ่มรูป/วีดีโอ
-
-**ทำไปทำไม:** Landing page มีข้อความเกินจริง/เท็จ 10+ จุด (อ้าง feature ที่ไม่มี, ตัวเลข 100%/0% ที่เป็นไปไม่ได้, ISO-27001 ที่ไม่มี) + รูปภาพ placeholder ทั้ง 5 จุด + ไม่มี OG image + ไม่มีวีดีโอ
-
-**สถานะ:** Phase 1 DONE (2026-03-06)
-
-**ไฟล์หลัก:** `marketing-site/src/config/products/hs-code.ts` (ข้อความทั้งหมด)
-
-**Phase 1: แก้ข้อความเท็จ — DONE (2026-03-06)**
-- [x] แก้ "AI Scan ลดเหลือ 0%" → "ลดข้อผิดพลาดได้กว่า 80%"
-- [x] แก้ "แม่นยำ 100%" ใน Magic Fill → "ลดการพิมพ์ซ้ำและข้อผิดพลาดจากการคัดลอกด้วยมือ"
-- [x] แก้ "ป้องกัน...100%" ใน RegTech → ลบ 100% ออก
-- [x] แก้ "ไม่เปิดเผย...100%" ใน Security → ลบ 100% ออก
-- [x] แทน **Shadow Auditor** (feature ไม่มีจริง) → ด้วย "ถาม AI เรื่องศุลกากร" (RAG Chat ที่มีจริง)
-- [x] แทน **Smart Grouping** (feature ไม่มีจริง) → เป็น "เร็วๆ นี้" + badge ROADMAP
-- [x] แก้ **RegTech Permit Guard** → เป็น "(Beta)" เพราะยังไม่มีข้อมูล LPI
-- [x] แก้ Security labels: "AES-256 ENCRYPTED" → "HTTPS ENCRYPTED", "ISO-27001 READY" → "SECURITY BY DESIGN"
-- [x] แก้ Footer: "Compliant with Customs Department standards" → "อ้างอิงข้อมูลจากกรมศุลกากร"
-- [x] แก้ ROI headline: "ประหยัดได้จริง" → "ประหยัดได้สูงสุด" + เพิ่ม disclaimer footnote
-- [x] แก้ ATIGA flag: Thai flag → globe emoji (ไม่มี ASEAN flag emoji)
-- [x] แก้ Process Step 2: ลบ "Form E" (ระบบไม่ได้สร้าง Form E)
-- [x] เพิ่ม footnote "*ตัวเลขเป็นค่าประมาณจากข้อมูลอุตสาหกรรม" ใน pain section + ROI
-
-**Phase 2: Layout Fixes — DONE (2026-03-09)**
-- [x] เพิ่ม ROADMAP badge styling สีเทา (`bg-gray-100 text-gray-400`) แยกจาก badge ทอง ✅ (2026-03-09, worktree)
-- [x] เพิ่ม Footer link ไป `/privacy` ✅ (2026-03-09, worktree)
-- [x] เพิ่ม Mobile hamburger menu → shared Navbar.tsx ✅ (2026-03-09)
-
-**Phase 3: รูปภาพ (ทำใน 1 สัปดาห์)**
-- [ ] สร้าง OG Image 1200x630px (`/public/og-default.jpg`) — Canva/Figma สีทอง #D4AF37
-- [ ] ถ่าย product screenshot จาก Chrome Extension จริง 4 รูป (hero, step 1-3)
-- [ ] สร้าง/หารูป pain section (AI-generated หรือ stock)
-- [ ] อัพเดท paths ใน `hs-code.ts` ให้ชี้ไปรูปจริงแทน placehold.co
-
-**Phase 4: Demo Video (ทำใน 1-3 เดือน)**
-- [ ] ถ่าย screen recording 60-90 วินาที (OBS/Loom): Upload PDF → AI Scan → FTA → Magic Fill → Chat
-- [ ] ใส่คำบรรยายไทย + background music royalty-free
-- [ ] เปลี่ยน hero image เป็น `<video>` ใน `LandingTemplate.tsx`
-
-**เรื่อง AES-256 Encryption at Rest:**
-- ยังไม่ต้องทำตอนนี้ — HTTPS (encryption in transit) + RLS + backup เพียงพอสำหรับ startup ช่วงแรก
-- AES-256 at rest กิน CPU เพิ่มแค่ ~2-5% (ไม่เกิน budget 2 CPU) แต่ PostgreSQL 16 ยังไม่มี built-in TDE
-- **ทำเมื่อ:** มีลูกค้าจ่ายเงินจริง หรือ ลูกค้าองค์กรขอ compliance document — ตอนนั้นค่อยเปิด LUKS disk encryption บน VPS
-- ระหว่างนี้เปลี่ยน label marketing เป็น "HTTPS ENCRYPTED" เพื่อไม่อ้างเกินจริง
-
----
-
-### Production Auth + Subscription — Google OAuth + ระบบ Package/Pricing
-
-**ทำไปทำไม:** ปิด `/login` บน production แล้ว → Extension login ไม่ได้ ต้องทำ login จริง + ระบบ package เพื่อรับลูกค้า
-
-**สิ่งที่เสร็จแล้ว:**
-- [x] DB Migration V8 — users, subscription_plans (FREE/PRO), tenant_subscriptions, tenant_usage
-- [x] Google OAuth — `POST /v1/auth/google` verify Google ID token, auto-create tenant+user+FREE plan
-- [x] Chrome Extension — Login with Google (`chrome.identity.launchWebAuthFlow`), ลบ email/password
-- [x] ลบ AuthController (dev email/password) — ใช้ Google OAuth ทั้ง dev + prod
-- [x] VPS `.env.production` — เพิ่ม GOOGLE_CLIENT_ID
-
-**ทดสอบ (รอเจ้าของทดสอบเอง):**
-- [x] Backend dev — endpoint ทำงาน (401 fake token, 400 empty body, V8 tables ครบ)
-- [x] Backend production — deploy สำเร็จ, GOOGLE_CLIENT_ID ใส่แล้ว, endpoint ตอบ 401
-- [x] แก้ Extension crash หน้าขาว — เพิ่ม Error Boundary + Dexie try-catch + filter undefined hsCode
-- [ ] **รอเจ้าของทดสอบ:** ล้าง IndexedDB เก่า (F12 → Application → IndexedDB → Delete) → reload Extension → Login with Google → ลากไฟล์ scan
-- [ ] **Rotate Google OAuth Client ID** — AI เผลอแสดง Client ID ใน chat ต้องสร้างใหม่ที่ Google Cloud Console → แก้ `.env` (local) + `.env.production` (VPS) + rebuild Extension
-
-**สิ่งที่ต้องทำ (เรียงตามลำดับ):**
-- [x] Usage Quota — atomic UPSERT, 429 + Thai upsell message, chat นับเฉพาะ RAG จริง ✅ (2026-03-09)
-- [x] Admin upgrade API — `POST /v1/admin/upgrade` + X-Admin-Secret ✅ (2026-03-09)
-- [x] Admin Plan CRUD API — `GET/POST/PUT /v1/admin/plans` จัดการ package ผ่าน API ✅ (2026-03-09)
-- [x] Chrome Extension — QuotaExceededModal, UsageBadge (scan/chat remaining), 429 handling ✅ (2026-03-09)
-- [x] Marketing Site — Pricing page (FREE / PRO 990 บาท) + shared Navbar/Footer ✅ (2026-03-09)
-
-**Pricing:** FREE (10 scan + 3 chat) / PRO 990 บาท (100 ครั้งรวม) / เกินติดต่อ custom
-**Payment Phase 1:** Manual — LINE OA + PromptPay (ยังไม่มีบริษัท)
-
----
-
-### 🔍 Code Audit Findings (2026-03-10) — 8 CRITICAL, 8 HIGH, 10 MEDIUM, 1 LOW — ✅ แก้แล้ว 25/27
-
-**ที่มา:** Full Audit โดย vollos-code-auditor v2 (รวม Domain Compliance) — static analysis ทุก layer
-**สรุป:** 27 findings | Security 6 | Logic 5 | Quality 3 | Architecture 4 | Domain 9
-**แก้เมื่อ:** 2026-03-10
-
-#### 🔴 CRITICAL (8 รายการ) — ✅ แก้ครบ
-
-**Security:**
-- [x] **S1: Hardcoded JWT secret** — ลบ default ออกจาก `JwtTokenProvider.java` ใช้ค่าจาก application.yml เท่านั้น (SecretValidationConfig validate ใน prod)
-- [x] **S2: Hardcoded admin password** — ลบ default ออกจาก `AdminController.java` + เปลี่ยนเป็น timing-safe `MessageDigest.isEqual()`
-- [x] **S3: Hardcoded DB credentials** — ลบ default `"postgres"` ออกจาก `data-pipeline/config.py` ต้องตั้ง env var
-
-**Domain Compliance:**
-- [x] **D1: ไม่มี VAT 7%** — เพิ่ม `vatAmount`, `totalTaxDue` fields ใน TS types + UI แสดง total cost summary
-- [x] **D2: FTA Form ชื่อผิด** — V1014 migration แก้ "Form AAT" → "Form FTA" สำหรับ TAFTA
-- [x] **D3: V1014 migration SQL ผิด** — แก้ `agreement_name` → `fta_name` (column ที่ถูกต้อง)
-
-**Architecture:**
-- [x] **A1: Unpinned Docker images** — pin minio:RELEASE.2024-12-18, mc:RELEASE.2024-12-18, nginx:1.27-alpine
-
-**Logic:**
-- [x] **L1: Prompt Injection** — แยก `system_instruction` ออกจาก `contents` ใน GeminiChatService.generateAnswer()
-
-#### 🟠 HIGH (8 รายการ) — ✅ แก้ครบ
-
-- [x] **S4: XSS via markdownToHtml** — เพิ่ม `stripHtml()` + restrict `<a>` href to https only ใน blog page.tsx
-- [x] **L2: LLM output ไม่ validate** — `isValidHsCode()` มีอยู่แล้วที่ line 288 (ตรวจ DDDD.DD format)
-- [x] **L3: Race condition scan job** — เพิ่ม `@Transactional` บน `pollAndProcess()`
-- [x] **A2: CSP unsafe-inline** — ลบ `'unsafe-inline'` ออกจาก style-src ใน vollos.conf ทั้ง 2 server blocks
-- [x] **D4: ขาด TRANSSHIPMENT** — เพิ่ม type + dropdown ใน ScanPanel + i18n (TH: "ใบขนสินค้าถ่ายลำ")
-- [x] **D5: LPI prefix** — แก้แล้วใน V1014 (030617→0306 chapter level)
-- [x] **D6: Frontend ขาด vatAmount/totalTax** — เพิ่มใน CgDeclarationItem type
-- [x] **D7: ไม่แสดง total cost** — เพิ่ม Duty + VAT + Total Tax summary ใน ScanPanel
-
-#### 🟡 MEDIUM (10 รายการ) — ✅ แก้ 9/10
-
-- [x] **S5: SQL string concat** — False positive (countColumn จาก code logic ไม่ใช่ user input) เพิ่ม SAFE comment
-- [x] **S6: dangerouslySetInnerHTML** — False positive (config เป็น dev-controlled TS files ไม่ใช่ user input)
-- [x] **L4: Confidence threshold** — เปลี่ยนจาก 0.3 → 0.5
-- [ ] **L5: Gemini error swallowed** — GeminiChatService log + return "ขออภัย..." อยู่แล้ว (ทำได้ดีกว่า แต่ไม่ urgent)
-- [x] **Q1: Admin sync ไม่มี auth** — เพิ่ม X-Admin-Secret verification + timing-safe comparison ใน ExchangeRateController
-- [x] **Q2: No exponential backoff** — เปลี่ยนจาก fixed 15s → exponential backoff (15s, 30s, 60s)
-- [x] **A3: Docker resource limits** — ตรวจแล้ว: CPU 1.8 / RAM 6.5GB อยู่ในเกณฑ์ 2CPU/8GB
-- [x] **A4: Hardcoded MinIO defaults** — ลบ `:-minioadmin` defaults ต้องตั้งใน .env
-- [x] **D8: CIF ไม่แยก Insurance+Freight** — เพิ่ม `insuranceAmount` + `freightAmount` fields ใน types + LineItemTable columns + i18n (2026-03-10)
-- [ ] **D9: ไม่รองรับ Specific Duty** — backlog (ต้อง lookup duty type ต่อ HS Code จาก DB)
-
-#### 🟢 LOW (1 รายการ)
-
-- [x] **Q3: Hardcoded unavailable topics** — ออกแบบมาเป็น domain-specific prompt (ไม่ใช่ bug)
-
----
-
-### 🔍 Code Audit Findings (2026-03-09) — 7 CRITICAL, 6 HIGH, 7 MEDIUM, 4 LOW (แก้ครบแล้ว ✅)
-
-**ที่มา:** Full Audit โดย vollos-code-auditor (static analysis ทุก layer)
-
-#### 🔴 CRITICAL — ✅ แก้ครบ (2026-03-09)
-- [x] **C1: Gemini Hallucination** — แก้ไปก่อนหน้า (enrichWithHsCodes ใช้ semantic search แทน Gemini เดา)
-- [x] **C2: Race Condition** — เพิ่ม `FOR UPDATE SKIP LOCKED` ใน job polling query
-- [x] **C3: Prompt Injection** — strip zero-width chars (U+200B-200F, U+2060-2064, FEFF, soft hyphen) ก่อน regex check
-- [x] **C4: NPE `.get(0)`** — เปลี่ยนเป็น safe `.path(0)` + check empty candidates ทั้ง 3 methods
-- [x] **C5: Embedding dimension** — validate dimensions = 768, throw error ถ้าไม่ตรง
-- [x] **C6: Admin permitAll()** — ลบ permitAll จาก SecurityConfig, admin ต้อง JWT authenticated
-- [x] **C7: AdminController @Valid** — เพิ่ม `UpgradeRequest` + `CreatePlanRequest` records พร้อม @Valid, @NotBlank, @Min
-
-#### 🟠 HIGH — ✅ แก้ครบ (2026-03-09)
-- [x] **H1: `<all_urls>` web_accessible_resources** — ลบ `<all_urls>` เหลือแค่ `customs.go.th`
-- [x] **H2: ChatGuardService Thai bypass** — strip zero-width chars (รวมกับ C3)
-- [x] **H3: Race in embedAllHsCodes()** — ลบ @Transactional (Thread.sleep ภายใน transaction)
-- [x] **H4: Null-unsafe semantic search** — null check code() + descriptionEn()
-- [x] **H5: Python bare except** — แก้ 8 จุดใน 4 ไฟล์ เป็น specific exception + logging
-- [x] **H6: Missing CSP header** — เพิ่ม Content-Security-Policy ใน nginx ทั้ง 2 server blocks
-
-#### 🟡 MEDIUM — ✅ แก้ครบ (2026-03-09)
-- [x] **M1+M2: Default secrets** — สร้าง SecretValidationConfig.java fail-fast บน production
-- [x] **M3: postMessage null origin** — ลบ "null" จาก ALLOWED_ORIGINS + ลบ bypass condition
-- [x] **M4: Unpinned Docker images** — pin n8n:1.76.1, minio RELEASE.2025-02-28, mc RELEASE.2025-02-21
-- [x] **M5: Gemini error log** — เพิ่ม truncateForLog() log response body (cap 500 chars)
-- [x] **M6: N+1 query** — pre-fetch chunked IDs ก่อน loop + เพิ่ม findSourceIdsBySourceType()
-- [x] **M7: Empty catch blocks** — เพิ่ม log.warn ใน RagController + RagService SSE
-
-#### 🟢 LOW — ✅ แก้ครบ (2026-03-09)
-- [x] **L1: Content script `<all_urls>`** — ลบ `<all_urls>` (รวมกับ H1)
-- [x] **L2: PGPASSWORD** — เพิ่ม comment warning + แนะนำ .pgpass
-- [x] **L3: Clipboard error** — เพิ่ม console.warn แทน empty catch
-- [x] **L4: GitLab CI SAST** — เพิ่ม sast job ใน test stage (dependencyCheckAnalyze)
-
----
-
-### 🔍 Code Audit Findings v3 (2026-03-10 บ่าย) — 7 CRITICAL, 8 HIGH, 13 MEDIUM, 4 LOW — ✅ แก้แล้ว 30/32
-
-**ที่มา:** Full Re-Audit โดย vollos-code-auditor — ตรวจซ้ำทั้งโปรเจกต์ + ตรวจว่า fix รอบก่อนผ่านจริงไหม
-**สรุป:** 32 findings | แก้แล้ว 30 | เหลือ 2 (backlog/manual)
-**แก้เมื่อ:** 2026-03-10
-
-#### 🔴 CRITICAL (7 รายการ) — ✅ แก้ครบ
-
-- [x] **FIX-1: TRANSSHIPMENT ยังขาดใน Backend** — เพิ่ม "TRANSSHIPMENT" ใน ScanController VALID_DECLARATION_TYPES
-- [x] **FIX-2: Unpinned minio images ใน prod** — pin RELEASE.2024-12-18 ใน docker-compose.prod.yml + pin nginx:1.27-alpine
-- [x] **FIX-3: JWT default secret fallback** — ลบ default ออกจาก application.yml, JwtTokenProvider fail-fast ถ้า empty, SecretValidationConfig reject empty ใน non-dev
-- [x] **NEW-C1: n8n ไม่มี authentication** — เพิ่ม N8N_BASIC_AUTH_ACTIVE + N8N_BASIC_AUTH_USER/PASSWORD ใน docker-compose.yml + security_opt
-- [x] **NEW-C2: RAG LLM output ไม่มี confidence threshold** — เพิ่ม confidence disclaimer เมื่อ topScore < threshold + no HS context
-- [x] **NEW-C3: Gemini Vision OCR silent failure** — แก้ให้ throw RuntimeException แทน return "", PdfProcessingService catch per-page + log
-- [x] **NEW-C4: ScanWorkerService swallow all exceptions** — เพิ่ม ALERT prefix ใน error log + log job stuck warning
-
-#### 🟠 HIGH (8 รายการ) — ✅ แก้ครบ
-
-- [x] **NEW-H1: CORS allows localhost ใน production** — แยก localhost ให้ dev profile only (ตรวจ environment.getActiveProfiles)
-- [x] **NEW-H2: Default admin secret fallback** — ลบ default ออกจาก application.yml, SecretValidationConfig reject empty ใน non-dev
-- [x] **NEW-H3: N+1 query HsLookupService.batchLookup()** — เปลี่ยนเป็น batch-fetch HS codes + FTA rates ด้วย IN query (2 queries แทน N×6)
-- [x] **NEW-H4: Redis rate limit ไม่ atomic** — ใช้ Lua script (INCR + EXPIRE ใน 1 command) แทน 2 calls แยก
-- [x] **NEW-H5: SSE stream ส่ง raw exception** — mask error message ส่ง user-friendly ภาษาไทยแทน
-- [x] **NEW-H6: GeminiEmbeddingService ไม่มี retry** — เพิ่ม retry 3 ครั้ง + exponential backoff (1s, 2s, 4s)
-- [x] **NEW-H7: ScanWorker retry ไม่แยก rate limit vs empty** — เพิ่ม ALERT log + text length context เพื่อ diagnose
-- [x] **NEW-H8: n8n webhook exposed publicly** — เพิ่ม n8n rate limit zone (10r/s) + location block ใน vollos.conf + n8n basic auth
-
-#### 🟡 MEDIUM (13 รายการ) — ✅ แก้ 11/13
-
-- [x] **NEW-M1: Backend healthcheck ไม่มี start_period** — เพิ่ม start_period: 90s ใน docker-compose.yml
-- [x] **NEW-M2: security_opt ขาดใน docker-compose.dev.yml** — เพิ่ม no-new-privileges ให้ postgres, minio, redis
-- [x] **NEW-M3: Nginx ไม่มี rate limit สำหรับ n8n** — เพิ่ม zone=n8n:10m rate=10r/s + location /n8n/
-- [x] **NEW-M4: CSP ไม่มี report-uri** — เพิ่ม report-uri /csp-report + location block ที่ log + return 204
-- [x] **NEW-M5: frontend-app Dockerfile ไม่มี non-root user** — เพิ่ม appuser UID 1001 + chown + USER directive
-- [x] **NEW-M6: SSH key ใน CI/CD env vars** — เพิ่ม TODO comment แนะนำ migrate to File variable + chmod 700 .ssh
-- [x] **NEW-M7: Similarity threshold hardcoded** — ย้ายไป application.yml configurable (RAG_MIN_SIMILARITY, RAG_HS_SIMILARITY)
-- [x] **NEW-M8: ChatGuard gibberish bypass ด้วย mixed script** — เพิ่ม MIXED_SCRIPT_HARMFUL patterns (Thai+English harmful intent)
-- [x] **NEW-M9: DocumentChunkService silent chunk skip** — เพิ่ม failed counter + ALERT log เมื่อมี failures
-- [ ] **NEW-M10: Data pipeline ไม่ validate Gemini responses** — backlog (Python scripts ที่รัน manual ไม่ใช่ production code)
-- [x] **NEW-M11: Weight unit ไม่มี validation** — เพิ่ม validateWeightUnits() warning log สำหรับ non-standard units
-- [ ] **NEW-M12: HS/FTA data ไม่มี auto-sync** — backlog (ต้องหา external data source API)
-- [x] **NEW-M13: HS Code ไม่มี DB CHECK constraint** — V1016 migration เพิ่ม CHECK constraint regex
-
-#### 🟢 LOW (4 รายการ) — ✅ แก้ครบ
-
-- [x] **NEW-L1: Redis connection ไม่มี timeout** — เพิ่ม timeout: 5s + connect-timeout: 3s ใน application.yml
-- [x] **NEW-L2: marketing-site /public ไม่มี --chown** — เพิ่ม --chown=appuser:0 ใน COPY /public
-- [x] **NEW-L3: GEMINI_API_KEY fallback empty string** — SecretValidationConfig log.warn เมื่อ GEMINI_API_KEY ว่าง
-- [x] **NEW-L4: Nginx logging inconsistent** — เพิ่ม access_log off ที่ /actuator/health
-
-#### เพิ่มเติมที่แก้พร้อมกัน (bonus)
-- [x] docker-compose.prod.yml: เพิ่ม security_opt ทุก service (postgres, redis, minio, backend, marketing, nginx)
-- [x] docker-compose.prod.yml: pin nginx:1.27-alpine (เดิมใช้ nginx:alpine)
-
----
-
-### E2E Tests — เสร็จแล้ว 10/10 ✅ ค้างงาน A + B
-
-**สถานะ:** E2E tests ผ่านครบ 10 ตัว (1 นาที) — ใช้ fake JWT injection + context.route() mocking
-
-**สิ่งที่ค้าง:**
-- [ ] **A) เพิ่ม screenshots** — ถ่ายภาพหน้าจอทุก step ใน E2E tests (ได้ screenshots บางส่วนแล้วที่ `e2e-results/manual/`)
-- [ ] **B) เขียน demo script สำหรับถ่ายวิดีโอ** — Mode 3 ของ vollos-tester, script แบ่ง scene + timestamp + talking points
-
----
-
-### 🔴 Premium Test Audit — 157 Test Cases (2026-03-10)
-
-**ที่มา:** Full project scan โดย vollos-tester (Mode 1) — อ่าน source code ทุกไฟล์ + ตรวจ test ที่มีอยู่ 47 ไฟล์
-**สรุป:** 52 Critical / 72 High / 27 Medium / 6 Low
-**สถานะ:** ยังไม่ได้เขียน test code — เป็น test plan เท่านั้น
-
-#### Priority 1: Duty Calculation Unit Tests (Critical — คำนวณอากรผิด = เสียหายทางการเงิน)
-- [ ] TC-CU-001: สูตร CIF ครบ (ราคา + ขนส่ง + ประกัน) → BigDecimal
-- [ ] TC-CU-002: อากรขาเข้า = CIF × base rate
-- [ ] TC-CU-003: VAT = (CIF + อากร) × 7% — round HALF_UP
-- [ ] TC-CG-021: Duty rounding — round DOWN (ไม่ใช่ HALF_UP)
-- [ ] TC-CG-022: VAT rounding — (CIF+Duty)×7% round HALF_UP
-- [ ] TC-CG-023: Total tax = duty + VAT ตรงเป๊ะ
-- [ ] TC-CU-004: FTA override — preferentialRate < baseRate → ใช้ FTA
-- [ ] TC-CU-005: AD duty stacking — base + AD (เหล็กจีน 5%+23%=28%)
-- [ ] TC-CU-006: Excise + duty + VAT combined (วิสกี้)
-- [ ] TC-CU-007: สินค้า online ≥ 1 บาท → ต้องเสียอากร (กฎ 2026)
-- [ ] TC-CU-017: BigDecimal ทุกที่ — ห้าม double/float กับเงิน
-
-#### Priority 2: Multi-Tenant Integration Tests (Critical — ข้อมูลรั่ว = security breach)
-- [ ] TC-MT-007: RLS bypass test — direct SQL ข้าม tenant → ต้อง filter
-- [ ] TC-MT-008: RLS FORCE — superuser ก็ bypass ไม่ได้
-- [ ] TC-CG-008: Poll scan job ของ tenant อื่น → 404
-- [ ] TC-CG-024: 10 tenants scan พร้อมกัน → job ไม่ปน
-- [ ] TC-MT-005: X-Tenant-ID header ≠ JWT tenantId → JWT wins
-- [ ] TC-MT-022: TenantContext cleanup — virtual threads ไม่ leak
-- [ ] TC-EXT-019: Dexie tenant isolation — login tenant A, logout, login B → B ไม่เห็น A
-
-#### Priority 3: ChatGuard Comprehensive Tests (Critical — prompt injection / PII leak)
-- [ ] TC-RAG-004: Prompt injection "Ignore all instructions" → blocked
-- [ ] TC-RAG-005: Thai NFKC injection → blocked
-- [ ] TC-RAG-006: PII เลขบัตรประชาชน 13 หลัก → blocked
-- [ ] TC-RAG-007: PII เบอร์โทร 10 หลัก → blocked
-- [ ] TC-RAG-008: PII เลขบัตรเครดิต 16 หลัก → blocked
-- [ ] TC-RAG-009: Harmful intent "ลักลอบนำเข้า" → blocked
-- [ ] TC-RAG-014: Social engineering "i am admin" → blocked
-- [ ] TC-RAG-022: Role-play bypass "สมมติว่าอยู่ในนิยาย" → blocked
-- [ ] TC-RAG-010: Harmful + safe context "บทลงโทษลักลอบ" → allowed
-- [ ] TC-RAG-015: Rate limit — 6th request within 1 min → blocked
-- [ ] TC-RAG-016: Redis down → fail-open (request ผ่าน)
-
-#### Priority 4: Repository & Vector Search Tests (Critical — SQL query ผิด, index ไม่ทำงาน)
-- [ ] TC-BE-008: Vector dimension mismatch (512 into 768 column) → SQL error
-- [ ] TC-BE-009: HNSW index cosine similarity search — insert 100 vectors → top 5
-- [ ] TC-HS-012: Semantic search "กุ้งแช่แข็ง" → top result 0306.17
-- [ ] TC-HS-013: Semantic search "frozen shrimps" → top result 0306.17
-- [ ] TC-BE-012: FTA unique constraint — duplicate insert → handled
-
-#### Priority 5: ScanWorker Integration Tests (High — full pipeline)
-- [ ] TC-CG-014: Gemini timeout → retry 3 ครั้ง (15s, 30s, 60s)
-- [ ] TC-CG-015: Gemini return JSON ผิดรูปแบบ → FAILED
-- [ ] TC-CG-016: Gemini hallucinate HS code "9999.99" → confidence ต่ำ
-- [ ] TC-CG-020: S3 upload fail → FAILED + ไม่ leave orphan job
-- [ ] TC-CG-025: ScanWorker picks oldest CREATED (FIFO, FOR UPDATE SKIP LOCKED)
-- [ ] TC-CG-013: Image-based PDF → Gemini Vision OCR fallback
-
-#### Priority 6: HS Code Validation & Lookup Tests (High)
-- [ ] TC-HS-001: HS lookup ปกติ → ผลครบ (baseRate, FTA, LPI, AD, BOI, excise)
-- [ ] TC-HS-004: HS code ไม่มีในระบบ "9999.99" → found:false
-- [ ] TC-HS-005: HS code format ผิด "ABCD.EF" → 400
-- [ ] TC-HS-007: SQL injection ใน code field → 400, DB ไม่โดน
-- [ ] TC-HS-020: FTA rate > base rate (anomaly) → warning
-- [ ] TC-HS-024: สินค้า AD duty — เหล็กจีน baseRate+AD
-- [ ] TC-HS-027: สินค้าควบคุม LPI — สัตว์มีชีวิต → alert กรมปศุสัตว์
-
-#### Priority 7: Security & Auth Tests (Critical)
-- [ ] TC-MT-001~004: JWT — no token / expired / fake signature / no tenantId → 401/403
-- [ ] TC-MT-010: Google OAuth — invalid audience → reject
-- [ ] TC-MT-011: Google OAuth — email not verified → reject
-- [ ] TC-MT-014: Feature access — tenant ไม่มี subscription → 403
-- [ ] TC-MT-016: Production reject default JWT secret → IllegalStateException
-- [ ] TC-MT-017: CORS — unauthorized origin http://evil.com → blocked
-- [ ] TC-XR-005~006: Exchange rate sync — no/wrong admin secret → 401/403
-
-#### Priority 8: Chrome Extension Tests (High — offline, error recovery)
-- [ ] TC-EXT-004~005: Offline mode — cached data works / API fail graceful
-- [ ] TC-EXT-014: Magic Fill — auto-fill customs.go.th form
-- [ ] TC-EXT-023: Auto-enrichment parallel fail-safe (FTA ok, LPI fail → ไม่ block)
-- [ ] TC-EXT-024: Scan polling timeout 120s → error, user retry
-
-#### Priority 9: Domain Compliance Tests (Critical — กฎศุลกากรเฉพาะทาง)
-- [ ] TC-CU-008~011: FTA Form ตรงชื่อ (Form D/E/JTEPA/RCEP)
-- [ ] TC-CU-012: FTA effectiveDate expired → ไม่แสดง
-- [ ] TC-CU-014: LPI agency ถูกหน่วยงาน (0106.19 → กรมปศุสัตว์)
-- [ ] TC-CU-016: Exchange rate source = customs.go.th
-- [ ] TC-CU-018: HS code format DDDD.DD or DDDD.DD.DD
-- [ ] TC-CG-010: Invoice ไม่มี CIF มีแค่ FOB → warning
-- [ ] TC-CG-011: Invoice หลายสกุลเงิน (USD+EUR ผสม)
-
-#### Priority 10: Infrastructure Validation (Critical — production crash)
-- [ ] TC-BE-013: Docker CPU ≤ 1.9 cores
-- [ ] TC-BE-014: Docker memory ≤ 8GB total
-- [ ] TC-BE-015: Non-root container (UID 1001)
-- [ ] TC-BE-016: security_opt: no-new-privileges ทุก service
-- [ ] TC-BE-017: Dev ports bind 127.0.0.1 (ไม่ expose 0.0.0.0)
-
-#### จุดอ่อนสำคัญที่พบ (สรุปจาก audit)
-1. **Duty calculation ไม่มี unit test จริงจัง** — คำนวณผิดแม้ 0.01 บาท = ปัญหากฎหมาย
-2. **FTA rate anomaly ไม่มี warning** — FTA rate > MFN = ผิดปกติ 100%
-3. **Gemini hallucinate HS code** — AI ตอบ code ที่ไม่มีจริง
-4. **Multi-tenant RLS ยังไม่มี integration test** — ข้อมูลรั่วข้าม tenant
-5. **ChatGuard bypass ยังไม่ทดสอบครบ** — prompt injection + PII
-6. **ไม่มี repository test (DB layer)** — vector search, FTA query
-7. **Docker resource limit ไม่ verified** — เกิน budget = crash
-8. **Secret validation ยังไม่ test production profile** — default secret บน prod
+> **Done items → ดูที่ `CHANGELOG.md`**
+> **Test cases → ดูที่ `TEST-PLAN.md`**
 
 ---
 
@@ -607,71 +14,181 @@ Updated: 2026-03-10
 
 ---
 
-## สิ่งที่เสร็จแล้ว
+## ✅ CRITICAL — แก้แล้ว (5 ตัว) — 2026-03-10
 
-### Deploy & CI/CD
-- [x] SHA-based deploy: docker-compose.prod.yml ใช้ `image:` จาก registry แทน `build:`
+> จาก Audit v5 (2026-03-10) — 35 findings ทั้งหมด
 
-### Usage Quota + Pricing System (2026-03-09)
-- [x] UsageQuotaService — atomic UPSERT นับ scan/chat, ตรวจโควต้า, chat นับเฉพาะ RAG จริง (ทักทายไม่นับ)
-- [x] QuotaExceptionHandler — HTTP 429 + QUOTA_EXCEEDED response ภาษาไทย
-- [x] GET /v1/usage — Extension เรียกดูโควต้าเหลือ
-- [x] POST /v1/admin/upgrade — admin กดอัพเกรด tenant (X-Admin-Secret)
-- [x] Chrome Extension — QuotaExceededModal, UsageBadge (progress bars สี), 429 handling
-- [x] Marketing Site — Pricing page (FREE/PRO 990 บาท), shared Navbar + hamburger, shared Footer
+- [x] **C1:** regex exact match แทน `.contains()` → ScanWorkerService.verifyWithGemini
+- [x] **C2:** NO_ITEMS_FOUND status แทน throw error → ScanWorkerService + api-client.ts
+- [x] **C3:** มี resource limits อยู่แล้ว (cpus: 0.6, memory: 1536M)
+- [x] **C4:** implement excise (AD_VALOREM/SPECIFIC/COMPOUND) + มหาดไทย (10%) → TaxCalculationService
+- [x] **C5:** เพิ่ม stale rate warning (>2 ปี) ใน FtaAlertDto + HsLookupService (ข้อมูลจริงต้อง update แยก)
 
-### Scan HS Code Fix (2026-03-09)
-- [x] ScanWorkerService: แยก Gemini extract items ออกจาก HS code classification
-- [x] เพิ่ม enrichWithHsCodes() ใช้ semantic search จากฐานข้อมูลแทน Gemini เดา
-- [x] ทดสอบผ่าน: ทุเรียน→0810.60.00 (sim 0.73), มังคุด→0804.50.30 (sim 0.79)
+---
 
-### Marketing Site Layout Fixes (2026-03-09)
-- [x] ROADMAP badge styling สีเทาแยกจาก badge ทอง
-- [x] Footer link ไป /privacy
-- [x] Marketing Site Social Login + Privacy Policy (SQL fix, LeadForm→Google+LINE, PDPA page, OG Image)
+## 🔴 Priority 1 — ต้องทำก่อนเปิดให้ลูกค้าใช้
 
-### Data Pipeline Supplementary Embed (2026-03-09)
-- [x] Embed 51 chunks ใหม่ (LPI 9 + Excise 42), total 4,729 chunks
-- [x] Eval รัน 143 cases: 81% (test suite ยากขึ้น — regression จาก MFN duty N/A + red team bypass)
+### Audit v5 — HIGH (9 ตัว)
 
-### ChatGuard — ระบบกรอง prompt injection / PII / off-topic ใน RAG Chat
-- [x] Rate limit: 20 req/min/tenant (configurable via `customsguard.chat-guard.max-requests-per-minute` ใน application.yml)
-- [x] GUARD_BLOCK structured log (category, keyword, tenant, query_prefix)
-- [x] Hardening v2 — eval 141 cases, overall **89%**, Red Team 93%, false_positive 100%
-  - Smoke test 5/5 PASS, GUARD_BLOCK log verified
-- [x] Hardening v3 — 4 fixes: diacritic stripping, "ข้อมูลลับ"/"confidential" block, "customs official" keyword, "สูตร" off-topic + customs bypass
-  - Red Team **100%** (was 93%), adversarial_offtopic **100%** (was 75%), obfuscation **100%** (was 67%)
+- [x] **H1:** confidence band (HIGH/MEDIUM/LOW) + requiresReview flag → ScanWorkerService
+- [x] **H2:** stricter doc chunk threshold (0.70) เมื่อมี HS context → RagService (search + stream)
+- [x] **H3:** input length limit 50K chars + control char strip + prompt injection warning → ScanWorkerService
+- [x] **H4:** Thai text chunking: paragraph > newline > period > tab (ไม่ตัดที่ space อีก) → DocumentChunkService
+- [x] **H5:** conditional UPDATE (WHERE status='PROCESSING') แทน version field → ScanWorkerService
+- [x] **H6:** specific exceptions (DataAccessException/timeout/IO) → ExchangeRateSyncService
+- [x] **H7:** auto-convert LBS/OZ/TON → KG + flag weightRejected สำหรับ unknown units → ScanWorkerService
+- [x] **H8:** log error แทน catch(() => {}) → useUsage.ts, extension-helpers.ts
+- [x] **H9:** InterruptedException + IOException + IllegalArgumentException + markJobFailed() → ScanWorkerService
 
-### Data Pipeline + Hybrid RAG (2026-03-06)
-- [x] Fix 1,230 heading-level HS codes: description_th was empty, Thai text was in description_en column
-- [x] RAG eval improved: **89% → 92%** (+3%), 7 previously failing cases now pass
-- [x] Hybrid RAG: RagService now searches both `cg_document_chunks` + `cg_hs_codes` (semantic + prefix lookup)
-- [x] Fix "AD" false positive in UNAVAILABLE_TOPICS ("Additive" matched "AD")
-- [x] All 4 persistent failures fixed: ui_004 (กุ้ง), ai_006 (แกะ/แพะ), ai_031 (สารลดแรงตึง), ai_045 (0101 sub-codes)
-- [x] Eval baseline updated: ~90% (remaining ~10% is LLM flakiness, not data/code issue)
+### Audit v5 — MEDIUM ที่กระทบ production (4 ตัว)
 
-### RAG / Data Pipeline — ระบบค้นหากฎระเบียบศุลกากรด้วย AI
-- [x] Phase 1: pgvector + HS Code semantic search (13,308 codes, hit rate 96.7%)
-- [x] Phase 2: Document RAG — 25 regulations, 4,678 chunks, embeddings 100%
-- [x] Phase 3: Chrome Extension integration (cache-first, intent filter, source citations, RagTipsBanner)
+- [ ] **M9: @Cacheable key ไม่รวม tenant_id** — HsLookupService.java:96-155 — ข้อมูลข้าม tenant ถ้า query HS code + country เหมือนกัน → เพิ่ม tenant_id ใน cache key
+- [ ] **M10: MultipartFile filename ไม่ sanitize** — ScanController.java:33-55 — path traversal risk → sanitize filename
+- [x] **M7:** SSE parser rewrite: blank line reset + proper event/data pairing → api-client.ts
+- [x] **M8:** try-catch around JSON.parse in SSE handler → api-client.ts
 
-### FTA Data — อัตราภาษีสิทธิพิเศษจาก 9 FTA agreements
-- [x] Scrape 13,754 FTA rates จาก thailandntr.com (9 FTA: RCEP, ACFTA, AIFTA, AJCEP, AKFTA, AANZFTA, JTEPA, TAFTA, TNZCEP)
-- [x] Insert 12,752 rates เข้า Dev + Production DB
-- [x] Validation passed: 0 orphan records, 100% embedding coverage
-- [x] Dump: `data-pipeline/data/cg_dump_20260306_0527.sql.gz` (69MB)
+### ความแม่นยำพิกัด + อัตราอากร
 
-### Security Hardening
-- [x] JWT auth + SecurityConfig `anyRequest().denyAll()`
-- [x] CORS restrict origins, non-root Docker, no-new-privileges
-- [x] Nginx HSTS, rate limit auth 5r/m, modern ciphers
-- [x] Secrets rotated on VPS, Gemini error masking
+- [ ] **เติมอัตราอากร MFN (base_rate)** — 🔄 กำลัง scrape อยู่ (~970 pages, ~2 ชม.) → เสร็จแล้วรัน `python 17_backfill_mfn_rates.py`
+- [ ] **Re-scrape NTR จาก Thai IP** — 🔄 กำลังรัน `16_scrape_fta_playwright.py scrape --force --headless` (PID 579862)
 
-### Pre-Production Security Audit (2026-03-06)
-- [x] Fix SQL Injection — `ScanWorkerService.java` `set_config()` string concat → parameterized query (2 จุด)
-- [x] Fix AuthController — `@Profile("dev")` class-level ป้องกัน /login + /dev-token บน production
-- [x] Mask Gemini logs — ลบ `response.body()` จาก error log ใน `GeminiChatService` + `GeminiEmbeddingService`
-- [x] Correlation ID — `RequestTraceFilter.java` (MDC traceId + X-Request-Id header) + log pattern
-- [x] IDOR defense-in-depth — `ScanController` เพิ่ม tenantId null guard
-- [ ] .env permission บน VPS — `chmod 600 /opt/vollos/.env.production` (manual SSH)
+### อัตราแลกเปลี่ยน — ทดสอบ Auto-sync
+
+- [ ] ทดสอบ auto-sync บน dev — boot backend + trigger POST /sync + ตรวจค่า
+- [ ] ทดสอบ HTML parser กับ customs.go.th จริง (page format อาจเปลี่ยน)
+
+### Production Auth — รอเจ้าของทดสอบ
+
+- [ ] ล้าง IndexedDB เก่า (F12 → Application → IndexedDB → Delete) → reload Extension → Login with Google → ลากไฟล์ scan
+- [ ] **Rotate Google OAuth Client ID** — AI เผลอแสดง Client ID ใน chat → สร้างใหม่ที่ Google Cloud Console → แก้ `.env` + `.env.production` + rebuild Extension
+
+### Deploy Production (Usage Quota + Pricing)
+
+- [ ] Boot backend dev → ทดสอบ GET /v1/usage, POST /v1/admin/upgrade, 429 quota exceeded
+- [ ] ทดสอบ Chrome Extension — UsageBadge แสดงถูก, QuotaExceededModal ขึ้นเมื่อเกิน
+- [ ] ทดสอบ Marketing Site — หน้า /pricing แสดงถูก, Navbar link ราคา, mobile hamburger
+- [ ] Deploy production — push + build + verify
+- [ ] เพิ่ม ADMIN_SECRET ใน `.env.production` บน VPS
+
+### Data Pipeline Tier 2 — ทดสอบ + Deploy
+
+- [ ] ทดสอบ end-to-end บน dev แล้วค่อย deploy production
+
+### VPS Manual Tasks
+
+- [ ] `.env` permission บน VPS — `chmod 600 /opt/vollos/.env.production` (manual SSH)
 - [ ] Backup restore test บน VPS — จำลอง restore แล้วตรวจ pgvector + RLS (manual SSH)
+
+---
+
+## 🟡 Priority 2 — ควรทำใน Sprint ถัดไป
+
+### Audit v5 — Logic Bugs (ค้างจาก v4 + ใหม่)
+
+- [ ] **L1: OCR ไม่ตรวจ content validity** — PdfProcessingService.java:69-71 — Gemini Vision OCR ไม่ตรวจว่ามี invoice fields จริง
+- [ ] **L2: Embedding loop silent failure** — DocumentChunkService.java:36-95 — Gemini rate limit → failed++ เงียบๆ ไม่ retry → RAG search ได้ผลไม่ครบ
+- [ ] **L4: Redis rate limit fixed window** — ChatGuardService.java:425-450 — burst ได้ 10 req ใน 2 วินาทีข้ามรอย window (ไม่ urgent)
+
+### Audit v5 — MEDIUM (8 ตัว)
+
+- [ ] **M1: Unescaped item description ใน verification prompt** — ScanWorkerService.java:352-363 — ลด prompt injection risk
+- [ ] **M2: Embedding dimension stale data** — GeminiEmbeddingService.java:90-93 — เปลี่ยน model → embedding เก่ายังอยู่ใน DB → ควร flag/re-embed
+- [ ] **M3: ไม่มี re-indexing schedule** — All RAG files — กฎระเบียบเปลี่ยน แต่ chunks เก่า → เพิ่ม monthly re-embed
+- [ ] **M4: Tax fields null ถ้า calculateTaxes() fail** — ScanWorkerService.java:136-161 — Frontend ได้ null ไม่รู้ว่าขาด → return explicit error
+- [ ] **M5: Non-string weight → .asText() ได้ garbage** — ScanWorkerService.java:440-441 — JSON object ถูกแปลงเป็น "[OBJECT]" → type check ก่อน
+- [ ] **M6: Missing defensive check ก่อน .get(0)** — ScanWorkerService.java:304,312 — ถ้า list ว่าง → IndexOutOfBoundsException
+
+### Audit v5 — Architecture (ค้างจาก v4)
+
+- [ ] **A1: Docker CPU = 1.8 cores** — docker-compose.yml — ลด n8n-worker CPU จาก 0.25 เป็น 0.1 (เหลือให้ OS ไม่พอ)
+- [ ] **A2: GitLab CI SSH key** — .gitlab-ci.yml:115 — echo SSH_PRIVATE_KEY → ย้ายเป็น File variable หรือ deploy keys
+- [ ] **A3: MinIO image unpinned** — docker-compose.dev.yml:30,52 — `minio/minio:latest` → pin version
+- [ ] **A4: Redis timeout hardcoded** — application.yml:35-36 — ใช้ `${REDIS_TIMEOUT:5s}` แทน
+- [ ] **A5: ลบ root Dockerfile** — Dockerfile ใช้ Maven แต่โปรเจกต์เป็น Gradle → obsolete
+
+### Audit v5 — Quality (ค้างจาก v4)
+
+- [ ] **Q1: ScanService JSON parse swallowed** — ScanService.java:129-131 — catch log warning แต่ไม่ rethrow → job return null items
+- [ ] **Q2: Python bare except 11 จุด** — data-pipeline/collectors/*.py — Silent failure → log + re-raise
+- [ ] **Q3: Admin secret `required = false`** — AdminController.java:52,116,131,171 — ควรเปลี่ยนเป็น required=true
+
+### Audit v5 — Domain ปรับปรุง UX
+
+- [ ] **D9: Specific Duty** — บางสินค้าใช้อากรตามน้ำหนัก (ต้อง lookup duty type ต่อ HS Code จาก DB)
+- [ ] **D10a: UI ไม่แสดง CIF breakdown** — ScanPanel.tsx:140-142 — ไม่เห็น Insurance + Freight → ประมาณราคาผิด
+- [ ] **D10b: Error message ไม่บอกวิธีแก้** — "ไม่พบข้อมูล" ไม่มี "ลองค้นด้วยคำอื่น"
+
+### Audit v5 — Security (ไม่เร่งด่วน)
+
+- [ ] **S5: X-Admin-Secret ใน CORS allowedHeaders** — SecurityConfig.java:61 — ควรแยก admin CORS config
+- [ ] **S6: ไม่มี rate limit /actuator/health** — vollos.conf:61-64 — timing attack possible
+- [ ] **S7: Log email ตอน Google login** — GoogleAuthController.java:86-88 — ควร hash แทน
+- [ ] **S8: Gemini response body ถูก log ทั้งก้อน** — GeminiChatService.java:74,142,210 — ควร truncate 200 chars
+
+### Audit Log — ยังไม่สมบูรณ์
+
+สถานะ: เก็บ log ใน Dexie (client-side) แล้ว แต่ยังขาด:
+
+- [ ] Backend table `cg_audit_logs` + API endpoint
+- [ ] Sync mechanism จาก Dexie → backend
+- [ ] UI หน้าดู audit log (timeline view)
+- [ ] Export เป็น CSV/PDF สำหรับยื่นศุลกากร ("Liability Shield")
+
+### Marketing Site — รูปภาพ + วีดีโอ
+
+**Phase 3: รูปภาพ**
+- [ ] สร้าง OG Image 1200x630px (`/public/og-default.jpg`) — สีทอง #D4AF37
+- [ ] ถ่าย product screenshot จาก Chrome Extension จริง 4 รูป (hero, step 1-3)
+- [ ] สร้าง/หารูป pain section (AI-generated หรือ stock)
+- [ ] อัพเดท paths ใน `hs-code.ts` ให้ชี้ไปรูปจริงแทน placehold.co
+
+**Phase 4: Demo Video (1-3 เดือน)**
+- [ ] ถ่าย screen recording 60-90 วินาที: Upload PDF → AI Scan → FTA → Magic Fill → Chat
+- [ ] ใส่คำบรรยายไทย + background music royalty-free
+- [ ] เปลี่ยน hero image เป็น `<video>` ใน `LandingTemplate.tsx`
+
+### E2E Tests — ค้างงาน
+
+- [ ] เพิ่ม screenshots — ถ่ายภาพหน้าจอทุก step (บางส่วนได้แล้วที่ `e2e-results/manual/`)
+- [ ] เขียน demo script สำหรับถ่ายวิดีโอ — Mode 3 ของ vollos-tester
+
+---
+
+## 🟢 Priority 3 — Backlog (ทำเมื่อพร้อม)
+
+### Audit v5 — LOW (5 ตัว)
+
+- [ ] **L-console: console.log 25+ จุดใน Chrome Extension** — อาจ leak HS code/job ID ใน DevTools → strip ตอน build
+- [ ] **L-imports: Wildcard imports ใน Java controllers** — ไม่กระทบ runtime แต่ไม่ clean
+- [ ] **L-pagination: Pagination size ไม่ validate** — HsCodeRepository.java:15-21 — ขอ size=10000 ได้ → จำกัด max 100
+- [ ] **L-homoglyph: Thai homoglyph detection อาจ miss decomposed forms** — ChatGuardService.java:43-49 — theoretical
+- [ ] **L-duplicate: Duplicate code ใน HsLookupService mapping chains** — HsLookupService.java:71-89 — refactor ได้
+
+### Opn Payments (Omise) — ระบบชำระเงินอัตโนมัติ
+
+ลูกค้ากดอัพเกรด PRO → จ่ายเงิน → อัพเกรดทันที (เงื่อนไข: สมัครบุคคลธรรมดาได้)
+
+- [ ] เจ้าของสมัคร Opn Payments — https://www.opn.ooo → ยืนยันตัวตน → ได้ API keys
+- [ ] Backend: `POST /v1/payment/create-charge` (PromptPay QR + บัตรเครดิต)
+- [ ] Backend: `POST /v1/payment/webhook` → upgrade อัตโนมัติเมื่อจ่ายสำเร็จ
+- [ ] Pricing Page: ปุ่มจ่ายเงินจริง (แทน "ติดต่อ LINE OA")
+- [ ] Extension: ปุ่ม Upgrade ใน QuotaExceededModal → checkout Opn
+- [ ] ทดสอบ end-to-end: FREE → เกินโควต้า → Upgrade → จ่ายเงิน (test mode) → PRO ทันที
+
+### Content Marketing — ระบบผลิตบทความ SEO + Social อัตโนมัติ
+
+DB + site + agent prompts + คู่มือเสร็จแล้ว เหลือ setup + launch:
+
+- [ ] สมัคร Social Media Accounts (FB Page, IG, TikTok, YouTube, X)
+- [ ] สร้าง Google Sheets สำหรับ review content
+- [ ] Import n8n workflows 5 ไฟล์ → ใส่ credentials → activate
+- [ ] ทดสอบ end-to-end: สร้าง content → review → publish → ตรวจทุก platform
+
+### Domain Features — Backlog
+
+- [ ] **SerialGC → G1GC** — Dockerfile.jvm:24 — production ควรใช้ G1GC (performance)
+
+### Data Pipeline — Collectors ที่ยัง Fail
+
+- [ ] `antidumping_dft.py` — collector โหลดผิดไฟล์ (ได้ privacy policy แทนประกาศ AD/CVD)
+- [ ] `nsw_lpi_controls.py` — collector ได้แค่ homepage (ต้อง scrape ลึกกว่าหรือหาแหล่งอื่น)
