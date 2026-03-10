@@ -46,7 +46,7 @@ FTA_FORMS = {
     "AKFTA": "Form AK",
     "AJCEP": "Form AJ",
     "JTEPA": "Form JTEPA",
-    "TAFTA": "Form TAFTA",
+    "TAFTA": "Form FTA",
     "AANZFTA": "Form AANZ",
     "AIFTA": "Form AI",
     "RCEP": "Form RCEP",

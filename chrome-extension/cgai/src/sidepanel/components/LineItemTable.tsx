@@ -17,6 +17,11 @@ interface LineItemTableProps {
 
 type EditableField = "hsCode" | "descriptionEn" | "quantity" | "weight" | "unitPrice" | "cifPrice";
 
+/** Validate Thai customs HS code format: DDDD.DD or DDDD.DD.DD (8 or 10 digits with dots) */
+function isValidHsCode(code: string): boolean {
+  return /^\d{4}\.\d{2}(\.\d{2})?$/.test(code);
+}
+
 interface EditingCell {
   localId: number;
   field: EditableField;
@@ -119,8 +124,16 @@ export default function LineItemTable({ items, riskMap, onEditItem, onConfirmIte
                           item.isConfirmed
                             ? "cursor-default"
                             : "cursor-pointer hover:text-brand"
+                        } ${
+                          col.key === "hsCode" && cellValue && !isValidHsCode(cellValue)
+                            ? "text-red-600"
+                            : ""
                         }`}
-                        title={cellValue}
+                        title={
+                          col.key === "hsCode" && cellValue && !isValidHsCode(cellValue)
+                            ? `${cellValue} — รูปแบบไม่ถูกต้อง (ต้องเป็น DDDD.DD เช่น 0306.17)`
+                            : cellValue
+                        }
                       >
                         {cellValue || "-"}
                       </span>

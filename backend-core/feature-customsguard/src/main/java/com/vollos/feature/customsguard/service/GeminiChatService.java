@@ -162,9 +162,12 @@ public class GeminiChatService {
             String userMessage = "เอกสารอ้างอิง:\n" + context + "\n\nคำถาม: " + query;
 
             Map<String, Object> requestBody = Map.of(
+                    "system_instruction", Map.of("parts", List.of(
+                            Map.of("text", systemPrompt)
+                    )),
                     "contents", List.of(
                             Map.of("role", "user", "parts", List.of(
-                                    Map.of("text", systemPrompt + "\n\n" + userMessage)
+                                    Map.of("text", userMessage)
                             ))
                     ),
                     "generationConfig", Map.of(

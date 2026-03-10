@@ -25,7 +25,7 @@ public class ExchangeRateEntity extends BaseEntity {
     @Column(name = "source", length = 50)
     private String source;
 
-    protected ExchangeRateEntity() {}
+    public ExchangeRateEntity() {}
 
     public String getCurrencyCode() { return currencyCode; }
     public void setCurrencyCode(String currencyCode) { this.currencyCode = currencyCode; }

@@ -20,7 +20,7 @@ public class JwtTokenProvider {
     private final long expirationHours;
 
     public JwtTokenProvider(
-            @Value("${jwt.secret:vollos-dev-secret-key-change-in-production-min-32-chars!!}") String secret,
+            @Value("${jwt.secret}") String secret,
             @Value("${jwt.expiration-hours:24}") long expirationHours) {
         this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationHours = expirationHours;

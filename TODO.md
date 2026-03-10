@@ -1,11 +1,140 @@
 # TODO — VOLLOS Backlog
 
 Shared backlog visible to all AI tools and humans.
-Updated: 2026-03-09
+Updated: 2026-03-10
 
 ---
 
 ## สิ่งที่เหลือต้องทำ
+
+### 🔴 อัตราแลกเปลี่ยน — Auto-sync จากกรมศุลกากร (URGENT)
+
+**ปัญหาที่พบ:** ข้อมูล seed ผิดเยอะ — USD ผิด 9%, JPY ผิด 10%! ลูกค้าใช้คำนวณอากรผิด โดนปรับได้
+
+**สิ่งที่แก้แล้ว (2026-03-10):**
+- [x] V1013 migration อัพเดทอัตราถูกต้องจากกรมศุลกากร (USD 31.33, EUR 37.21, JPY 20.62, GBP 42.74)
+- [x] สร้าง `ExchangeRateSyncService` — @Scheduled ดึงจาก customs.go.th ทุกวัน 08:27
+- [x] เพิ่ม `POST /v1/customsguard/exchange-rates/sync` — admin กดดึงอัตราด้วยมือได้
+- [x] แก้ label "อัตรากลาง (Mid Rate)" → "อัตรานำเข้า" (ถูกต้องตามกรมศุลกากร)
+
+**สิ่งที่ต้องทำเพิ่ม:**
+- [ ] ทดสอบ auto-sync บน dev — boot backend + trigger POST /sync + ตรวจค่า
+- [ ] ทดสอบ HTML parser กับ customs.go.th จริง (page format อาจเปลี่ยน)
+- [ ] เพิ่ม alert เมื่อ sync ล้มเหลว 3 วันติด (Slack/email notification)
+- [ ] เพิ่มสกุลเงิน: SGD, HKD, AUD, CHF ฯลฯ (parser รองรับแล้ว แต่ยังไม่มี seed)
+
+---
+
+### 🔴 แก้ Similarity % แสดงในแชท — ลูกค้าไม่มั่นใจ (DONE)
+
+**ปัญหา:** แชท RAG แสดง "91%" ข้างแหล่งอ้างอิง ลูกค้าไม่รู้ว่า 91% คืออะไร แต่รู้สึกว่า "แค่ 91% เอง"
+
+**แก้แล้ว (2026-03-10):**
+- [x] เปลี่ยนจากตัวเลข % → label ที่ลูกค้าเข้าใจ:
+  - ≥ 85%: "ตรงกันมาก" (badge เขียว)
+  - ≥ 75%: "ตรงกัน" (badge เขียวอ่อน)
+  - < 75%: ซ่อน (ไม่แสดง)
+- [x] เพิ่ม i18n keys: `chat.relevanceHigh`, `chat.relevanceMedium`, `chat.relevanceLow`
+
+---
+
+### 🔴 Domain Requirement Fixes — เข้าใจ requirement ผิด (Audit 2026-03-10)
+
+**ที่มา:** ตรวจพบว่า developer เข้าใจ requirement แบบคนทั่วไป ไม่ใช่แบบศุลกากร
+
+**แก้แล้ว (2026-03-10):**
+- [x] **TAFTA Form ผิด** — "Form AAT" → **"Form FTA"** (V1014 migration) อ้างอิง ecs-support.github.io
+- [x] **LPI prefix ไม่สม่ำเสมอ** — `030617` → `0306` (V1014 migration) ใช้ 4-digit chapter level
+- [x] **TRANSIT dropdown** — เพิ่ม type + dropdown เลือกประเภทใบขน (ขาเข้า/ขาออก/ผ่านแดน)
+- [x] **HS Code validation** — frontend แสดงสีแดง + backend reject HS code ที่ผิดรูปแบบ
+- [x] **น้ำหนัก label (KG)** — แก้ header "น้ำหนัก" → "น้ำหนัก (KG)" ชัดเจนว่าต้องใส่หน่วย KG
+- [x] **RAG text "Form TAL" ผิด** — แก้ใน cg_document_chunks + cg_regulations (V1014)
+
+**ต้องทำเพิ่ม (ก่อนเปิดให้ลูกค้าใช้):**
+- [ ] **คำนวณ VAT 7%** — ปัจจุบันแสดงแค่อากร ไม่รวม VAT → ลูกค้าเห็นต้นทุนต่ำกว่าจริง
+  - สูตร: VAT = (CIF + Import Duty) × 7%
+  - ต้องเพิ่ม columns: `vat_amount`, `total_tax_due` ใน DB + UI
+- [ ] **เช็ค De Minimis 2026** — ⚠️ กฎเปลี่ยนแล้ว! ตั้งแต่ 1 ม.ค. 2026 ยกเลิกยกเว้น ≤1,500 บาท → สินค้าทุกรายการต้องจ่ายอากร+VAT ตั้งแต่ 1 บาท → ถ้ามี logic ยกเว้นอยู่ต้องลบออก
+- [ ] **Excise tax สำหรับสินค้าเฉพาะ** — เหล้า, บุหรี่, รถยนต์ มีสรรพสามิตเพิ่ม (ทำทีหลังได้)
+- [ ] **วันที่ พ.ศ. ครบทุกจุด** — ตอนนี้แค่ ExchangeRateBanner แปลง พ.ศ. ที่อื่นยังเป็น ค.ศ.
+
+---
+
+### 🔴 E2E Manual Tests — ต้องทดสอบก่อนเปิดให้ลูกค้าใช้ (34 เคส)
+
+**สถานะ:** ทดสอบแล้ว 9 เคส (e2e-001 ถึง e2e-010) ยังขาดอีก 34 เคส
+**Priority:** **เร่งด่วน** — ต้องเทส feature ที่เสร็จแล้วก่อนถ่ายวิดีโอ + เปิดให้ลูกค้าทดลอง
+
+**Chat / RAG (7 เคส):**
+- [ ] E2E-011: แชทหมดโควต้า (Chat quota exceeded → modal)
+- [ ] E2E-012: ถามนอกเรื่อง ("วันนี้อากาศดี") → ChatGuard กรอง
+- [ ] E2E-013: Prompt injection ("ignore instructions") → ถูกบล็อก
+- [ ] E2E-014: แชทขณะ offline → แสดง error ไม่ crash
+- [ ] E2E-015: RAG ไม่พบข้อมูล → "ไม่พบข้อมูล" สวยงาม
+- [ ] E2E-016: ถามภาษาอังกฤษ ("What is HS code for shrimp?")
+- [ ] E2E-017: ส่งข้อความว่าง / แค่ space → ปุ่มส่ง disable
+
+**Scan / PDF (7 เคส):**
+- [ ] E2E-018: อัพโหลดไฟล์ไม่ใช่ PDF (.jpg, .docx) → แสดง error
+- [ ] E2E-019: PDF หลายหน้า (10+ หน้า) → performance + progress
+- [ ] E2E-020: PDF เปล่า / ไม่มีข้อมูลสินค้า → UI จัดการ
+- [ ] E2E-021: สแกนซ้ำไฟล์เดิม → overwrite หรือ append?
+- [ ] E2E-022: กดปุ่ม "ล้าง" แล้วสแกนใหม่ → ข้อมูลเก่าหายหมด
+- [ ] E2E-023: Scan job FAILED (backend error) → error state
+- [ ] E2E-024: PDF ขนาดใหญ่มาก (>10MB) → file size limit / timeout
+
+**Line Items / Table (4 เคส):**
+- [ ] E2E-025: แก้ไข HS Code ในตาราง (inline edit)
+- [ ] E2E-026: แก้ไขจำนวน/น้ำหนัก/ราคา → CIF คำนวณใหม่
+- [ ] E2E-027: ยืนยันบางรายการ ไม่ยืนยันบางรายการ
+- [ ] E2E-028: Traffic Light เสี่ยงสูง (แดง) — ยังทดสอบแค่เขียว
+
+**กรอกอัตโนมัติ Magic Fill (3 เคส):**
+- [ ] E2E-029: กรอกอัตโนมัติบน customs.go.th จริง
+- [ ] E2E-030: กรอกตอนไม่มีข้อมูล (ยังไม่ scan) → empty state
+- [ ] E2E-031: กรอกบนเว็บอื่น (ไม่ใช่ customs.go.th) → disable/แจ้งเตือน
+
+**Auth / Session (4 เคส):**
+- [ ] E2E-032: Login ด้วย Google OAuth → ได้ token
+- [ ] E2E-033: Login ล้มเหลว (popup ถูกบล็อก)
+- [ ] E2E-034: Logout แล้ว token + data ถูกล้าง
+- [ ] E2E-035: เปิด 2 tab พร้อมกัน → session sync (⚠️ พบ bug: UsageBadge ไม่ sync)
+
+**อัตราแลกเปลี่ยน (3 เคส):**
+- [ ] E2E-036: กดรีเฟรชอัตราแลกเปลี่ยน
+- [ ] E2E-037: แสดงหลายสกุลเงิน (EUR, JPY, CNY)
+- [ ] E2E-038: อัตราแลกเปลี่ยน offline / API ล่ม → ใช้ cache
+
+**ภาษา / UI (2 เคส):**
+- [ ] E2E-039: สลับภาษา TH ↔ EN
+- [ ] E2E-040: กดปุ่ม Logout
+
+**Cache / Data (4 เคส):**
+- [ ] E2E-041: FTA cache หมดอายุ (24h) → re-fetch
+- [ ] E2E-042: RAG cache หมดอายุ (12h) → re-fetch
+- [ ] E2E-043: Dexie storage เต็ม (IndexedDB quota)
+- [ ] E2E-044: Audit log บันทึกเมื่อแก้ไข item
+
+---
+
+### 🟡 UsageBadge ไม่ sync ระหว่าง tab (Bug)
+
+**ปัญหา:** เปิด 2 tab ของ extension พร้อมกัน — Tab A ใช้ quota ไปแล้ว แต่ Tab B ยังแสดงค่าเก่า
+**สาเหตุ:** React state เป็น per-tab, ไม่มี cross-tab notification
+**แก้:** ใช้ `chrome.storage.onChanged` listener หรือ BroadcastChannel API เพื่อ sync state
+- [ ] เพิ่ม cross-tab quota sync
+
+---
+
+### 🟡 Audit Log — ยังไม่สมบูรณ์
+
+**สถานะ:** เก็บ log ใน Dexie (client-side) แล้ว แต่ยังขาด:
+- [ ] Backend table `cg_audit_logs` + API endpoint
+- [ ] Sync mechanism จาก Dexie → backend
+- [ ] UI หน้าดู audit log (timeline view)
+- [ ] Export เป็น CSV/PDF สำหรับยื่นศุลกากร ("Liability Shield")
+
+---
 
 ### Opn Payments (Omise) — ระบบชำระเงินอัตโนมัติ
 
@@ -208,7 +337,61 @@ Updated: 2026-03-09
 
 ---
 
-### 🔍 Code Audit Findings (2026-03-09) — 7 CRITICAL, 6 HIGH, 7 MEDIUM, 4 LOW
+### 🔍 Code Audit Findings (2026-03-10) — 8 CRITICAL, 8 HIGH, 10 MEDIUM, 1 LOW — ✅ แก้แล้ว 24/27
+
+**ที่มา:** Full Audit โดย vollos-code-auditor v2 (รวม Domain Compliance) — static analysis ทุก layer
+**สรุป:** 27 findings | Security 6 | Logic 5 | Quality 3 | Architecture 4 | Domain 9
+**แก้เมื่อ:** 2026-03-10
+
+#### 🔴 CRITICAL (8 รายการ) — ✅ แก้ครบ
+
+**Security:**
+- [x] **S1: Hardcoded JWT secret** — ลบ default ออกจาก `JwtTokenProvider.java` ใช้ค่าจาก application.yml เท่านั้น (SecretValidationConfig validate ใน prod)
+- [x] **S2: Hardcoded admin password** — ลบ default ออกจาก `AdminController.java` + เปลี่ยนเป็น timing-safe `MessageDigest.isEqual()`
+- [x] **S3: Hardcoded DB credentials** — ลบ default `"postgres"` ออกจาก `data-pipeline/config.py` ต้องตั้ง env var
+
+**Domain Compliance:**
+- [x] **D1: ไม่มี VAT 7%** — เพิ่ม `vatAmount`, `totalTaxDue` fields ใน TS types + UI แสดง total cost summary
+- [x] **D2: FTA Form ชื่อผิด** — V1014 migration แก้ "Form AAT" → "Form FTA" สำหรับ TAFTA
+- [x] **D3: V1014 migration SQL ผิด** — แก้ `agreement_name` → `fta_name` (column ที่ถูกต้อง)
+
+**Architecture:**
+- [x] **A1: Unpinned Docker images** — pin minio:RELEASE.2024-12-18, mc:RELEASE.2024-12-18, nginx:1.27-alpine
+
+**Logic:**
+- [x] **L1: Prompt Injection** — แยก `system_instruction` ออกจาก `contents` ใน GeminiChatService.generateAnswer()
+
+#### 🟠 HIGH (8 รายการ) — ✅ แก้ครบ
+
+- [x] **S4: XSS via markdownToHtml** — เพิ่ม `stripHtml()` + restrict `<a>` href to https only ใน blog page.tsx
+- [x] **L2: LLM output ไม่ validate** — `isValidHsCode()` มีอยู่แล้วที่ line 288 (ตรวจ DDDD.DD format)
+- [x] **L3: Race condition scan job** — เพิ่ม `@Transactional` บน `pollAndProcess()`
+- [x] **A2: CSP unsafe-inline** — ลบ `'unsafe-inline'` ออกจาก style-src ใน vollos.conf ทั้ง 2 server blocks
+- [x] **D4: ขาด TRANSSHIPMENT** — เพิ่ม type + dropdown ใน ScanPanel + i18n (TH: "ใบขนสินค้าถ่ายลำ")
+- [x] **D5: LPI prefix** — แก้แล้วใน V1014 (030617→0306 chapter level)
+- [x] **D6: Frontend ขาด vatAmount/totalTax** — เพิ่มใน CgDeclarationItem type
+- [x] **D7: ไม่แสดง total cost** — เพิ่ม Duty + VAT + Total Tax summary ใน ScanPanel
+
+#### 🟡 MEDIUM (10 รายการ) — ✅ แก้ 8/10
+
+- [x] **S5: SQL string concat** — False positive (countColumn จาก code logic ไม่ใช่ user input) เพิ่ม SAFE comment
+- [x] **S6: dangerouslySetInnerHTML** — False positive (config เป็น dev-controlled TS files ไม่ใช่ user input)
+- [x] **L4: Confidence threshold** — เปลี่ยนจาก 0.3 → 0.5
+- [ ] **L5: Gemini error swallowed** — GeminiChatService log + return "ขออภัย..." อยู่แล้ว (ทำได้ดีกว่า แต่ไม่ urgent)
+- [x] **Q1: Admin sync ไม่มี auth** — เพิ่ม X-Admin-Secret verification + timing-safe comparison ใน ExchangeRateController
+- [x] **Q2: No exponential backoff** — เปลี่ยนจาก fixed 15s → exponential backoff (15s, 30s, 60s)
+- [x] **A3: Docker resource limits** — ตรวจแล้ว: CPU 1.8 / RAM 6.5GB อยู่ในเกณฑ์ 2CPU/8GB
+- [x] **A4: Hardcoded MinIO defaults** — ลบ `:-minioadmin` defaults ต้องตั้งใน .env
+- [ ] **D8: CIF ไม่แยก Insurance+Freight** — backlog (ต้องออกแบบ UI เพิ่ม input fields)
+- [ ] **D9: ไม่รองรับ Specific Duty** — backlog (ต้อง lookup duty type ต่อ HS Code จาก DB)
+
+#### 🟢 LOW (1 รายการ)
+
+- [x] **Q3: Hardcoded unavailable topics** — ออกแบบมาเป็น domain-specific prompt (ไม่ใช่ bug)
+
+---
+
+### 🔍 Code Audit Findings (2026-03-09) — 7 CRITICAL, 6 HIGH, 7 MEDIUM, 4 LOW (แก้ครบแล้ว ✅)
 
 **ที่มา:** Full Audit โดย vollos-code-auditor (static analysis ทุก layer)
 
@@ -242,6 +425,16 @@ Updated: 2026-03-09
 - [x] **L2: PGPASSWORD** — เพิ่ม comment warning + แนะนำ .pgpass
 - [x] **L3: Clipboard error** — เพิ่ม console.warn แทน empty catch
 - [x] **L4: GitLab CI SAST** — เพิ่ม sast job ใน test stage (dependencyCheckAnalyze)
+
+---
+
+### E2E Tests — เสร็จแล้ว 10/10 ✅ ค้างงาน A + B
+
+**สถานะ:** E2E tests ผ่านครบ 10 ตัว (1 นาที) — ใช้ fake JWT injection + context.route() mocking
+
+**สิ่งที่ค้าง:**
+- [ ] **A) เพิ่ม screenshots** — ถ่ายภาพหน้าจอทุก step ใน E2E tests (ได้ screenshots บางส่วนแล้วที่ `e2e-results/manual/`)
+- [ ] **B) เขียน demo script สำหรับถ่ายวิดีโอ** — Mode 3 ของ vollos-tester, script แบ่ง scene + timestamp + talking points
 
 ---
 

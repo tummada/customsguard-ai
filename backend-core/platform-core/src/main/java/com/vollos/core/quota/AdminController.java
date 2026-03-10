@@ -31,7 +31,7 @@ public class AdminController {
 
     public AdminController(
             JdbcTemplate jdbcTemplate,
-            @Value("${admin.secret:vollos-admin-secret-change-me}") String adminSecret) {
+            @Value("${admin.secret}") String adminSecret) {
         this.jdbcTemplate = jdbcTemplate;
         this.adminSecret = adminSecret;
     }
@@ -227,7 +227,9 @@ public class AdminController {
     // ── Helpers ──────────────────────────────────────────────────────
 
     private boolean verifySecret(String secret) {
-        return secret != null && secret.equals(adminSecret);
+        return secret != null && java.security.MessageDigest.isEqual(
+                secret.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                adminSecret.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
     private ResponseEntity<?> forbidden() {

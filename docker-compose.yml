@@ -142,7 +142,7 @@ services:
     logging: *default-logging
 
   nginx:
-    image: nginx:alpine
+    image: nginx:1.27-alpine
     container_name: saas-proxy
     restart: always
     security_opt: [no-new-privileges:true]

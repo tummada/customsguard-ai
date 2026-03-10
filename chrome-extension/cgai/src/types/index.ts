@@ -6,7 +6,7 @@ export interface CgDeclaration {
   localId?: number; // Auto-increment PK for Dexie
   serverId?: string; // UUID from backend (null = unsynced draft)
   declarationNumber: string;
-  declarationType: "IMPORT" | "EXPORT";
+  declarationType: "IMPORT" | "EXPORT" | "TRANSIT" | "TRANSSHIPMENT";
   status: "DRAFT" | "SUBMITTED" | "COMPLETED" | "CANCELLED";
   totalDuty?: string; // String for Big.js precision
   aiJobId?: string;
@@ -30,6 +30,8 @@ export interface CgDeclarationItem {
   dutyRate?: string;
   dutyAmount?: string;
   currency?: string;
+  vatAmount?: string; // VAT 7% amount
+  totalTaxDue?: string; // duty + excise + municipal + VAT
   // AI Scan fields (Feature #2 & #5)
   confidence?: number; // 0.0-1.0 from AI extraction
   aiReason?: string; // AI explanation when confidence is low
@@ -149,7 +151,7 @@ export interface ScanPdfMessage {
   type: "SCAN_PDF";
   payload: {
     pdfDataUrl: string; // Base64 data-URL of the raw PDF file
-    declarationType: "IMPORT" | "EXPORT";
+    declarationType: "IMPORT" | "EXPORT" | "TRANSIT" | "TRANSSHIPMENT";
   };
 }
 

@@ -1,2 +1,85 @@
 
  อยากเรียนต่อ Workshop: เรียนรู้ Skills และ MCP แบบ Expert Edition 
+
+
+อ่าน todo แล้ว ทำ Data Pipeline Tier 2 Step 6 ต่อ — embed + eval
+
+ แชท 1:  DONE                                                                                                                                                  
+  Deploy production: rebuild Docker image แล้ว deploy ChatGuardService + ScanWorker ที่เพิ่ง commit ขึ้น VPS                                                       
+                                                                  
+  แชท 2: DONE
+  เติม Document Chunks ให้ RAG Chat ใช้งานได้จริง (Phase 2) — ใส่ข้อมูลกฎระเบียบ/ประกาศกรมศุลกากรเข้า cg_document_chunks
+ 
+  แชท 3:
+  ทำ Feature #6 AI Audit Traffic Light ตาม plan ที่มีอยู่แล้ว
+
+  แชท 4:
+  เพิ่ม Chat History (Dexie), nginx rate limiting, และ spring-boot-starter-actuator monitoring/health endpoint
+
+ 
+
+  ทำ AIO แชท 5: (Content Marketing Pipeline — dev เสร็จแล้ว รอ credentials)
+  งานที่ค้าง:
+  1. สมัคร Social Media Accounts (TikTok ทำก่อน!):
+     - Facebook Page (ชื่อ VOLLOS) + สมัคร Meta Developer App
+     - Instagram Business (@vollos.ai) เชื่อมกับ FB Page
+     - TikTok Business + ขอ Content Posting API (รอ review 2-5 วัน — ทำก่อน!)
+     - YouTube Channel (VOLLOS) + enable YouTube Data API v3
+     - X/Twitter + สมัคร Developer account
+     * ถ้าชื่อซ้ำ ใช้สำรอง: vollos.ai → vollosapp → vollos_th
+  2. สร้าง Google Sheets 1 อัน (สำหรับ review content)
+  3. สร้าง Line/Discord webhook (สำหรับ notification)
+  4. สมัคร SendGrid (สำหรับ email lead nurture)
+  5. เอา API keys/tokens ทั้งหมดมาให้ Claude Code เติมใน n8n workflows
+
+  สิ่งที่ทำเสร็จแล้ว:
+  - DB migration V6 (mkt_content table) — applied + Flyway OK
+  - Marketing-site blog pages + HS Lookup tool + Schema.org
+  - n8n workflow JSONs 5 ไฟล์ (blog-publisher, sheets-review-sync, social-publisher, token-refresh, lead-nurture)
+  - docker-compose.yml แก้ DATABASE_URL แล้ว
+  - Agent prompts สำหรับ AI 3 ตัว
+  - คู่มือพนักงาน (docs/content-marketing/OPERATIONS-MANUAL.md)
+  - คำสั่ง Claude Code สำเร็จรูป 10 ชุด + 30 ชุดหลังสัปดาห์ 11 (Case Study 15 + Q&A 15)
+
+
+
+
+
+
+  ----------------------------------------------
+  วิธีตรวจสอบคุณภาพข้อมูลเก่า vs ใหม่
+
+  1. Spot-check กับแหล่งอ้างอิง (วิธีตรงที่สุด)
+
+  - เลือก 10-20 HS codes ที่รู้คำตอบอยู่แล้ว (เช่น กุ้ง 0306.17, ข้าว 1006.30)
+  - เทียบ rate ใน DB กับ rate ที่เปิดดูจากเว็บ thailandntr.com / customs.go.th ตรงๆ
+  - ถ้าไม่ตรง → ข้อมูลมีปัญหา
+
+  2. Row count + coverage check
+
+  - เก่ามี 19,689 HS codes → ใหม่ต้องได้ใกล้เคียงหรือมากกว่า
+  - FTA rates เก่ามีแค่ 6 demo codes → ใหม่ต้องมี 12,000+ × 10 FTAs
+  - ถ้าน้อยกว่า = โหลดไม่ครบ
+
+  3. Semantic search quality (ทดสอบ RAG)
+
+  - ใช้ 11_quality_check.py ที่มีอยู่แล้ว — มี 20 test queries ภาษาไทย+อังกฤษ
+  - ยิง query เดียวกันใส่ข้อมูลเก่า vs ใหม่ → เปรียบเทียบ top-5 results
+  - ข้อมูลดี = ค้นเจอ HS code ที่ตรงประเด็น
+
+  4. Format validation (อัตโนมัติ)
+
+  - utils/validator.py มีอยู่แล้ว — ตรวจ HS code format (\d{4}\.\d{2}\.\d{2}), rate range (0-80%), FTA name ถูกต้อง
+  - รันทั้ง 2 ชุด เทียบจำนวน invalid records
+
+  5. วิธีที่ผมแนะนำจริงๆ
+
+  ไม่ต้องทำใหม่ทั้งหมด — ทำแบบนี้ดีกว่า:
+
+  1. HS codes 19,689 ตัว → เก็บไว้ เพราะมาจาก data.go.th (open data ราชการ) น่าเชื่อถือ
+  2. FTA JSON 10 ไฟล์ → spot-check 10-20 codes ก่อน ถ้า OK ก็ bulk insert เข้า DB ได้เลย
+  3. Regulations 10 ตัว → ต้องตรวจว่า AI สร้างหรือ copy จากของจริง ถ้า AI สร้าง → ทิ้ง แล้วเอาของจริงมาแทน
+
+  สรุป: ไม่ต้องทำใหม่ทั้ง pipeline แต่ ตรวจสอบข้อมูลที่มี ก่อน ถ้าพบว่าผิดค่อยโหลดใหม่เฉพาะส่วนนั้น ประหยัดเวลาและ cost กว่ามาก
+
+  อยากให้ผม spot-check ข้อมูล FTA JSON ที่มีอยู่ตอนนี้เลยไหมครับ? จะเปิดดู sample records แล้วเทียบกับข้อมูลจริงให้

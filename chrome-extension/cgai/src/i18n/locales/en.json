@@ -43,6 +43,10 @@
     "clickToChange": "click to change file",
     "pdfOnly": "Please select PDF files only",
     "pdfReadError": "Cannot read PDF file",
+    "typeImport": "Import Declaration",
+    "typeExport": "Export Declaration",
+    "typeTransit": "Transit Declaration",
+    "typeTransshipment": "Transshipment Declaration",
     "scanFailed": "Scan failed",
     "noItems": "No items yet — scan a PDF to extract data",
     "goToMagicFill": "Confirmed — go to \"Magic Fill\" tab to fill the form"
@@ -51,10 +55,13 @@
     "hsCode": "HS Code",
     "description": "Description",
     "qty": "Qty",
-    "weight": "Weight",
+    "weight": "Weight (KG)",
     "unitPrice": "Unit Price",
     "cif": "CIF",
-    "confirm": "Confirm"
+    "confirm": "Confirm",
+    "vat": "VAT 7%",
+    "duty": "Import Duty",
+    "totalTax": "Total Tax Due"
   },
   "chat": {
     "placeholder": "Ask about HS codes, FTA, regulations...",
@@ -70,14 +77,17 @@
     "greeting": "Hello! I'm VOLLOS AI, your customs assistant.\n\nI can help with:\n• HS Code classification\n• MFN / FTA duty rates\n• Import-export regulations\n• Licenses / controlled goods\n\nFeel free to ask!",
     "thanksReply": "You're welcome! Feel free to ask anything else.",
     "chitchatReply": "I specialize in customs topics. Try asking about HS Codes, duty rates, FTA, or import-export regulations!",
-    "lowRelevanceHidden": "{{count}} low-relevance sources hidden"
+    "lowRelevanceHidden": "{{count}} low-relevance sources hidden",
+    "relevanceHigh": "Highly Relevant",
+    "relevanceMedium": "Relevant",
+    "relevanceLow": "Related"
   },
   "banner": {
     "exchangeRate": "Exchange Rates",
     "refresh": "Refresh",
     "loading": "Loading...",
     "effectiveDate": "Customs Department rate effective",
-    "midRateNote": "Mid Rate — used for customs duty calculation",
+    "midRateNote": "Import Rate — for customs duty calculation (auto-synced daily)",
     "ftaSavings": "FTA Savings",
     "save": "save",
     "evidence": "View evidence",

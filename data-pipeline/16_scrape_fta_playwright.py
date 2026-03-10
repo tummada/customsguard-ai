@@ -43,7 +43,7 @@ FTA_AGREEMENTS = {
     "AKFTA":   {"agreement_id": "6",  "countries": ["KOR"],   "form": "Form AK"},
     "AJCEP":   {"agreement_id": "5",  "countries": ["JPN"],   "form": "Form AJ"},
     "JTEPA":   {"agreement_id": "9",  "countries": ["JPN"],   "form": "Form JTEPA"},
-    "TAFTA":   {"agreement_id": "10", "countries": ["AUS"],   "form": "Form TAFTA"},
+    "TAFTA":   {"agreement_id": "10", "countries": ["AUS"],   "form": "Form FTA"},
     "AANZFTA": {"agreement_id": "1",  "countries": ["AUS", "NZL"], "form": "Form AANZ"},
     "AIFTA":   {"agreement_id": "4",  "countries": ["IND"],   "form": "Form AI"},
     "RCEP":    {"agreement_id": "20", "countries": ["CHN", "JPN", "KOR", "AUS", "NZL"], "form": "Form RCEP"},

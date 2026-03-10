@@ -105,6 +105,7 @@ export default function ScanPanel({ onItemsChange, online = true, onQuotaExceede
   const [rawPdfFile, setRawPdfFile] = useState<File | null>(null);
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState("");
+  const [declarationType, setDeclarationType] = useState<"IMPORT" | "EXPORT" | "TRANSIT" | "TRANSSHIPMENT">("IMPORT");
   const {
     items,
     unconfirmedCount,
@@ -180,7 +181,7 @@ export default function ScanPanel({ onItemsChange, online = true, onQuotaExceede
 
       const response = await chrome.runtime.sendMessage({
         type: "SCAN_PDF",
-        payload: { pdfDataUrl, declarationType: "IMPORT" },
+        payload: { pdfDataUrl, declarationType },
       }) as ScanPdfResponse & { quotaExceeded?: QuotaExceededResponse };
 
       if (response.success && response.items) {
@@ -250,20 +251,33 @@ export default function ScanPanel({ onItemsChange, online = true, onQuotaExceede
       {/* PDF Drop Zone */}
       <PdfDropZone onPagesReady={handlePagesReady} disabled={scanning} />
 
-      {/* Scan Button */}
+      {/* Declaration Type + Scan Button */}
       {pages.length > 0 && (
-        <button
-          onClick={handleScan}
-          disabled={scanning || !online}
-          className="w-full py-2 px-4 btn-primary rounded-2xl text-sm"
-          title={!online ? t("common.offline") : undefined}
-        >
-          {scanning
-            ? `${t("scan.scanning")} ${pages.length} ${t("scan.pages")}...`
-            : !online
-              ? t("common.offline")
-              : `${t("scan.scanButton")} (${pages.length} ${t("scan.pages")})`}
-        </button>
+        <div className="space-y-2">
+          <select
+            value={declarationType}
+            onChange={(e) => setDeclarationType(e.target.value as "IMPORT" | "EXPORT" | "TRANSIT" | "TRANSSHIPMENT")}
+            disabled={scanning}
+            className="w-full bg-white border border-gray-200 rounded-xl px-3 py-1.5 text-xs text-gray-700 focus-gold"
+          >
+            <option value="IMPORT">{t("scan.typeImport")}</option>
+            <option value="EXPORT">{t("scan.typeExport")}</option>
+            <option value="TRANSIT">{t("scan.typeTransit")}</option>
+            <option value="TRANSSHIPMENT">{t("scan.typeTransshipment")}</option>
+          </select>
+          <button
+            onClick={handleScan}
+            disabled={scanning || !online}
+            className="w-full py-2 px-4 btn-primary rounded-2xl text-sm"
+            title={!online ? t("common.offline") : undefined}
+          >
+            {scanning
+              ? `${t("scan.scanning")} ${pages.length} ${t("scan.pages")}...`
+              : !online
+                ? t("common.offline")
+                : `${t("scan.scanButton")} (${pages.length} ${t("scan.pages")})`}
+          </button>
+        </div>
       )}
 
       {/* Error */}
@@ -309,6 +323,27 @@ export default function ScanPanel({ onItemsChange, online = true, onQuotaExceede
               onEditItem={handleEditItem}
               onConfirmItem={handleConfirmItem}
             />
+
+            {/* Total Cost Summary (D7) */}
+            {(() => {
+              const totalDuty = items.reduce((sum, i) => sum + (parseFloat(i.dutyAmount || "0") || 0), 0);
+              const totalVat = items.reduce((sum, i) => sum + (parseFloat(i.vatAmount || "0") || 0), 0);
+              const totalTax = items.reduce((sum, i) => sum + (parseFloat(i.totalTaxDue || "0") || 0), 0);
+              if (totalDuty <= 0 && totalVat <= 0 && totalTax <= 0) return null;
+              return (
+                <div className="mt-2 pt-2 border-t border-gray-200 space-y-0.5 text-xs text-right">
+                  {totalDuty > 0 && (
+                    <div className="text-gray-500">{t("table.duty")}: <span className="font-medium text-gray-700">{totalDuty.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</span></div>
+                  )}
+                  {totalVat > 0 && (
+                    <div className="text-gray-500">{t("table.vat")}: <span className="font-medium text-gray-700">{totalVat.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</span></div>
+                  )}
+                  {totalTax > 0 && (
+                    <div className="text-gray-600 font-semibold">{t("table.totalTax")}: <span className="text-brand">{totalTax.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</span></div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           {/* LPI Alert Banner (amber) — below table */}

@@ -29,7 +29,7 @@ FTA_COUNTRIES = {
 
 FTA_FORMS = {
     "ATIGA": "Form D", "ACFTA": "Form E", "AKFTA": "Form AK",
-    "AJCEP": "Form AJ", "JTEPA": "Form JTEPA", "TAFTA": "Form TAFTA",
+    "AJCEP": "Form AJ", "JTEPA": "Form JTEPA", "TAFTA": "Form FTA",
     "AANZFTA": "Form AANZ", "AIFTA": "Form AI", "RCEP": "Form RCEP", "TNZCEP": "Form TNZCEP",
 }
 

@@ -12,6 +12,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -49,9 +51,10 @@ public class ScanWorkerService {
     }
 
     private static final int MAX_RETRIES = 3;
-    private static final long RETRY_DELAY_MS = 15_000;
+    private static final long BASE_RETRY_DELAY_MS = 15_000;
 
     @Scheduled(fixedDelay = 15_000, initialDelay = 30_000)
+    @Transactional
     public void pollAndProcess() {
         // Pick one CREATED job (oldest first) with FOR UPDATE SKIP LOCKED to prevent race condition
         List<Map<String, Object>> jobs = jdbcTemplate.queryForList("""
@@ -111,9 +114,10 @@ public class ScanWorkerService {
                 if (!"[]".equals(itemsJson)) break;
 
                 if (attempt < MAX_RETRIES) {
+                    long delay = BASE_RETRY_DELAY_MS * (1L << (attempt - 1)); // exponential backoff
                     log.warn("Gemini returned empty (attempt {}/{}), retrying in {}s...",
-                            attempt, MAX_RETRIES, RETRY_DELAY_MS / 1000);
-                    Thread.sleep(RETRY_DELAY_MS);
+                            attempt, MAX_RETRIES, delay / 1000);
+                    Thread.sleep(delay);
                 }
             }
             log.info("Gemini extraction result: {} chars", itemsJson.length());
@@ -253,8 +257,9 @@ public class ScanWorkerService {
                     List<SemanticSearchResponse> results = hsCodeService.semanticSearch(query, 3);
 
                     if (!results.isEmpty() && results.get(0).similarity() != null
-                            && results.get(0).similarity() >= 0.3
-                            && results.get(0).code() != null) {
+                            && results.get(0).similarity() >= 0.5
+                            && results.get(0).code() != null
+                            && isValidHsCode(results.get(0).code())) {
                         SemanticSearchResponse best = results.get(0);
                         item.put("hsCode", best.code());
                         item.put("confidence", best.similarity());
@@ -281,5 +286,10 @@ public class ScanWorkerService {
             log.error("Failed to parse items JSON for enrichment, returning original", e);
             return itemsJson;
         }
+    }
+
+    /** Validate Thai customs HS code format: DDDD.DD or DDDD.DD.DD */
+    private static boolean isValidHsCode(String code) {
+        return code != null && code.matches("\\d{4}\\.\\d{2}(\\.\\d{2})?");
     }
 }

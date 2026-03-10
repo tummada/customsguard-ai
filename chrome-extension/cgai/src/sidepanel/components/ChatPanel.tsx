@@ -256,11 +256,18 @@ export default function ChatPanel({ activeHsCodes, onQuotaExceeded }: ChatPanelP
                         <span className="text-gray-400 font-medium">
                           [{src.docType || src.sourceType}]
                         </span>
-                        <span className={`font-medium ${
-                          src.similarity >= 0.8 ? "text-green-600" :
-                          src.similarity >= 0.7 ? "text-brand" : "text-gray-400"
+                        <span className={`font-medium text-[10px] px-1.5 py-0.5 rounded-full ${
+                          src.similarity >= 0.85
+                            ? "bg-green-100 text-green-700"
+                            : src.similarity >= 0.75
+                            ? "bg-emerald-50 text-emerald-600"
+                            : "bg-gray-100 text-gray-500"
                         }`}>
-                          {Math.round(src.similarity * 100)}%
+                          {src.similarity >= 0.85
+                            ? t("chat.relevanceHigh")
+                            : src.similarity >= 0.75
+                            ? t("chat.relevanceMedium")
+                            : t("chat.relevanceLow")}
                         </span>
                       </div>
                       {src.title && (

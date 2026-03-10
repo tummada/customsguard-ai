@@ -47,6 +47,7 @@ public class UsageQuotaService {
         }
 
         int maxLimit = "scan".equals(usageType) ? limits.scanLimit : limits.chatLimit;
+        // SAFE: countColumn is from code logic, not user input — always "scan_count" or "chat_count"
         String countColumn = "scan".equals(usageType) ? "scan_count" : "chat_count";
 
         // 2. UPSERT: insert or increment atomically, return new count
