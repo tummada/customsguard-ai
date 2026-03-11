@@ -68,7 +68,6 @@ class GeminiChatServiceTest {
     void generateAnswer_apiError_returnsMaskedMessage() throws Exception {
         HttpResponse<String> mockResponse = mock(HttpResponse.class);
         when(mockResponse.statusCode()).thenReturn(500);
-        when(mockResponse.body()).thenReturn("{\"error\":\"Internal server error\"}");
         when(mockHttpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
                 .thenReturn(mockResponse);
 
@@ -126,20 +125,19 @@ class GeminiChatServiceTest {
         assertThat(result).isNotEmpty();
     }
 
-    // --- TC-CG-047: rawPrompt API error → empty string ---
+    // --- TC-CG-047: rawPrompt API error → throws RuntimeException (v8-C4: enables retry) ---
     @Test
-    @DisplayName("TC-CG-047: rawPrompt — API error returns empty string (not exception)")
+    @DisplayName("TC-CG-047: rawPrompt — API error throws RuntimeException (triggers retry in caller)")
     @SuppressWarnings("unchecked")
-    void rawPrompt_apiError_returnsEmpty() throws Exception {
+    void rawPrompt_apiError_throwsRuntimeException() throws Exception {
         HttpResponse<String> mockResponse = mock(HttpResponse.class);
         when(mockResponse.statusCode()).thenReturn(429);
-        when(mockResponse.body()).thenReturn("{\"error\":\"rate limited\"}");
         when(mockHttpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
                 .thenReturn(mockResponse);
 
-        String result = service.rawPrompt("prompt");
-
-        assertThat(result).isEmpty();
+        assertThatThrownBy(() -> service.rawPrompt("prompt"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Gemini API returned HTTP 429");
     }
 
     // --- TC-CG-048: extractTextFromImage happy path ---
@@ -165,7 +163,6 @@ class GeminiChatServiceTest {
     void extractTextFromImage_apiError_throwsRuntimeException() throws Exception {
         HttpResponse<String> mockResponse = mock(HttpResponse.class);
         when(mockResponse.statusCode()).thenReturn(500);
-        when(mockResponse.body()).thenReturn("error");
         when(mockHttpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
                 .thenReturn(mockResponse);
 

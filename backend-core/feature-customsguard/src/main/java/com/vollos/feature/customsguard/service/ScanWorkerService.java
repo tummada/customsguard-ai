@@ -45,6 +45,12 @@ public class ScanWorkerService {
     @Value("${customsguard.scan.high-confidence-threshold:0.95}")
     private double highConfidenceThreshold;
 
+    @Value("${customsguard.scan.semantic-min-threshold:0.65}")
+    private double semanticMinThreshold;
+
+    @Value("${customsguard.scan.disclaimer-threshold:0.80}")
+    private double disclaimerThreshold;
+
     public ScanWorkerService(JdbcTemplate jdbcTemplate,
                              S3StorageService s3Service,
                              PdfProcessingService pdfService,
@@ -112,11 +118,15 @@ public class ScanWorkerService {
                 log.warn("C1: Cannot fetch declarationType for job {} — using default IMPORT", jobId);
             }
 
-            // 1. Update status → PROCESSING
-            jdbcTemplate.update("""
+            // 1. Update status → PROCESSING (v8-C2: conditional update to prevent race condition)
+            int claimed = jdbcTemplate.update("""
                 UPDATE ai_jobs SET status = 'PROCESSING', progress = 10, updated_at = NOW()
-                WHERE id = ?::uuid
+                WHERE id = ?::uuid AND status = 'CREATED'
                 """, jobId);
+            if (claimed == 0) {
+                log.warn("Job {} was already claimed by another worker — skipping", jobId);
+                return;
+            }
 
             // 2. Download PDF from S3
             byte[] pdfBytes = s3Service.downloadPdf(s3Key);
@@ -137,20 +147,26 @@ public class ScanWorkerService {
                 """, jobId);
 
             // 4. Send to Gemini for item extraction (with retry for rate limits/empty)
+            // v8-C4: rawPrompt now throws on empty/error — catch and retry
             String itemsJson = null;
             for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-                itemsJson = extractItemsWithGemini(extractedText);
-                if (itemsJson != null && !"[]".equals(itemsJson.strip()) && !"[ ]".equals(itemsJson.strip())) break;
+                try {
+                    itemsJson = extractItemsWithGemini(extractedText);
+                    if (itemsJson != null && !"[]".equals(itemsJson.strip()) && !"[ ]".equals(itemsJson.strip())) break;
+                } catch (RuntimeException e) {
+                    log.warn("Gemini extraction failed (attempt {}/{}): {}", attempt, MAX_RETRIES, e.getMessage());
+                    itemsJson = null;
+                }
 
                 if (attempt < MAX_RETRIES) {
                     long delay = BASE_RETRY_DELAY_MS * (1L << (attempt - 1)); // exponential backoff
-                    log.warn("Gemini returned empty items (attempt {}/{}) — could be rate-limited or no data, retrying in {}s...",
+                    log.warn("Gemini returned empty/error (attempt {}/{}) — retrying in {}s...",
                             attempt, MAX_RETRIES, delay / 1000);
                     // C3-VSLEEP: TimeUnit.sleep is VT-safe (does not pin carrier thread)
                     TimeUnit.MILLISECONDS.sleep(delay);
                 }
             }
-            log.info("Gemini extraction result: {} chars", itemsJson.length());
+            log.info("Gemini extraction result: {} chars", itemsJson != null ? itemsJson.length() : 0);
 
             // If still empty after retries — legitimately empty PDF (no line items)
             if (itemsJson == null || "[]".equals(itemsJson.strip()) || "[ ]".equals(itemsJson.strip())) {
@@ -229,7 +245,9 @@ public class ScanWorkerService {
                 : invoiceText;
         sanitized = sanitized.replaceAll("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]", " ");
         // H4-PROMPT-INJ: Escape quotes and backticks to prevent prompt injection from invoice text
-        sanitized = sanitized.replace("`", "'").replace("\"", "'").replace("\\", "");
+        // v8-H1: Also strip braces to prevent JSON structure injection when text is embedded in prompts
+        sanitized = sanitized.replace("`", "'").replace("\"", "'").replace("\\", "")
+                .replace("{", "(").replace("}", ")").replace("[", "(").replace("]", ")");
 
         String prompt = """
             คุณคือผู้เชี่ยวชาญด้านการอ่าน invoice สำหรับศุลกากร
@@ -342,11 +360,11 @@ public class ScanWorkerService {
                     // Pass 1: Semantic search → top 5 candidates from DB
                     List<SemanticSearchResponse> candidates = hsCodeService.semanticSearch(query, 5);
 
-                    // Traffic Light redesign: ลด threshold เป็น 0.65 ให้ผลทุกระดับผ่านไป Frontend
+                    // v8-H2: Use configurable threshold instead of hardcoded value
                     // H6-SEMANTIC: Also cross-check that candidate description has keyword overlap
                     String queryLower = query.toLowerCase();
                     List<SemanticSearchResponse> validCandidates = candidates.stream()
-                            .filter(c -> c.similarity() != null && c.similarity() >= 0.65
+                            .filter(c -> c.similarity() != null && c.similarity() >= semanticMinThreshold
                                     && c.code() != null && isValidHsCode(c.code()))
                             .filter(c -> {
                                 // H6: Cross-check — at least one keyword from query appears in description
@@ -380,12 +398,21 @@ public class ScanWorkerService {
                     String selectedCode = verifyWithGemini(query, validCandidates);
 
                     if (selectedCode != null) {
-                        SemanticSearchResponse selected = validCandidates.stream()
+                        // v8-C1: Check if Gemini actually confirmed a candidate from the list
+                        var confirmedOpt = validCandidates.stream()
                                 .filter(c -> selectedCode.equals(c.code()))
-                                .findFirst()
-                                .orElse(validCandidates.get(0));
-                        setHsCodeResult(item, selected.code(), selected.similarity(),
-                                "AI verified: " + descText(selected), false);
+                                .findFirst();
+                        if (confirmedOpt.isPresent()) {
+                            SemanticSearchResponse selected = confirmedOpt.get();
+                            setHsCodeResult(item, selected.code(), selected.similarity(),
+                                    "AI verified: " + descText(selected), false);
+                        } else {
+                            // v8-C1: Gemini returned a code not in candidates — treat as unverified fallback
+                            log.warn("Gemini returned code '{}' not in candidate list — falling back to semantic (unverified)", selectedCode);
+                            SemanticSearchResponse best = validCandidates.get(0);
+                            setHsCodeResult(item, best.code(), best.similarity(),
+                                    "Semantic fallback (AI ไม่สามารถยืนยันได้): " + descText(best), true);
+                        }
                     } else {
                         // Gemini couldn't decide — fall back to top semantic result
                         SemanticSearchResponse best = validCandidates.get(0);
@@ -613,10 +640,21 @@ public class ScanWorkerService {
     }
 
     /**
-     * C5: Normalize number strings to handle EU format (1.234,56) and US format (1,234.56).
-     * Detects format by checking which separator appears last (decimal separator).
+     * v9-C1: Normalize number strings — handles US, EU, and ambiguous formats.
+     *
+     * Rules:
+     * 1. Thai numerals ๐-๙ → 0-9 first
+     * 2. Strip currency symbols, spaces, non-numeric chars except . and ,
+     * 3. If BOTH comma AND period present → last separator is decimal
+     *    e.g. "1,234.56" → 1234.56 | "1.234,56" → 1234.56
+     * 4. If ONLY comma (no period):
+     *    - digits after LAST comma == 3 → comma is thousands separator (US: "1,234" → 1234)
+     *    - digits after LAST comma == 1 or 2 → comma is decimal (EU: "1,23" → 1.23)
+     * 5. If ONLY period (no comma):
+     *    - digits after LAST period == 3 AND multiple periods → period is thousands (EU: "1.234.567" → 1234567)
+     *    - otherwise → period is decimal (US: "1234.56" → 1234.56)
      */
-    private static String normalizeNumber(String input) {
+    static String normalizeNumber(String input) {
         // M7-THAI-NUM: Convert Thai numerals ๐-๙ to 0-9 before processing
         StringBuilder sb = new StringBuilder(input);
         for (int i = 0; i < sb.length(); i++) {
@@ -627,15 +665,47 @@ public class ScanWorkerService {
         }
         String s = sb.toString().replaceAll("[^\\d.,]", "");
         if (s.isEmpty()) return "0";
-        int lastDot = s.lastIndexOf('.');
-        int lastComma = s.lastIndexOf(',');
-        if (lastComma > lastDot) {
-            // EU format: 1.234,56 → remove dots, replace comma with dot
-            s = s.replace(".", "").replace(",", ".");
-        } else {
-            // US format: 1,234.56 → remove commas
-            s = s.replace(",", "");
+
+        boolean hasComma = s.contains(",");
+        boolean hasDot = s.contains(".");
+
+        if (hasComma && hasDot) {
+            // Both present → last separator is decimal
+            int lastDot = s.lastIndexOf('.');
+            int lastComma = s.lastIndexOf(',');
+            if (lastComma > lastDot) {
+                // EU format: 1.234,56 → remove dots, replace comma with dot
+                s = s.replace(".", "").replace(",", ".");
+            } else {
+                // US format: 1,234.56 → remove commas
+                s = s.replace(",", "");
+            }
+        } else if (hasComma && !hasDot) {
+            // Only comma — check digits after LAST comma
+            int lastComma = s.lastIndexOf(',');
+            String afterComma = s.substring(lastComma + 1);
+            if (afterComma.length() == 3) {
+                // Thousands separator (US: "1,234" → 1234, "1,234,567" → 1234567)
+                s = s.replace(",", "");
+            } else {
+                // Decimal separator (EU: "1,23" → 1.23, "1,5" → 1.5)
+                // Remove all commas except the last one, replace last with dot
+                int idx = s.lastIndexOf(',');
+                String before = s.substring(0, idx).replace(",", "");
+                s = before + "." + s.substring(idx + 1);
+            }
+        } else if (hasDot && !hasComma) {
+            // Only period — check for EU thousands separator pattern
+            long dotCount = s.chars().filter(c -> c == '.').count();
+            int lastDot = s.lastIndexOf('.');
+            String afterDot = s.substring(lastDot + 1);
+            if (dotCount > 1 && afterDot.length() == 3) {
+                // Multiple dots with 3 digits after last → thousands separator (EU: "1.234.567" → 1234567)
+                s = s.replace(".", "");
+            }
+            // Single dot or non-3-digit after dot → keep as decimal (default behavior)
         }
+
         return s;
     }
 
@@ -649,7 +719,7 @@ public class ScanWorkerService {
         item.put("hsCode", code);
         item.put("confidence", similarity);
         item.put("aiReason", reason + " (similarity=" + String.format("%.2f", similarity) + ")");
-        item.put("requiresReview", forceReview || similarity < 0.80);
+        item.put("requiresReview", forceReview || similarity < disclaimerThreshold);
     }
 
     private String descText(SemanticSearchResponse r) {

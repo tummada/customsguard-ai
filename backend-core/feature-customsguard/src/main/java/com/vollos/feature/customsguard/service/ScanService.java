@@ -44,9 +44,13 @@ public class ScanService {
         }
 
         // Validate PDF header (magic bytes)
+        // v8-H4: Check read() return value — 0-byte or truncated files must fail validation
         try {
             byte[] header = new byte[4];
-            file.getInputStream().read(header);
+            int bytesRead = file.getInputStream().read(header);
+            if (bytesRead < 4) {
+                throw new IllegalArgumentException("Invalid file: too short to be a PDF document (read " + bytesRead + " bytes)");
+            }
             if (header[0] != PDF_MAGIC[0] || header[1] != PDF_MAGIC[1]
                     || header[2] != PDF_MAGIC[2] || header[3] != PDF_MAGIC[3]) {
                 throw new IllegalArgumentException("Invalid file: not a PDF document");

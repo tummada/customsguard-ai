@@ -3,9 +3,14 @@ package com.vollos.feature.customsguard.entity;
 import com.vollos.core.shared.BaseEntity;
 import jakarta.persistence.*;
 
+import java.util.UUID;
+
 @Entity
 @Table(name = "cg_document_chunks")
 public class DocumentChunkEntity extends BaseEntity {
+
+    @Column(name = "tenant_id", nullable = false)
+    private UUID tenantId;
 
     @Column(name = "source_type", nullable = false, length = 30)
     private String sourceType;
@@ -27,6 +32,8 @@ public class DocumentChunkEntity extends BaseEntity {
 
     protected DocumentChunkEntity() {}
 
+    public UUID getTenantId() { return tenantId; }
+    public void setTenantId(UUID tenantId) { this.tenantId = tenantId; }
     public String getSourceType() { return sourceType; }
     public void setSourceType(String sourceType) { this.sourceType = sourceType; }
     public String getSourceId() { return sourceId; }

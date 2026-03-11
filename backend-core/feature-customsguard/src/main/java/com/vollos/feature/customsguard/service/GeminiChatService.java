@@ -142,28 +142,35 @@ public class GeminiChatService {
             if (response.statusCode() != 200) {
                 // H2-LOG-LEAK: Only log status code, scrub response body
                 log.error("Gemini rawPrompt error: status={}", response.statusCode());
-                return "";
+                // v8-C4: Throw instead of returning empty — triggers retry in caller
+                throw new RuntimeException("Gemini API returned HTTP " + response.statusCode());
             }
 
             JsonNode root = objectMapper.readTree(response.body());
             if (root == null) {
                 log.warn("Gemini rawPrompt returned null response body");
-                return "";
+                throw new RuntimeException("Gemini returned null response body");
             }
             JsonNode candidates = root.path("candidates");
             if (candidates.isMissingNode() || !candidates.isArray() || candidates.isEmpty()) {
                 log.warn("Gemini rawPrompt returned empty candidates");
-                return "";
+                throw new RuntimeException("Gemini returned empty candidates — no content generated");
             }
             String text = candidates.get(0)
                     .path("content").path("parts").path(0)
                     .path("text").asText("");
-            if (text == null) return "";
+            if (text == null || text.isBlank()) {
+                // v8-C4: Empty text means Gemini couldn't extract content — throw to trigger retry
+                log.warn("Gemini rawPrompt returned blank text");
+                throw new RuntimeException("Gemini returned empty response text — may be rate-limited or content blocked");
+            }
             return text;
 
+        } catch (RuntimeException e) {
+            throw e;  // v8-C4: Let RuntimeExceptions propagate for retry logic
         } catch (Exception e) {
             log.error("Failed to call Gemini rawPrompt", e);
-            return "";
+            throw new RuntimeException("Gemini rawPrompt failed: " + e.getMessage(), e);
         }
     }
 

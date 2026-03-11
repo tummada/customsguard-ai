@@ -51,10 +51,45 @@ QA_PROMPT_TEMPLATE = """คุณเป็นผู้เชี่ยวชา�
 ถ้ามี HS code ที่เกี่ยวข้อง ให้ระบุด้วย"""
 
 
+class TokenExpiredError(Exception):
+    pass
+
+
+class TokenManager:
+    """Manages GCP auth token with proactive refresh before expiry."""
+
+    # Refresh token if it's older than 45 minutes (tokens expire in ~60 min)
+    REFRESH_BEFORE_EXPIRY_SECS = 45 * 60
+
+    def __init__(self):
+        self._creds = None
+        self._token_time = 0
+
+    def get_token(self):
+        """Get a valid token, refreshing proactively if near expiry."""
+        now = time.time()
+        if (self._creds is None or
+                now - self._token_time >= self.REFRESH_BEFORE_EXPIRY_SECS):
+            self._refresh()
+        return self._creds.token
+
+    def force_refresh(self):
+        """Force token refresh (e.g., after 401/403)."""
+        print("  Token expired/rejected, force refreshing...", flush=True)
+        self._refresh()
+        return self._creds.token
+
+    def _refresh(self):
+        self._creds, _ = google.auth.default()
+        self._creds.refresh(google.auth.transport.requests.Request())
+        self._token_time = time.time()
+
+
+_token_manager = TokenManager()
+
+
 def get_token():
-    creds, _ = google.auth.default()
-    creds.refresh(google.auth.transport.requests.Request())
-    return creds.token
+    return _token_manager.get_token()
 
 
 def batch_embed(texts, token):
@@ -67,14 +102,10 @@ def batch_embed(texts, token):
         },
         timeout=120,
     )
-    if resp.status_code == 401:
-        raise TokenExpiredError("Token expired")
+    if resp.status_code in (401, 403):
+        raise TokenExpiredError(f"Token expired/rejected (HTTP {resp.status_code})")
     resp.raise_for_status()
     return [p["embeddings"]["values"] for p in resp.json()["predictions"]]
-
-
-class TokenExpiredError(Exception):
-    pass
 
 
 def main():
@@ -137,11 +168,12 @@ def main():
                 continue
 
             # Batch embed all Q&A texts at once (retry on token expiry)
+            # Proactive refresh: get_token() checks token age automatically
+            token = get_token()
             try:
                 embeddings = batch_embed(qa_texts, token)
             except TokenExpiredError:
-                print(f"  Token expired, refreshing...", flush=True)
-                token = get_token()
+                token = _token_manager.force_refresh()
                 embeddings = batch_embed(qa_texts, token)
 
             # Insert all Q&A chunks
@@ -179,10 +211,6 @@ def main():
             if (i + 1) % 50 == 0:
                 elapsed = time.time() - start_time
                 print(f"  {i+1}/{len(regulations)} regs, {total_qa_chunks} Q&A chunks, {elapsed:.0f}s", flush=True)
-
-            # Refresh token every 100 regs (tokens expire in ~1 hour)
-            if (i + 1) % 100 == 0:
-                token = get_token()
 
         except Exception as e:
             print(f"\n  Error generating Q&A for {reg_id}: {e}")

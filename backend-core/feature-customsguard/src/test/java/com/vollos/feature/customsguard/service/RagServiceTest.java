@@ -5,6 +5,8 @@ import com.vollos.feature.customsguard.entity.FtaRateEntity;
 import com.vollos.feature.customsguard.repository.DocumentChunkRepository;
 import com.vollos.feature.customsguard.repository.FtaRateRepository;
 import com.vollos.feature.customsguard.repository.HsCodeRepository;
+import com.vollos.core.tenant.TenantContext;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -40,13 +42,23 @@ class RagServiceTest {
 
     private RagService ragService;
 
+    private static final java.util.UUID DEV_TENANT_ID =
+            java.util.UUID.fromString("a0000000-0000-0000-0000-000000000001");
+
     @BeforeEach
     void setUp() {
+        TenantContext.setCurrentTenantId(DEV_TENANT_ID);
         ragService = new RagService(
                 embeddingService, chunkRepo, hsCodeRepo, ftaRateRepo, chatService,
                 0.65,   // minSimilarityThreshold
-                0.55    // hsCodeSimilarityThreshold
+                0.55,   // hsCodeSimilarityThreshold
+                0.70    // disclaimerThreshold
         );
+    }
+
+    @AfterEach
+    void tearDown() {
+        TenantContext.clear();
     }
 
     private static final float[] MOCK_EMBEDDING = new float[]{0.1f, 0.2f, 0.3f};
@@ -76,7 +88,7 @@ class RagServiceTest {
         Object[] chunk1 = {"uuid1", "REGULATION", "src1", 0,
                 "กุ้งแช่แข็ง อยู่ในพิกัด 0306.17", "summary1",
                 "{\"doc_type\":\"ประกาศ\",\"title\":\"เรื่องกุ้ง\"}", 0.85};
-        when(chunkRepo.findBySemantic(anyString(), eq(10))).thenReturn(listOf(chunk1));
+        when(chunkRepo.findBySemantic(anyString(), anyString(), eq(10))).thenReturn(listOf(chunk1));
 
         Object[] hsRow = {"0306.17", "กุ้งแช่แข็ง", "Frozen shrimps", new BigDecimal("5.00"), "Seafood", "KG", 0.9};
         when(hsCodeRepo.hybridSearch(eq(query), anyString(), eq(16))).thenReturn(listOf(hsRow));
@@ -134,7 +146,7 @@ class RagServiceTest {
 
         Object[] lowScoreChunk = {"uuid1", "REGULATION", "src1", 0,
                 "ข้อมูลไม่เกี่ยวข้อง", "summary", "{}", 0.30};
-        when(chunkRepo.findBySemantic(anyString(), eq(10))).thenReturn(listOf(lowScoreChunk));
+        when(chunkRepo.findBySemantic(anyString(), anyString(), eq(10))).thenReturn(listOf(lowScoreChunk));
         when(hsCodeRepo.hybridSearch(eq(query), anyString(), eq(16))).thenReturn(Collections.emptyList());
 
         RagSearchResponse result = ragService.search(query, 5);
@@ -167,7 +179,7 @@ class RagServiceTest {
 
         Object[] highScore = {"u1", "REG", "s1", 0, "คอมพิวเตอร์พิกัด 8471", "sum", "{}", 0.88};
         Object[] lowScore = {"u2", "REG", "s2", 1, "ข้อมูลอื่น", "sum2", "{}", 0.50};
-        when(chunkRepo.findBySemantic(anyString(), eq(10))).thenReturn(listOf(highScore, lowScore));
+        when(chunkRepo.findBySemantic(anyString(), anyString(), eq(10))).thenReturn(listOf(highScore, lowScore));
 
         Object[] hsRow = {"8471.30", "คอมพิวเตอร์", "Computer", new BigDecimal("0.00"), "Electronics", "SET", 0.9};
         when(hsCodeRepo.hybridSearch(eq(query), anyString(), eq(16))).thenReturn(listOf(hsRow));
@@ -186,7 +198,7 @@ class RagServiceTest {
     void search_queryWithHsCode_triggersPrefixLookup() {
         String query = "พิกัด 0306.17 อัตราอากร";
         when(embeddingService.embed(query)).thenReturn(MOCK_EMBEDDING);
-        when(chunkRepo.findBySemantic(anyString(), eq(10))).thenReturn(Collections.emptyList());
+        when(chunkRepo.findBySemantic(anyString(), anyString(), eq(10))).thenReturn(Collections.emptyList());
         when(hsCodeRepo.hybridSearch(eq(query), anyString(), eq(16))).thenReturn(Collections.emptyList());
 
         Object[] prefixRow = {"0306.17.00", "กุ้งแช่แข็ง", "Frozen shrimps", new BigDecimal("5.00")};
@@ -207,7 +219,7 @@ class RagServiceTest {
     void search_onlyHsContext_stillReturnsAnswer() {
         String query = "กุ้ง";
         when(embeddingService.embed(query)).thenReturn(MOCK_EMBEDDING);
-        when(chunkRepo.findBySemantic(anyString(), eq(10))).thenReturn(Collections.emptyList());
+        when(chunkRepo.findBySemantic(anyString(), anyString(), eq(10))).thenReturn(Collections.emptyList());
 
         Object[] hsRow = {"0306.17", "กุ้งแช่แข็ง", "Frozen shrimps", new BigDecimal("5.00"), "Seafood", "KG", 0.8};
         when(hsCodeRepo.hybridSearch(eq(query), anyString(), eq(16))).thenReturn(listOf(hsRow));
@@ -232,7 +244,7 @@ class RagServiceTest {
 
         Object[] lowScoreFirst = {"u1", "REG", "s1", 0, "ข้อมูลไม่เกี่ยว", "sum1", "{}", 0.40};
         Object[] aboveThreshold = {"u2", "REG", "s2", 1, "สินค้าทดสอบ", "sum2", "{}", 0.70};
-        when(chunkRepo.findBySemantic(anyString(), eq(10))).thenReturn(listOf(lowScoreFirst, aboveThreshold));
+        when(chunkRepo.findBySemantic(anyString(), anyString(), eq(10))).thenReturn(listOf(lowScoreFirst, aboveThreshold));
 
         // No HS code context and no prefix context
         when(hsCodeRepo.hybridSearch(eq(query), anyString(), eq(16))).thenReturn(Collections.emptyList());
@@ -258,7 +270,7 @@ class RagServiceTest {
         // Given: query contains a 4-digit HS heading → buildCodePrefixContext matches via HS_CODE_IN_QUERY regex
         String query = "พิกัด 0306 ทั่วไป";
         when(embeddingService.embed(query)).thenReturn(MOCK_EMBEDDING);
-        when(chunkRepo.findBySemantic(anyString(), eq(10))).thenReturn(Collections.emptyList());
+        when(chunkRepo.findBySemantic(anyString(), anyString(), eq(10))).thenReturn(Collections.emptyList());
         when(hsCodeRepo.hybridSearch(eq(query), anyString(), eq(16))).thenReturn(Collections.emptyList());
 
         Object[] prefixRow = {"0306.17.00", "กุ้งแช่แข็ง", "Frozen shrimps", new BigDecimal("5.00")};

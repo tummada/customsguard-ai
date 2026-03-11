@@ -1,5 +1,7 @@
 package com.vollos.core.quota;
 
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -8,10 +10,10 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
- * Global exception handler for quota exceeded errors.
- * Returns HTTP 429 with plan info and upgrade URL.
+ * Global exception handler for quota exceeded and validation errors.
  */
 @ControllerAdvice
 public class QuotaExceptionHandler {
@@ -31,5 +33,17 @@ public class QuotaExceptionHandler {
                 "plan", ex.getPlanId(),
                 "message", "คุณใช้งานครบโควต้าแล้ว อัพเกรดเป็น PRO เพื่อใช้งานเพิ่ม",
                 "upgradeUrl", "/pricing"));
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleConstraintViolation(ConstraintViolationException ex) {
+        String message = ex.getConstraintViolations().stream()
+                .map(ConstraintViolation::getMessage)
+                .collect(Collectors.joining("; "));
+        log.warn("Validation failed: {}", message);
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                "error", "VALIDATION_ERROR",
+                "message", message));
     }
 }

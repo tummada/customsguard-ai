@@ -1,7 +1,7 @@
 # TODO — VOLLOS Backlog
 
 Single source of truth สำหรับงานที่ยังต้องทำ
-Updated: 2026-03-10
+Updated: 2026-03-11 (หลังแก้ CRITICAL+HIGH)
 
 > **Done items → ดูที่ `CHANGELOG.md`**
 > **Test cases → ดูที่ `TEST-PLAN.md`**
@@ -14,32 +14,31 @@ Updated: 2026-03-10
 
 ---
 
-## 🔴 Audit v8 — CRITICAL (5 ตัว) — ต้องแก้ทันที
+## ✅ Audit v9 — CRITICAL (8 ตัว) — แก้ครบแล้ว 2026-03-11
 
-- [ ] **v8-C1:** Gemini Pass 2 fallback บอกว่า "AI verified" ทั้งที่ไม่ใช่ — `ScanWorkerService.java:362-377` — orElse(validCandidates.get(0)) ใส่ code แรกจาก semantic search แต่ mark requiresReview=false → ลูกค้าเชื่อแล้วกรอก HS Code ผิด โดนปรับ 4 เท่า
-- [ ] **v8-C2:** Race condition: 2 workers ทำ job เดียวกัน → items หาย — `ScanWorkerService.java:173-186` — worker แรกชนะ UPDATE ai_jobs คนที่สอง return ทิ้ง items
-- [ ] **v8-C3:** Timezone: LocalDateTime สมมติ UTC — `DocumentChunkService.java:207-212` — DB อาจเก็บ Bangkok time → isChunkStale() คลาดเคลื่อน 7 ชม.
-- [ ] **v8-C4:** Gemini empty text ไม่ throw — `GeminiChatService.java:81-87` — parts=[] → text="" → return เงียบ → PDF extraction ดูเหมือนสำเร็จ
-- [ ] **v8-C5:** cg_document_chunks ไม่มี tenant_id + RLS — V1003 migration + DocumentChunkEntity — RAG chunks เป็น global ทุก tenant เห็นหมด
+- [x] **v8-C1:** Gemini fallback → requiresReview=true + label "Semantic fallback"
+- [x] **v8-C2:** Race condition → FOR UPDATE SKIP LOCKED + status check + row count
+- [x] **v8-C3:** Timezone → เปลี่ยนเป็น Instant (ไม่มี timezone assumption)
+- [x] **v8-C4:** Gemini empty text → throw RuntimeException (trigger retry)
+- [x] **v8-C5:** document_chunks → V1018 migration เพิ่ม tenant_id + RLS + defense-in-depth WHERE clause
+- [x] **v9-C1:** normalizeNumber → แยก US/EU format ถูกต้อง ("1,234"→1234, "1,23"→1.23)
+- [x] **v9-C2:** SSE stream → capture tenantId ก่อน async, restore ใน lambda, clear ใน finally
+- [x] **v9-C3:** SSE disclaimer → เพิ่มคำเตือนเหมือน non-streaming path + confidence ใน done event
 
-## ✅ Audit v8 — แก้แล้ว (4 ตัว, 2026-03-11)
+## ✅ Audit v9 — HIGH (8 ตัว) — แก้ครบแล้ว 2026-03-11
 
-- [x] **v8-C1-CURRENCY:** สร้าง CurrencyConversionService — แปลงสกุลเงินต่างประเทศเป็น THB ก่อนคำนวณภาษี (ใช้ exchange rate ศุลกากร + warning ถ้าไม่พบ rate)
-- [x] **v8-C2-DECL-TYPE:** ExchangeRateService เลือก rate ตาม declarationType — EXPORT→exportRate, IMPORT→midRate, fallback+log
-- [x] **v8-C3-EXPORT-FE:** Frontend เพิ่ม exportRate — types/api-client/hook/banner ครบ 4 ไฟล์
-- [x] **v8-H1-REGEX:** HS Code regex แก้จาก 6/8 หลัก → 4/6/8/10 หลัก ตรงกับ DB constraint V1016
+- [x] **v8-H1:** JSON injection → sanitize braces {}[] เป็น ()
+- [x] **v8-H2:** Threshold → รวมศูนย์ใน application.yml (6 ค่า) + @Value
+- [x] **v8-H3:** Rate limit key → มี tenant_id อยู่แล้ว (ตรวจยืนยันแล้ว)
+- [x] **v8-H4:** PDF magic bytes → เช็ค read() return value (bytesRead < 4 → reject)
+- [x] **v8-H5:** Circuit breaker → 3 สถานะ CLOSED/OPEN/HALF_OPEN, 5 failures, 60s cooldown
+- [x] **v8-H6:** Token refresh → TokenManager class, proactive refresh 45 นาที
+- [x] **v8-H7:** @Valid → @Validated + @NotBlank + @Size(max=500) + 400 handler
+- [x] **v9-H1:** Parser alert → ตรวจจับ low currency count, ALERT log, getSyncStatus()
 
-## 🟠 Audit v8 — HIGH (7 ตัว) — ควรแก้ sprint นี้
+## 🟡 Audit v9 — MEDIUM (12 ตัว) — ควรแก้ 2 sprints
 
-- [ ] **v8-H1:** JSON structure injection ใน invoice text — `ScanWorkerService.java:210-215` — sanitize แค่ quote/backtick แต่ไม่กัน brace injection → ใช้ Jackson ObjectNode แทน string concat
-- [ ] **v8-H2:** Threshold ไม่ตรงกัน 3 จุด (0.70/0.65/0.55) — `RagService.java + ScanWorkerService` — เปลี่ยนที่เดียวไม่กระทบที่อื่น → สร้าง config class เดียว
-- [ ] **v8-H3:** Rate limit key ไม่มี tenant_id — `ChatGuardService.java:~438` — tenant A ใช้ quota tenant B ถ้า query hash ชน
-- [ ] **v8-H4:** PDF magic bytes: ไม่เช็ค read() return value — `ScanService.java:48-53` — ไฟล์ 0 bytes ผ่าน validation
-- [ ] **v8-H5:** Gemini API ไม่มี circuit breaker — `GeminiEmbeddingService.java:68-76` — API ค้าง → worker ค้างหมด
-- [ ] **v8-H6:** Vertex AI token expire mid-batch — `data-pipeline/09_generate_synthetic_qa.py:70-73` — script >1 ชม. token หมดอายุ ไม่ retry
-- [ ] **v8-H7:** HsCodeController.search() ไม่มี @Valid — `HsCodeController.java:28` — query ว่าง/ยาวเกินผ่านได้
-
-## 🟡 Audit v8 — MEDIUM (6 ตัว) — ควรแก้ 2 sprints
+### ค้างจาก v8 (6 ตัว)
 
 - [ ] **v8-M1:** Unpinned image minor versions — `docker-compose.yml:150` — nginx:1.27-alpine, redis:7-alpine ไม่ pin digest
 - [ ] **v8-M2:** Empty catch(NumberFormatException) — `ScanWorkerService.java:486` — quantity parse ล้มเหลว → null เงียบ
@@ -47,6 +46,15 @@ Updated: 2026-03-10
 - [ ] **v8-M4:** AdminController dynamic SQL field whitelist — `AdminController.java:157-185` — ไม่มี explicit whitelist
 - [ ] **v8-M5:** Missing healthcheck: n8n, marketing, nginx — `docker-compose.yml` — 4/7 services ไม่มี healthcheck
 - [ ] **v8-M6:** DB password อาจแสดงใน docker logs (marketing) — `docker-compose.yml:142` — DATABASE_URL expand ${DB_PASSWORD}
+
+### พบใหม่จาก v9 (6 ตัว)
+
+- [ ] **v9-M1:** CIF = Cost+Insurance+Freight ไม่ถูกบังคับ — `TaxCalculationController.java:23` — DTO มี insuranceAmount/freightAmount แต่ Controller ไม่รวมค่า → ถ้าลูกค้าใส่ FOB + Insurance + Freight แยก จะคำนวณอากรจากแค่ FOB
+- [ ] **v9-M2:** chunkAndEmbedAll ไม่มี concurrent call protection — `DocumentChunkService.java:41` — เรียกซ้ำพร้อมกัน → duplicate chunks ใน vector search
+- [ ] **v9-M3:** HS Code regex ไม่ตรงกัน FE↔BE — `LineItemTable.tsx:21` ไม่รับ 4 หลัก/10 หลัก ที่ `ScanWorkerService.java:644` รับ
+- [ ] **v9-M4:** unlimitedStorage permission น่าจะไม่จำเป็น — `manifest.json` — Dexie ใช้ IndexedDB ไม่ต้องการ permission นี้
+- [ ] **v9-M5:** Hardcoded fallback JWT secret ใน data-pipeline — `20_rag_eval_pipeline.py:384` — `os.getenv("JWT_SECRET", "vollos-dev-secret-...")` ถ้า env var ไม่ set จะใช้ dev secret
+- [ ] **v9-M6:** batchLookup ไม่ผ่าน cache — `HsLookupService.java:44-58` — ทุก batch call ตี DB 6 queries ไม่ใช้ @Cacheable
 
 ---
 

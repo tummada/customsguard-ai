@@ -14,8 +14,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -41,12 +41,19 @@ public class ExchangeRateSyncService {
             "AED" // UAE — คู่ค้าสำคัญ
     );
 
+    /** Minimum currencies we expect from customs.go.th — if fewer, parsing likely broken */
+    private static final int MIN_EXPECTED_CURRENCIES = 10;
+
     private final ExchangeRateRepository exchangeRateRepo;
     private final HttpClient httpClient;
 
     /** Track consecutive sync failures for alerting */
     private int consecutiveFailures = 0;
     private static final int ALERT_THRESHOLD = 3;
+
+    /** Last successful sync timestamp — queryable for monitoring */
+    private volatile Instant lastSuccessfulSync = null;
+    private volatile int lastSuccessfulCount = 0;
 
     public ExchangeRateSyncService(ExchangeRateRepository exchangeRateRepo) {
         this.exchangeRateRepo = exchangeRateRepo;
@@ -67,6 +74,8 @@ public class ExchangeRateSyncService {
             int count = syncFromCustomsDept();
             if (count > 0) {
                 consecutiveFailures = 0;
+                lastSuccessfulSync = Instant.now();
+                lastSuccessfulCount = count;
                 log.info("ExchangeRate sync completed: {} rates updated", count);
             } else {
                 consecutiveFailures++;
@@ -109,6 +118,21 @@ public class ExchangeRateSyncService {
         List<ParsedRate> rates = parseRatesFromHtml(html);
         if (rates.isEmpty()) {
             log.warn("No rates parsed from customs.go.th HTML");
+            return 0;
+        }
+
+        // M-html-fragile: validate that parsing got a reasonable number of currencies
+        long targetCount = rates.stream()
+                .filter(r -> TARGET_CURRENCIES.contains(r.currencyCode))
+                .count();
+        if (targetCount < MIN_EXPECTED_CURRENCIES) {
+            log.error("ALERT: Only {} target currencies parsed (expected >= {}). " +
+                    "customs.go.th page format may have changed! " +
+                    "Aborting sync to prevent saving incomplete data. " +
+                    "Last successful sync: {}, last count: {}",
+                    targetCount, MIN_EXPECTED_CURRENCIES,
+                    lastSuccessfulSync != null ? lastSuccessfulSync : "never",
+                    lastSuccessfulCount);
             return 0;
         }
 
@@ -162,6 +186,11 @@ public class ExchangeRateSyncService {
     /**
      * Parse HTML table from customs.go.th.
      * Table format: Country | Currency Name | Code | Export Rate | Import Rate
+     *
+     * M-html-fragile improvements:
+     * - Captures both export rate (group 4) and import rate (group 5)
+     * - Validates minimum currency count after parsing
+     * - Logs parse statistics for monitoring
      */
     List<ParsedRate> parseRatesFromHtml(String html) {
         List<ParsedRate> rates = new ArrayList<>();
@@ -170,17 +199,17 @@ public class ExchangeRateSyncService {
         LocalDate effectiveDate = extractEffectiveDate(html);
         if (effectiveDate == null) {
             effectiveDate = LocalDate.now();
+            log.warn("Could not extract effective date from customs.go.th — using today");
         }
 
         // Match table rows: <td>Country</td><td>Name</td><td>Code</td><td>ExportRate</td><td>ImportRate</td>
-        // customs.go.th uses various table formats; we try multiple patterns
         Pattern rowPattern = Pattern.compile(
                 "<tr[^>]*>\\s*" +
-                "<td[^>]*>([^<]*)</td>\\s*" +  // Country
-                "<td[^>]*>([^<]*)</td>\\s*" +  // Currency Name
-                "<td[^>]*>([A-Z]{3})</td>\\s*" +  // Currency Code
-                "<td[^>]*>([\\d.,]+)</td>\\s*" +  // Export Rate
-                "<td[^>]*>([\\d.,]+)</td>\\s*" +  // Import Rate
+                "<td[^>]*>([^<]*)</td>\\s*" +  // Group 1: Country
+                "<td[^>]*>([^<]*)</td>\\s*" +  // Group 2: Currency Name
+                "<td[^>]*>([A-Z]{3})</td>\\s*" +  // Group 3: Currency Code
+                "<td[^>]*>([\\d.,]+)</td>\\s*" +  // Group 4: Export Rate
+                "<td[^>]*>([\\d.,]+)</td>\\s*" +  // Group 5: Import Rate
                 "</tr>",
                 Pattern.CASE_INSENSITIVE | Pattern.DOTALL
         );
@@ -190,11 +219,17 @@ public class ExchangeRateSyncService {
             try {
                 String code = matcher.group(3).trim().toUpperCase();
                 String name = matcher.group(2).trim();
+
+                String exportRateStr = matcher.group(4).trim().replace(",", "");
                 String importRateStr = matcher.group(5).trim().replace(",", "");
+
+                BigDecimal exportRate = new BigDecimal(exportRateStr);
                 BigDecimal importRate = new BigDecimal(importRateStr);
 
                 if (importRate.compareTo(BigDecimal.ZERO) > 0) {
-                    rates.add(new ParsedRate(code, name, importRate, effectiveDate));
+                    rates.add(new ParsedRate(code, name, importRate,
+                            exportRate.compareTo(BigDecimal.ZERO) > 0 ? exportRate : null,
+                            effectiveDate));
                 }
             } catch (NumberFormatException e) {
                 // Skip malformed rows
@@ -211,11 +246,16 @@ public class ExchangeRateSyncService {
             while (simpleMatcher.find()) {
                 try {
                     String code = simpleMatcher.group(1).trim().toUpperCase();
+                    String exportRateStr = simpleMatcher.group(2).trim().replace(",", "");
                     String importRateStr = simpleMatcher.group(3).trim().replace(",", "");
+
+                    BigDecimal exportRate = new BigDecimal(exportRateStr);
                     BigDecimal importRate = new BigDecimal(importRateStr);
 
                     if (importRate.compareTo(BigDecimal.ZERO) > 0 && TARGET_CURRENCIES.contains(code)) {
-                        rates.add(new ParsedRate(code, code, importRate, effectiveDate));
+                        rates.add(new ParsedRate(code, code, importRate,
+                                exportRate.compareTo(BigDecimal.ZERO) > 0 ? exportRate : null,
+                                effectiveDate));
                     }
                 } catch (NumberFormatException e) {
                     // Skip malformed entries
@@ -223,16 +263,17 @@ public class ExchangeRateSyncService {
             }
         }
 
-        log.info("Parsed {} exchange rates from customs.go.th (effective: {})", rates.size(), effectiveDate);
+        log.info("Parsed {} exchange rates from customs.go.th (effective: {}, target matches: {})",
+                rates.size(), effectiveDate,
+                rates.stream().filter(r -> TARGET_CURRENCIES.contains(r.currencyCode)).count());
         return rates;
     }
 
     private LocalDate extractEffectiveDate(String html) {
-        // Try to find date in format dd/mm/yyyy or yyyy-mm-dd
+        // Try to find date in format dd/mm/yyyy
         Pattern datePattern = Pattern.compile(
                 "(\\d{1,2})/(\\d{1,2})/(\\d{4})"
         );
-        Matcher matcher = datePattern.matcher(html);
 
         // Look for a date near "effective" or "ประจำวันที่" keywords
         int searchStart = html.indexOf("effective");
@@ -272,15 +313,27 @@ public class ExchangeRateSyncService {
 
         entity.setCurrencyName(parsed.currencyName);
         entity.setMidRate(parsed.importRate);
+        entity.setExportRate(parsed.exportRate);
         entity.setEffectiveDate(parsed.effectiveDate);
         entity.setSource("CUSTOMS_DEPT");
         exchangeRateRepo.save(entity);
+    }
+
+    /** Expose sync status for monitoring/health checks */
+    public Map<String, Object> getSyncStatus() {
+        return Map.of(
+                "consecutiveFailures", consecutiveFailures,
+                "lastSuccessfulSync", lastSuccessfulSync != null ? lastSuccessfulSync.toString() : "never",
+                "lastSuccessfulCount", lastSuccessfulCount,
+                "alertActive", consecutiveFailures >= ALERT_THRESHOLD
+        );
     }
 
     record ParsedRate(
             String currencyCode,
             String currencyName,
             BigDecimal importRate,
+            BigDecimal exportRate,
             LocalDate effectiveDate
     ) {}
 }

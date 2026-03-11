@@ -6,8 +6,11 @@ import com.vollos.feature.customsguard.dto.SemanticSearchRequest;
 import com.vollos.feature.customsguard.dto.SemanticSearchResponse;
 import com.vollos.feature.customsguard.service.HsCodeService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,6 +19,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/v1/customsguard/hs-codes")
 @RequiresFeature("customsguard")
+@Validated
 public class HsCodeController {
 
     private final HsCodeService hsCodeService;
@@ -25,7 +29,10 @@ public class HsCodeController {
     }
 
     @GetMapping
-    public Page<HsCodeResponse> search(@RequestParam String query, Pageable pageable) {
+    public Page<HsCodeResponse> search(
+            @RequestParam @NotBlank(message = "Search query must not be blank")
+            @Size(max = 500, message = "Search query must not exceed 500 characters") String query,
+            Pageable pageable) {
         return hsCodeService.search(query, pageable);
     }
 

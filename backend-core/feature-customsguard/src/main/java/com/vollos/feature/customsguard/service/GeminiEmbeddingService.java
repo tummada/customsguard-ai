@@ -11,6 +11,8 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Service
 public class GeminiEmbeddingService {
@@ -22,6 +24,14 @@ public class GeminiEmbeddingService {
     private final String apiKey;
     private final String modelUrl;
     private final int dimensions;
+
+    // Circuit breaker state
+    private static final int CIRCUIT_FAILURE_THRESHOLD = 5;
+    private static final long CIRCUIT_COOLDOWN_MS = 60_000; // 60 seconds
+    private final AtomicInteger consecutiveFailures = new AtomicInteger(0);
+    private final AtomicLong circuitOpenedAt = new AtomicLong(0);
+    // Circuit states: CLOSED (normal), OPEN (rejecting), HALF_OPEN (testing)
+    private enum CircuitState { CLOSED, OPEN, HALF_OPEN }
 
     public GeminiEmbeddingService(
             ObjectMapper objectMapper,
@@ -38,14 +48,61 @@ public class GeminiEmbeddingService {
     private static final int MAX_RETRIES = 3;
     private static final long BASE_RETRY_DELAY_MS = 1_000;
 
+    private CircuitState getCircuitState() {
+        int failures = consecutiveFailures.get();
+        if (failures < CIRCUIT_FAILURE_THRESHOLD) {
+            return CircuitState.CLOSED;
+        }
+        long openedAt = circuitOpenedAt.get();
+        if (System.currentTimeMillis() - openedAt >= CIRCUIT_COOLDOWN_MS) {
+            return CircuitState.HALF_OPEN;
+        }
+        return CircuitState.OPEN;
+    }
+
+    private void recordSuccess() {
+        int prev = consecutiveFailures.getAndSet(0);
+        if (prev >= CIRCUIT_FAILURE_THRESHOLD) {
+            log.info("Circuit breaker CLOSED — Gemini API recovered after {} consecutive failures", prev);
+        }
+    }
+
+    private void recordFailure() {
+        int failures = consecutiveFailures.incrementAndGet();
+        if (failures == CIRCUIT_FAILURE_THRESHOLD) {
+            circuitOpenedAt.set(System.currentTimeMillis());
+            log.error("Circuit breaker OPEN — Gemini API failed {} consecutive times, " +
+                    "rejecting calls for {}s", failures, CIRCUIT_COOLDOWN_MS / 1000);
+        }
+    }
+
     public float[] embed(String text) {
+        // Circuit breaker check
+        CircuitState state = getCircuitState();
+        if (state == CircuitState.OPEN) {
+            long remainingMs = CIRCUIT_COOLDOWN_MS - (System.currentTimeMillis() - circuitOpenedAt.get());
+            throw new RuntimeException("Gemini API circuit breaker is OPEN — " +
+                    "too many consecutive failures. Retry after " + (remainingMs / 1000) + "s");
+        }
+        if (state == CircuitState.HALF_OPEN) {
+            log.info("Circuit breaker HALF_OPEN — testing Gemini API with single request");
+        }
+
         RuntimeException lastException = null;
         for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
             try {
-                return doEmbed(text);
+                float[] result = doEmbed(text);
+                recordSuccess();
+                return result;
             } catch (RuntimeException e) {
                 lastException = e;
+                recordFailure();
                 if (attempt < MAX_RETRIES) {
+                    // Re-check circuit after recording failure
+                    if (getCircuitState() == CircuitState.OPEN) {
+                        throw new RuntimeException("Gemini API circuit breaker OPEN after " +
+                                consecutiveFailures.get() + " consecutive failures", e);
+                    }
                     long delay = BASE_RETRY_DELAY_MS * (1L << (attempt - 1));
                     log.warn("Embedding failed (attempt {}/{}), retrying in {}ms: {}",
                             attempt, MAX_RETRIES, delay, e.getMessage());

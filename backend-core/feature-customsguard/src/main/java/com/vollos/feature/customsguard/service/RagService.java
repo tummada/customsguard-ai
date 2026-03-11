@@ -2,6 +2,7 @@ package com.vollos.feature.customsguard.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.vollos.core.tenant.TenantContext;
 import com.vollos.feature.customsguard.dto.RagChunkDto;
 import com.vollos.feature.customsguard.dto.RagSearchResponse;
 import com.vollos.feature.customsguard.entity.FtaRateEntity;
@@ -21,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
@@ -55,6 +57,7 @@ public class RagService {
     );
 
     private final double minSimilarityThreshold;
+    private final double disclaimerThreshold;
     private static final String NO_RELEVANT_DATA_MSG =
             "ยังไม่พบข้อมูลที่ตรงกับคำถามในฐานข้อมูลครับ " +
             "ลองระบุชื่อสินค้าให้ชัดเจนขึ้น เช่น \"พิกัดกุ้งแช่แข็ง\" หรือ \"อัตราอากรคอมพิวเตอร์\" " +
@@ -78,7 +81,8 @@ public class RagService {
                       FtaRateRepository ftaRateRepo,
                       GeminiChatService chatService,
                       @Value("${customsguard.rag.min-similarity-threshold:0.65}") double minSimilarityThreshold,
-                      @Value("${customsguard.rag.hs-code-similarity-threshold:0.55}") double hsCodeSimilarityThreshold) {
+                      @Value("${customsguard.rag.hs-code-similarity-threshold:0.55}") double hsCodeSimilarityThreshold,
+                      @Value("${customsguard.rag.disclaimer-threshold:0.70}") double disclaimerThreshold) {
         this.embeddingService = embeddingService;
         this.chunkRepo = chunkRepo;
         this.hsCodeRepo = hsCodeRepo;
@@ -86,6 +90,7 @@ public class RagService {
         this.chatService = chatService;
         this.minSimilarityThreshold = minSimilarityThreshold;
         this.hsCodeSimilarityThreshold = hsCodeSimilarityThreshold;
+        this.disclaimerThreshold = disclaimerThreshold;
     }
 
     /**
@@ -225,8 +230,12 @@ public class RagService {
         float[] queryEmb = embeddingService.embed(query);
         String embStr = GeminiEmbeddingService.toVectorString(queryEmb);
 
-        // 2. Retrieve top-K chunks from cg_document_chunks
-        List<Object[]> chunks = chunkRepo.findBySemantic(embStr, limit * 2);
+        // 2. Retrieve top-K chunks from cg_document_chunks (defense-in-depth: filter by tenant_id in SQL)
+        String tenantId = TenantContext.getCurrentTenantId() != null
+                ? TenantContext.getCurrentTenantId().toString() : null;
+        List<Object[]> chunks = tenantId != null
+                ? chunkRepo.findBySemantic(tenantId, embStr, limit * 2)
+                : List.of();
 
         // 3.5 Hybrid search HS codes (full-text + semantic) for complementary context
         String hsContext = buildHsCodeContext(query, embStr);
@@ -234,9 +243,9 @@ public class RagService {
         String prefixContext = buildCodePrefixContext(query);
 
         // 3. Filter by similarity threshold
-        // H2: When HS context exists, use stricter threshold for doc chunks to prevent hallucination
+        // v8-H2: Use configurable disclaimer threshold instead of hardcoded 0.70
         double docThreshold = (hsContext != null || prefixContext != null)
-                ? Math.max(minSimilarityThreshold, 0.70) : minSimilarityThreshold;
+                ? Math.max(minSimilarityThreshold, disclaimerThreshold) : minSimilarityThreshold;
         double topScore = chunks.isEmpty() ? 0 : ((Number) chunks.get(0)[7]).doubleValue();
         List<Object[]> relevant = chunks.stream()
                 .filter(row -> row[7] != null && ((Number) row[7]).doubleValue() >= docThreshold)
@@ -272,8 +281,8 @@ public class RagService {
         // 5. Call Gemini chat with context + query
         String answer = chatService.generateAnswer(query, context);
 
-        // M1-RAG-THRESHOLD + M9-RAG-CONF: Aligned disclaimer threshold with filter (0.70)
-        if (hsContext == null && prefixContext == null && topScore < 0.70) {
+        // v8-H2: Use configurable disclaimer threshold
+        if (hsContext == null && prefixContext == null && topScore < disclaimerThreshold) {
             answer = answer + "\n\n⚠️ ข้อมูลนี้มีความเกี่ยวข้องต่ำ กรุณาตรวจสอบเพิ่มเติมที่ กรมศุลกากร https://www.customs.go.th";
         }
 
@@ -292,12 +301,24 @@ public class RagService {
     /**
      * SSE streaming version: sends sources first, then answer, then done.
      * Runs on virtual thread to avoid blocking servlet thread.
+     *
+     * v9-C2: Capture TenantContext BEFORE spawning virtual thread —
+     * ThreadLocal does NOT propagate to virtual threads, so we must
+     * explicitly pass tenantId and restore it inside the lambda.
      */
     public void streamSearch(String query, int limit, SseEmitter emitter) {
+        // v9-C2: Capture tenantId from calling thread (servlet thread has TenantContext set by filter)
+        final UUID capturedTenantId = TenantContext.getCurrentTenantId();
+
         sseExecutor.execute(() -> {
             // M2-SSE-RACE: Use flag to ensure complete() is called exactly once
             final java.util.concurrent.atomic.AtomicBoolean completed = new java.util.concurrent.atomic.AtomicBoolean(false);
             try {
+                // v9-C2: Restore TenantContext on virtual thread so RLS works via TenantConnectionInterceptor
+                if (capturedTenantId != null) {
+                    TenantContext.setCurrentTenantId(capturedTenantId);
+                }
+
                 // M8-EMPTY-QUERY: Validate query
                 if (query == null || query.isBlank()) {
                     emitter.send(SseEmitter.event().name("done")
@@ -324,16 +345,20 @@ public class RagService {
                 // 2. Emit: retrieving
                 emitter.send(SseEmitter.event().name("status").data("retrieving_chunks"));
 
-                List<Object[]> chunks = chunkRepo.findBySemantic(embStr, limit * 2);
+                // Defense-in-depth: filter by tenant_id in SQL (virtual thread may not have RLS set)
+                String tenantIdStr = capturedTenantId != null ? capturedTenantId.toString() : null;
+                List<Object[]> chunks = tenantIdStr != null
+                        ? chunkRepo.findBySemantic(tenantIdStr, embStr, limit * 2)
+                        : List.of();
 
                 // 3.5 Hybrid search HS codes
                 String hsContext = buildHsCodeContext(query, embStr);
                 String prefixContext = buildCodePrefixContext(query);
 
                 // 3. Filter by similarity threshold
-                // H2: Stricter threshold when HS context exists
+                // v8-H2: Use configurable disclaimer threshold
                 double docThreshold = (hsContext != null || prefixContext != null)
-                        ? Math.max(minSimilarityThreshold, 0.70) : minSimilarityThreshold;
+                        ? Math.max(minSimilarityThreshold, disclaimerThreshold) : minSimilarityThreshold;
                 double topScore = chunks.isEmpty() ? 0 : ((Number) chunks.get(0)[7]).doubleValue();
                 List<Object[]> relevant = chunks.stream()
                         .filter(row -> row[7] != null && ((Number) row[7]).doubleValue() >= docThreshold)
@@ -378,9 +403,15 @@ public class RagService {
 
                 String answer = chatService.generateAnswer(query, context);
 
+                // v9-C3: Add low-confidence disclaimer (v8-H2: use configurable threshold)
+                if (hsContext == null && prefixContext == null && topScore < disclaimerThreshold) {
+                    answer = answer + "\n\n⚠️ ข้อมูลนี้มีความเกี่ยวข้องต่ำ กรุณาตรวจสอบเพิ่มเติมที่ กรมศุลกากร https://www.customs.go.th";
+                }
+
                 // 6. Emit: complete answer
                 emitter.send(SseEmitter.event().name("done")
-                        .data(Map.of("answer", answer, "sources", sources)));
+                        .data(Map.of("answer", answer, "sources", sources,
+                                "confidence", topScore)));
 
                 if (completed.compareAndSet(false, true)) emitter.complete();
 
@@ -396,6 +427,9 @@ public class RagService {
                 } finally {
                     if (completed.compareAndSet(false, true)) emitter.complete();
                 }
+            } finally {
+                // v9-C2: Always clear TenantContext on virtual thread to prevent leaking to next task
+                TenantContext.clear();
             }
         });
     }

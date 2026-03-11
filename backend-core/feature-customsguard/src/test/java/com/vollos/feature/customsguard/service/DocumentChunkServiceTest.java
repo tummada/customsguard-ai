@@ -1,8 +1,11 @@
 package com.vollos.feature.customsguard.service;
 
+import com.vollos.core.tenant.TenantContext;
 import com.vollos.feature.customsguard.entity.RegulationEntity;
 import com.vollos.feature.customsguard.repository.DocumentChunkRepository;
 import com.vollos.feature.customsguard.repository.RegulationRepository;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,6 +39,18 @@ class DocumentChunkServiceTest {
 
     @InjectMocks
     private DocumentChunkService documentChunkService;
+
+    private static final UUID TEST_TENANT_ID = UUID.fromString("a0000000-0000-0000-0000-000000000001");
+
+    @BeforeEach
+    void setUp() {
+        TenantContext.setCurrentTenantId(TEST_TENANT_ID);
+    }
+
+    @AfterEach
+    void tearDown() {
+        TenantContext.clear();
+    }
 
     // --- TC-CG-050: chunkText — short text returns single chunk ---
     @Test
@@ -101,7 +116,7 @@ class DocumentChunkServiceTest {
         assertThat(result.get("embedded")).isEqualTo(1);
         String expectedSourceId = UUID.nameUUIDFromBytes("reg1".getBytes()).toString();
         verify(chunkRepo).insertChunkWithEmbedding(
-                eq("REGULATION"), eq(expectedSourceId), eq(0),
+                anyString(), eq(TEST_TENANT_ID.toString()), eq("REGULATION"), eq(expectedSourceId), eq(0),
                 anyString(), anyString(), anyString(), anyString());
     }
 
@@ -125,8 +140,8 @@ class DocumentChunkServiceTest {
         assertThat(result.get("embedded")).isEqualTo(0);
         verify(embeddingService, never()).embed(anyString());
         verify(chunkRepo, never()).insertChunkWithEmbedding(
-                anyString(), anyString(), anyInt(), anyString(),
-                anyString(), anyString(), anyString());
+                anyString(), anyString(), anyString(), anyString(), anyInt(),
+                anyString(), anyString(), anyString(), anyString());
     }
 
     // --- chunkAndEmbedAll — embedding error continues ---

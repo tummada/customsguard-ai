@@ -69,17 +69,17 @@ jwt:
 google:
   client-id: ${GOOGLE_CLIENT_ID:}
 
-admin:
-  secret: ${ADMIN_SECRET:}
-
 customsguard:
   chat-guard:
     max-requests-per-minute: ${CHATGUARD_RATE_LIMIT:20}
   scan:
     high-confidence-threshold: ${SCAN_HIGH_CONFIDENCE:0.95}
+    semantic-min-threshold: ${SCAN_SEMANTIC_MIN:0.65}
+    disclaimer-threshold: ${SCAN_DISCLAIMER:0.80}
   rag:
     min-similarity-threshold: ${RAG_MIN_SIMILARITY:0.65}
     hs-code-similarity-threshold: ${RAG_HS_SIMILARITY:0.55}
+    disclaimer-threshold: ${RAG_DISCLAIMER:0.70}
 
 logging:
   pattern:

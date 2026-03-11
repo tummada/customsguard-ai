@@ -1,5 +1,6 @@
 package com.vollos.feature.customsguard.service;
 
+import com.vollos.core.tenant.TenantContext;
 import com.vollos.feature.customsguard.entity.RegulationEntity;
 import com.vollos.feature.customsguard.repository.DocumentChunkRepository;
 import com.vollos.feature.customsguard.repository.RegulationRepository;
@@ -10,9 +11,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.vollos.core.shared.UUIDv7;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 public class DocumentChunkService {
@@ -39,6 +42,14 @@ public class DocumentChunkService {
 
     @Transactional
     public Map<String, Integer> chunkAndEmbedAll() {
+        // v8-C5: Capture tenant ID for RLS — chunks belong to the tenant that triggers embedding
+        UUID tenantId = TenantContext.getCurrentTenantId();
+        if (tenantId == null) {
+            log.error("ALERT: chunkAndEmbedAll called without TenantContext — aborting to prevent data leak");
+            return Map.of("chunked", 0, "embedded", 0, "failed", 0);
+        }
+        String tenantIdStr = tenantId.toString();
+
         List<RegulationEntity> regulations = regulationRepo.findAll();
         int chunked = 0;
         int embedded = 0;
@@ -75,7 +86,7 @@ public class DocumentChunkService {
                     String metadata = buildMetadata(reg, i);
 
                     chunkRepo.insertChunkWithEmbedding(
-                            "REGULATION", sourceId, i, chunkText, summary, vectorStr, metadata);
+                            UUIDv7.generate().toString(), tenantIdStr, "REGULATION", sourceId, i, chunkText, summary, vectorStr, metadata);
 
                     embedded++;
                     chunked++;
@@ -204,12 +215,12 @@ public class DocumentChunkService {
         }
     }
 
+    // v8-C3: Use Instant directly — avoids LocalDateTime timezone ambiguity (UTC vs Bangkok)
     private boolean isChunkStale(String sourceId, java.time.Instant regulationUpdatedAt) {
         try {
-            java.time.LocalDateTime lastChunked = chunkRepo.findLatestCreatedAtBySourceId(sourceId);
+            java.time.Instant lastChunked = chunkRepo.findLatestCreatedAtBySourceId(sourceId);
             if (lastChunked == null) return true;
-            java.time.Instant lastChunkedInstant = lastChunked.atZone(java.time.ZoneOffset.UTC).toInstant();
-            return regulationUpdatedAt.isAfter(lastChunkedInstant);
+            return regulationUpdatedAt.isAfter(lastChunked);
         } catch (Exception e) {
             log.warn("Failed to check chunk staleness for {}: {}", sourceId, e.getMessage());
             return false;
