@@ -1,7 +1,7 @@
 # TODO — VOLLOS Backlog
 
 Single source of truth สำหรับงานที่ยังต้องทำ
-Updated: 2026-03-11 (หลัง E2E Test — AI 30/31 ผ่าน)
+Updated: 2026-03-11 (Deploy production สำเร็จ — AI E2E 39/40 ผ่าน)
 
 > **Done items → ดูที่ `CHANGELOG.md`**
 > **Test cases → ดูที่ `TEST-PLAN.md`**
@@ -87,25 +87,24 @@ Updated: 2026-03-11 (หลัง E2E Test — AI 30/31 ผ่าน)
 - [x] Boot backend dev → ทดสอบ GET /v1/usage, POST /v1/admin/upgrade, 429 quota exceeded ✅ AI ทดสอบแล้ว
 - [ ] ทดสอบ Chrome Extension — UsageBadge แสดงถูก, QuotaExceededModal ขึ้นเมื่อเกิน (ต้องเทสด้วยมือ)
 - [ ] ทดสอบ Marketing Site — หน้า /pricing แสดงถูก, Navbar link ราคา, mobile hamburger (ต้องเทสด้วยมือ)
-- [ ] Deploy production — push + build + verify
+- [x] Deploy production — push + build + verify ✅ 2026-03-11 (29 migrations, health UP)
 
-### ⚠️ Post-Deploy: M-admin-header + M-export-rate (ห้ามลืม!)
+### ⚠️ Post-Deploy: M-admin-header + M-export-rate — ✅ เสร็จแล้ว 2026-03-11
 
-หลัง deploy เสร็จ ต้องทำ 3 อย่างนี้บน VPS:
+~~หลัง deploy เสร็จ ต้องทำ 3 อย่างนี้บน VPS:~~
 
-1. **ตั้ง admin role ใน DB:**
+1. **~~ตั้ง admin role ใน DB:~~** ✅ เสร็จแล้ว (UPDATE 1)
    ```sql
    UPDATE users SET role='ADMIN' WHERE email='tummadajingjing@gmail.com';
    ```
    (ทำผ่าน `docker exec` หรือ psql — ต้องเชื่อม DB container)
 
-2. **ลบ ADMIN_SECRET จาก `.env.production`:**
+2. **~~ลบ ADMIN_SECRET จาก `.env.production`:~~** ✅ เสร็จแล้ว
    ```bash
    sed -i '/^ADMIN_SECRET/d' /opt/vollos/.env.production
    ```
-   (ไม่ต้องใช้แล้ว — admin auth เปลี่ยนเป็น JWT ROLE_ADMIN)
 
-3. **ทดสอบ exchange rate sync ด้วย admin JWT:**
+3. **ทดสอบ exchange rate sync ด้วย admin JWT:** (รอเจ้าของ login Google แล้วทดสอบ)
    ```bash
    # ขอ admin token (ต้อง login ด้วย Google ก่อน แล้ว role จะเป็น ADMIN)
    # จากนั้นเรียก:

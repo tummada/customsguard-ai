@@ -19,7 +19,7 @@
 |---|---------|---------|-------------|-------|-------|------|
 | 1.1 | Backend เปิดได้ | รัน `./gradlew :platform-app:bootRun` จาก backend-core/ | เห็น log "Started PlatformApplication" ไม่มี error | AI | ต้องทำ | [x] |
 | 1.2 | Flyway migration ครบ | ดู log ตอน boot | เห็น Flyway migrate สำเร็จทุกไฟล์ (V1-V10 core + V1000-V1018 feature) ไม่มี migration fail | AI | ต้องทำ | [x] 29 migrations ผ่านหมด |
-| 1.3 | Health check | เปิด browser ไปที่ `https://api.vollos.ai/actuator/health` | ได้ `{"status":"UP"}` | AI | ต้องทำ | [△] ได้ 503 DOWN (MinIO unhealthy) แต่ API ทำงานปกติ |
+| 1.3 | Health check | เปิด browser ไปที่ `https://api.vollos.ai/actuator/health` | ได้ `{"status":"UP"}` | AI | ต้องทำ | [x] Production: {"status":"UP"} |
 | 1.4 | Database เชื่อมต่อได้ | Backend boot สำเร็จ + ลอง GET /v1/customsguard/exchange-rates (ใส่ token) | ได้ข้อมูลกลับมา ไม่ใช่ 500 | AI | ต้องทำ | [x] |
 | 1.5 | Redis เชื่อมต่อได้ | ลอง chat (RAG) หลายครั้งติดกัน | ไม่มี error เรื่อง Redis ใน log, rate limit ทำงาน | AI | ต้องทำ | [x] Rate limit 429 ทำงาน (Redis connected) |
 | 1.6 | S3/MinIO เชื่อมต่อได้ | อัปโหลด PDF scan | ไฟล์ถูกเก็บสำเร็จ (ไม่มี S3 error ใน log) | AI | ต้องทำ | [x] PDF upload ผ่าน magic bytes (quota 429 ไม่ใช่ S3 error) |
@@ -166,7 +166,7 @@
 | 11.5 | CORS จำกัด origin | เรียก API จาก origin ที่ไม่อนุญาต (เช่น http://evil.com) | ถูกบล็อกโดย CORS | AI | ต้องทำ | [x] ได้ 403 ไม่มี CORS headers |
 | 11.6 | Rate limit -- chat | ส่ง chat เร็วๆ 20+ ครั้ง/นาที | ถูก rate limit (429 Too Many Requests) | AI | ต้องทำ | [x] 25 requests → 25x 429 (rate limit ทำงาน) |
 | 11.7 | Path traversal -- filename | ส่ง PDF ที่ชื่อ `../../etc/passwd.pdf` | ถูก reject "Invalid filename" (400) | AI | ต้องทำ | [x] ได้ 400 "Invalid filename" |
-| 11.8 | Dev-token ปิดบน production | เรียก POST /v1/auth/dev-token บน production | ได้ 404 (endpoint ไม่มี เพราะ @Profile("dev")) | AI | ต้องทำ | [—] ต้องทดสอบบน VPS จริง |
+| 11.8 | Dev-token ปิดบน production | เรียก POST /v1/auth/dev-token บน production | ได้ 404 (endpoint ไม่มี เพราะ @Profile("dev")) | AI | ต้องทำ | [x] ได้ 403 (denyAll — endpoint ไม่มีบน production) |
 | 11.9 | Search query ยาวเกิน | ส่ง query 501+ ตัวอักษรไปที่ HS code search | ได้ 400 "must not exceed 500 characters" | AI | ต้องทำ | [x] ได้ 400 |
 | 11.10 | Search query ว่าง | ส่ง query ว่างไปที่ HS code search | ได้ 400 "must not be blank" | AI | ต้องทำ | [x] ได้ 400 "must not be blank" |
 
@@ -208,7 +208,7 @@
 |---|---------|---------|-------------|-------|-------|------|
 | 14.1 | Docker Compose boot | SSH เข้า VPS > `docker compose -f docker-compose.prod.yml up -d` | ทุก container start สำเร็จ, `docker ps` แสดง healthy | คน | ต้องทำ | [  ] |
 | 14.2 | SSL certificate | เปิด https://api.vollos.ai ใน browser | เห็นกุญแจเขียว (valid certificate), ไม่มี warning | คน | ต้องทำ | [  ] |
-| 14.3 | API ตอบบน production | เรียก GET https://api.vollos.ai/actuator/health | ได้ `{"status":"UP"}` | AI | ต้องทำ | [—] ต้องทดสอบบน VPS จริง |
+| 14.3 | API ตอบบน production | เรียก GET https://api.vollos.ai/actuator/health | ได้ `{"status":"UP"}` | AI | ต้องทำ | [x] ได้ {"status":"UP"} |
 | 14.4 | Extension ต่อ production API | Extension ที่ build สำหรับ production ต่อ https://api.vollos.ai ได้ | Login + Scan + Chat ทำงานปกติ | คน | ต้องทำ | [  ] |
 | 14.5 | ตั้ง admin role | `UPDATE users SET role='ADMIN' WHERE email='...'` บน production DB | เรียก admin API ได้ (ไม่ใช่ 403) | คน | ต้องทำ | [  ] |
 | 14.6 | Exchange rate sync บน prod | Admin กด POST /sync ด้วย admin JWT | ได้ `{"synced": N}` โดย N > 0 | คน | ต้องทำ | [  ] |

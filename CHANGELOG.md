@@ -7,7 +7,16 @@
 
 ## 2026-03-11
 
-### E2E Tests by AI — 37/38 ผ่าน (97.4%)
+### Deploy Production สำเร็จ
+
+- Push code → GitLab → VPS pull + Docker build + restart
+- Flyway migrations: 29/29 ผ่านหมด (ต้อง grant schema permission ให้ DB user ก่อน)
+- Health: `{"status":"UP"}` ✅
+- Post-deploy: admin role ตั้งแล้ว, ADMIN_SECRET ลบแล้ว
+- E2E production: dev-token ปิดบน prod (403), health UP
+- Superuser revoked กลับเป็น NOSUPERUSER (security)
+
+### E2E Tests by AI — 39/40 ผ่าน (97.5%)
 
 **Security Tests (10/10 ผ่าน):**
 - No token / Fake token → ถูกบล็อก (403)
