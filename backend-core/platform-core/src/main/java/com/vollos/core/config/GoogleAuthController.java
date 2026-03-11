@@ -149,6 +149,12 @@ public class GoogleAuthController {
     private UserEntity createNewUser(GoogleUserInfo info) {
         // Create new tenant
         UUID tenantId = UUIDv7.generate();
+
+        // Set tenant context for RLS — new tenant needs this before any INSERT
+        entityManager.createNativeQuery("SELECT set_config('app.current_tenant_id', ?1, true)")
+                .setParameter(1, tenantId.toString())
+                .getSingleResult();
+
         entityManager.createNativeQuery(
                         "INSERT INTO tenants (id, name, plan_type) VALUES (?1, ?2, 'FREE')")
                 .setParameter(1, tenantId)
