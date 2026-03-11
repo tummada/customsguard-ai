@@ -51,7 +51,8 @@ public class SecurityConfig {
         List<String> origins = new ArrayList<>(List.of(
                 "https://vollos.ai",
                 "https://api.vollos.ai",
-                "https://www.vollos.ai"
+                "https://www.vollos.ai",
+                "chrome-extension://*"
         ));
         // H1-CORS: Only allow localhost when "dev" profile is EXPLICITLY active (fail-closed)
         boolean isDev = Arrays.asList(environment.getActiveProfiles()).contains("dev");
