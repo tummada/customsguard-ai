@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 
 /**
  * TC-BE-047 ~ TC-BE-049: SecretValidationConfig tests.
+ * Updated: admin.secret removed (M-admin-header — now uses JWT ROLE_ADMIN)
  */
 @ExtendWith(MockitoExtension.class)
 class SecretValidationConfigTest {
@@ -27,7 +28,6 @@ class SecretValidationConfigTest {
 
         SecretValidationConfig config = new SecretValidationConfig(
                 "vollos-dev-secret-key-change-in-production-min-32-chars!!",
-                "safe-admin-secret-value",
                 "real-gemini-api-key",
                 environment);
 
@@ -37,29 +37,12 @@ class SecretValidationConfigTest {
     }
 
     @Test
-    @DisplayName("TC-BE-048: default admin secret ใน production → throw IllegalStateException")
-    void validateSecrets_withDefaultAdminSecretInProd_shouldThrow() {
-        when(environment.getActiveProfiles()).thenReturn(new String[]{"prod"});
-
-        SecretValidationConfig config = new SecretValidationConfig(
-                "real-production-jwt-secret-at-least-32-chars-long!!!!",
-                "vollos-admin-secret-change-me",
-                "real-gemini-api-key",
-                environment);
-
-        assertThatThrownBy(config::validateSecrets)
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Default admin secret not allowed in production");
-    }
-
-    @Test
     @DisplayName("TC-BE-047b: default JWT secret ใน dev profile → warn แต่ไม่ throw")
     void validateSecrets_withDefaultJwtSecretInDev_shouldNotThrow() {
         when(environment.getActiveProfiles()).thenReturn(new String[]{"dev"});
 
         SecretValidationConfig config = new SecretValidationConfig(
                 "vollos-dev-secret-key-change-in-production-min-32-chars!!",
-                "vollos-admin-secret-change-me",
                 "real-gemini-api-key",
                 environment);
 
@@ -73,7 +56,6 @@ class SecretValidationConfigTest {
 
         SecretValidationConfig config = new SecretValidationConfig(
                 "vollos-dev-secret-key-change-in-production-min-32-chars!!",
-                "vollos-admin-secret-change-me",
                 "real-gemini-api-key",
                 environment);
 
@@ -87,7 +69,6 @@ class SecretValidationConfigTest {
 
         SecretValidationConfig config = new SecretValidationConfig(
                 "real-production-jwt-secret-at-least-32-chars-long!!!!",
-                "real-production-admin-secret-value",
                 "real-gemini-api-key",
                 environment);
 
@@ -101,7 +82,6 @@ class SecretValidationConfigTest {
 
         SecretValidationConfig config = new SecretValidationConfig(
                 "my-custom-secret-but-has-change-in-production-marker!!!",
-                "real-admin-secret",
                 "real-gemini-api-key",
                 environment);
 
@@ -116,7 +96,6 @@ class SecretValidationConfigTest {
 
         SecretValidationConfig config = new SecretValidationConfig(
                 "real-production-jwt-secret-at-least-32-chars-long!!!!",
-                "real-production-admin-secret-value",
                 "",
                 environment);
 
@@ -130,7 +109,6 @@ class SecretValidationConfigTest {
 
         SecretValidationConfig config = new SecretValidationConfig(
                 "real-production-jwt-secret-at-least-32-chars-long!!!!",
-                "real-production-admin-secret-value",
                 null,
                 environment);
 

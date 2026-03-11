@@ -80,11 +80,12 @@ public class GoogleAuthController {
                     })
                     .orElseGet(() -> createNewUser(userInfo));
 
-            // 3. Generate JWT
+            // 3. Generate JWT (includes role from DB)
             String jwt = tokenProvider.generateToken(
                     user.getTenantId(),
                     user.getId().toString(),
-                    user.getEmail());
+                    user.getEmail(),
+                    user.getRole());
 
             // S7: Hash email instead of logging plaintext
             String emailHash = Integer.toHexString(user.getEmail().hashCode());

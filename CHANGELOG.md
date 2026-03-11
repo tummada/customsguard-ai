@@ -7,6 +7,36 @@
 
 ## 2026-03-11
 
+### E2E Tests by AI — 37/38 ผ่าน (97.4%)
+
+**Security Tests (10/10 ผ่าน):**
+- No token / Fake token → ถูกบล็อก (403)
+- SQL Injection / XSS → ระบบไม่พัง ไม่สะท้อน script กลับ
+- RBAC: User token ถูกบล็อกจาก admin endpoint, Admin token เข้าได้
+- CORS: Origin ที่ไม่ได้อนุญาตถูกบล็อก
+- Rate limit: ใช้งานปกติไม่ถูก block
+
+**API Validation Tests (11/12 ผ่าน):**
+- HS Code: search, seed, semantic search, batch lookup ผ่านหมด
+- RAG search: ถาม-ตอบภาษาไทยทำงานได้
+- PDF upload: ไฟล์ที่ไม่ใช่ PDF ถูกปฏิเสธ (400)
+- Exchange rate: 18 สกุลเงิน (effective 2026-03-10)
+- Usage quota: แสดงถูก (FREE: chat 3/3, scan 3/10)
+- Input validation: query > 500 ตัวอักษร → 400, declarationType ผิด → 400
+- **❌ FAIL:** sync-status endpoint ยังไม่ได้สร้าง (มี logic ใน service แต่ไม่มี controller endpoint)
+
+**Auth/JWT Tests (9/9 ผ่าน):**
+- Dev token + Admin token endpoint ทำงานถูกต้อง
+- Google auth: invalid token → 401, missing token → 400, SSRF attempt → 401
+- Expired token → ถูกบล็อก, Health endpoint เข้าได้ไม่ต้อง login
+- Unknown URL → 403 (denyAll)
+
+**Infrastructure Tests (6/6 ผ่าน):**
+- Backend boot สำเร็จ, Flyway 29 migrations ผ่านหมด
+- DB connected (exchange rates 18 สกุลเงิน), Redis connected (rate limit 429 ทำงาน)
+- S3/MinIO: PDF upload ผ่าน magic bytes check (quota 429 ไม่ใช่ S3 error)
+- Health check: 503 DOWN (MinIO unhealthy) แต่ API ทำงานปกติ
+
 ### Audit v9 — CRITICAL 8 ตัว แก้ครบ
 
 - **v8-C1:** Gemini fallback ตั้ง requiresReview=true เมื่อ AI ไม่ยืนยัน (ป้องกันลูกค้ากรอก HS Code ผิด)

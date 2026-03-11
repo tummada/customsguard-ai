@@ -19,6 +19,9 @@ public class ExchangeRateEntity extends BaseEntity {
     @Column(name = "mid_rate", nullable = false, precision = 10, scale = 4)
     private BigDecimal midRate;
 
+    @Column(name = "export_rate", precision = 10, scale = 4)
+    private BigDecimal exportRate;
+
     @Column(name = "effective_date", nullable = false)
     private LocalDate effectiveDate;
 
@@ -33,6 +36,8 @@ public class ExchangeRateEntity extends BaseEntity {
     public void setCurrencyName(String currencyName) { this.currencyName = currencyName; }
     public BigDecimal getMidRate() { return midRate; }
     public void setMidRate(BigDecimal midRate) { this.midRate = midRate; }
+    public BigDecimal getExportRate() { return exportRate; }
+    public void setExportRate(BigDecimal exportRate) { this.exportRate = exportRate; }
     public LocalDate getEffectiveDate() { return effectiveDate; }
     public void setEffectiveDate(LocalDate effectiveDate) { this.effectiveDate = effectiveDate; }
     public String getSource() { return source; }

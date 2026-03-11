@@ -40,7 +40,7 @@ class JwtTokenProviderTest {
         String userId = "user-123";
         String email = "test@example.com";
 
-        String token = tokenProvider.generateToken(tenantId, userId, email);
+        String token = tokenProvider.generateToken(tenantId, userId, email, "USER");
 
         assertThat(token).isNotBlank();
 
@@ -57,7 +57,7 @@ class JwtTokenProviderTest {
         String userId = "user-456";
         String email = "valid@test.com";
 
-        String token = tokenProvider.generateToken(tenantId, userId, email);
+        String token = tokenProvider.generateToken(tenantId, userId, email, "USER");
         Claims claims = tokenProvider.validateToken(token);
 
         assertThat(claims).isNotNull();
@@ -90,7 +90,7 @@ class JwtTokenProviderTest {
     @Test
     @DisplayName("TC-BE-004: token ถูก tamper — throw JwtException")
     void validateToken_withTamperedToken_shouldThrow() {
-        String token = tokenProvider.generateToken(UUID.randomUUID(), "user-1", "a@b.com");
+        String token = tokenProvider.generateToken(UUID.randomUUID(), "user-1", "a@b.com", "USER");
 
         // Tamper by modifying a character in the signature part
         String tampered = token.substring(0, token.length() - 5) + "XXXXX";
@@ -105,7 +105,7 @@ class JwtTokenProviderTest {
         String otherSecret = "other-secret-key-at-least-32-characters-long-for-hmac!!!";
         JwtTokenProvider otherProvider = new JwtTokenProvider(otherSecret, 24);
 
-        String tokenFromOther = otherProvider.generateToken(UUID.randomUUID(), "user-1", "a@b.com");
+        String tokenFromOther = otherProvider.generateToken(UUID.randomUUID(), "user-1", "a@b.com", "USER");
 
         assertThatThrownBy(() -> tokenProvider.validateToken(tokenFromOther))
                 .isInstanceOf(JwtException.class);
@@ -115,7 +115,7 @@ class JwtTokenProviderTest {
     @DisplayName("TC-BE-006: getTenantId — แปลง claim เป็น UUID ได้ถูกต้อง")
     void getTenantId_shouldReturnCorrectUuid() {
         UUID tenantId = UUID.randomUUID();
-        String token = tokenProvider.generateToken(tenantId, "user-1", "a@b.com");
+        String token = tokenProvider.generateToken(tenantId, "user-1", "a@b.com", "USER");
         Claims claims = tokenProvider.validateToken(token);
 
         UUID result = tokenProvider.getTenantId(claims);
@@ -127,7 +127,7 @@ class JwtTokenProviderTest {
     @DisplayName("TC-BE-007: getUserId — คืน subject ที่ตรงกับ userId")
     void getUserId_shouldReturnSubject() {
         String userId = "user-789";
-        String token = tokenProvider.generateToken(UUID.randomUUID(), userId, "a@b.com");
+        String token = tokenProvider.generateToken(UUID.randomUUID(), userId, "a@b.com", "USER");
         Claims claims = tokenProvider.validateToken(token);
 
         String result = tokenProvider.getUserId(claims);

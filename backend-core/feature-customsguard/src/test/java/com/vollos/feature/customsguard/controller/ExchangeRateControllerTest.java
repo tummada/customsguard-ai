@@ -13,7 +13,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -34,7 +33,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @WebMvcTest(ExchangeRateController.class)
 @Import(ExchangeRateControllerTest.TestSecurityConfig.class)
-@TestPropertySource(properties = "admin.secret=test-secret")
 class ExchangeRateControllerTest {
 
     @TestConfiguration
@@ -58,12 +56,14 @@ class ExchangeRateControllerTest {
 
     private ExchangeRateDto buildUsdRate() {
         return new ExchangeRateDto("USD", "US Dollar",
-                new BigDecimal("34.5000"), LocalDate.of(2026, 3, 9), "BOT");
+                new BigDecimal("34.5000"), new BigDecimal("34.3000"),
+                LocalDate.of(2026, 3, 9), "BOT");
     }
 
     private ExchangeRateDto buildEurRate() {
         return new ExchangeRateDto("EUR", "Euro",
-                new BigDecimal("37.2500"), LocalDate.of(2026, 3, 9), "BOT");
+                new BigDecimal("37.2500"), new BigDecimal("37.0000"),
+                LocalDate.of(2026, 3, 9), "BOT");
     }
 
     // ===== TC-CG-090: GET /v1/customsguard/exchange-rates =====

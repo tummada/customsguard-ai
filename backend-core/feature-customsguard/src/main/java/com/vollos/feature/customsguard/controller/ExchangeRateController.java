@@ -4,13 +4,10 @@ import com.vollos.core.feature.RequiresFeature;
 import com.vollos.feature.customsguard.dto.ExchangeRateDto;
 import com.vollos.feature.customsguard.service.ExchangeRateService;
 import com.vollos.feature.customsguard.service.ExchangeRateSyncService;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.util.List;
 import java.util.Map;
 
@@ -21,14 +18,11 @@ public class ExchangeRateController {
 
     private final ExchangeRateService exchangeRateService;
     private final ExchangeRateSyncService exchangeRateSyncService;
-    private final String adminSecret;
 
     public ExchangeRateController(ExchangeRateService exchangeRateService,
-                                  ExchangeRateSyncService exchangeRateSyncService,
-                                  @Value("${admin.secret}") String adminSecret) {
+                                  ExchangeRateSyncService exchangeRateSyncService) {
         this.exchangeRateService = exchangeRateService;
         this.exchangeRateSyncService = exchangeRateSyncService;
-        this.adminSecret = adminSecret;
     }
 
     @GetMapping
@@ -43,16 +37,10 @@ public class ExchangeRateController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    /** Manual trigger to sync rates from customs.go.th (admin use) */
+    /** Manual trigger to sync rates from customs.go.th (admin only) */
     @PostMapping("/sync")
-    public ResponseEntity<Map<String, Object>> syncRates(
-            @RequestHeader(value = "X-Admin-Secret", required = false) String secret) {
-        if (secret == null || !MessageDigest.isEqual(
-                secret.getBytes(StandardCharsets.UTF_8),
-                adminSecret.getBytes(StandardCharsets.UTF_8))) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("error", "Invalid admin secret"));
-        }
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Object>> syncRates() {
         int count = exchangeRateSyncService.syncFromCustomsDept();
         return ResponseEntity.ok(Map.of(
                 "synced", count,

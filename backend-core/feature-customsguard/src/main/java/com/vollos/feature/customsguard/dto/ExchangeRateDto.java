@@ -7,6 +7,7 @@ public record ExchangeRateDto(
         String currencyCode,
         String currencyName,
         BigDecimal midRate,
+        BigDecimal exportRate,
         LocalDate effectiveDate,
         String source
 ) {}

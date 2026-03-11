@@ -29,12 +29,13 @@ public class JwtTokenProvider {
         this.expirationHours = expirationHours;
     }
 
-    public String generateToken(UUID tenantId, String userId, String email) {
+    public String generateToken(UUID tenantId, String userId, String email, String role) {
         Instant now = Instant.now();
         return Jwts.builder()
                 .subject(userId)
                 .claim("tenantId", tenantId.toString())
                 .claim("email", email)
+                .claim("role", role != null ? role : "USER")
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plus(expirationHours, ChronoUnit.HOURS)))
                 .signWith(secretKey)
@@ -55,5 +56,10 @@ public class JwtTokenProvider {
 
     public String getUserId(Claims claims) {
         return claims.getSubject();
+    }
+
+    public String getRole(Claims claims) {
+        String role = claims.get("role", String.class);
+        return role != null ? role : "USER";
     }
 }

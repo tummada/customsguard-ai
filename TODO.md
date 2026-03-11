@@ -1,7 +1,7 @@
 # TODO — VOLLOS Backlog
 
 Single source of truth สำหรับงานที่ยังต้องทำ
-Updated: 2026-03-11 (หลังแก้ CRITICAL+HIGH)
+Updated: 2026-03-11 (หลัง E2E Test — AI 30/31 ผ่าน)
 
 > **Done items → ดูที่ `CHANGELOG.md`**
 > **Test cases → ดูที่ `TEST-PLAN.md`**
@@ -73,8 +73,9 @@ Updated: 2026-03-11 (หลังแก้ CRITICAL+HIGH)
 
 ### อัตราแลกเปลี่ยน — ทดสอบ Auto-sync
 
-- [ ] ทดสอบ auto-sync บน dev — boot backend + trigger POST /sync + ตรวจค่า
+- [x] ทดสอบ auto-sync บน dev — boot backend + trigger POST /sync + ตรวจค่า ✅ AI ทดสอบแล้ว (18 สกุลเงิน, effective 2026-03-10)
 - [ ] ทดสอบ HTML parser กับ customs.go.th จริง (page format อาจเปลี่ยน)
+- [ ] สร้าง endpoint `GET /sync-status` — ดูสถานะ sync (code มี logic แล้วแต่ยังไม่มี endpoint)
 
 ### Production Auth — รอเจ้าของทดสอบ
 
@@ -83,9 +84,9 @@ Updated: 2026-03-11 (หลังแก้ CRITICAL+HIGH)
 
 ### Deploy Production (Usage Quota + Pricing)
 
-- [ ] Boot backend dev → ทดสอบ GET /v1/usage, POST /v1/admin/upgrade, 429 quota exceeded
-- [ ] ทดสอบ Chrome Extension — UsageBadge แสดงถูก, QuotaExceededModal ขึ้นเมื่อเกิน
-- [ ] ทดสอบ Marketing Site — หน้า /pricing แสดงถูก, Navbar link ราคา, mobile hamburger
+- [x] Boot backend dev → ทดสอบ GET /v1/usage, POST /v1/admin/upgrade, 429 quota exceeded ✅ AI ทดสอบแล้ว
+- [ ] ทดสอบ Chrome Extension — UsageBadge แสดงถูก, QuotaExceededModal ขึ้นเมื่อเกิน (ต้องเทสด้วยมือ)
+- [ ] ทดสอบ Marketing Site — หน้า /pricing แสดงถูก, Navbar link ราคา, mobile hamburger (ต้องเทสด้วยมือ)
 - [ ] Deploy production — push + build + verify
 
 ### ⚠️ Post-Deploy: M-admin-header + M-export-rate (ห้ามลืม!)
@@ -155,8 +156,10 @@ Updated: 2026-03-11 (หลังแก้ CRITICAL+HIGH)
 - [ ] ใส่คำบรรยายไทย + background music royalty-free
 - [ ] เปลี่ยน hero image เป็น `<video>` ใน `LandingTemplate.tsx`
 
-### E2E Tests — ค้างงาน
+### E2E Tests
 
+- [x] AI E2E Tests — 37/38 ผ่าน (ทำครบทุกเคส AI บน dev) ✅ 2026-03-11
+- [ ] เจ้าของทดสอบด้วยมือ — Chrome Extension login + scan + ดูหน้าจอจริง
 - [ ] เพิ่ม screenshots — ถ่ายภาพหน้าจอทุก step (บางส่วนได้แล้วที่ `e2e-results/manual/`)
 - [ ] เขียน demo script สำหรับถ่ายวิดีโอ — Mode 3 ของ vollos-tester
 

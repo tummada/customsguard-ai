@@ -6,7 +6,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -18,7 +17,7 @@ import java.util.UUID;
 
 /**
  * Admin endpoints for managing subscription plans and tenant upgrades.
- * Protected by X-Admin-Secret header.
+ * Protected by JWT ROLE_ADMIN (SecurityConfig path rule).
  */
 @RestController
 @RequestMapping("/v1/admin")
@@ -27,13 +26,9 @@ public class AdminController {
     private static final Logger log = LoggerFactory.getLogger(AdminController.class);
 
     private final JdbcTemplate jdbcTemplate;
-    private final String adminSecret;
 
-    public AdminController(
-            JdbcTemplate jdbcTemplate,
-            @Value("${admin.secret}") String adminSecret) {
+    public AdminController(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
-        this.adminSecret = adminSecret;
     }
 
     public record UpgradeRequest(
@@ -48,16 +43,8 @@ public class AdminController {
             @NotNull(message = "priceThb is required") @Min(0) Integer priceThb) {}
 
     @PostMapping("/upgrade")
-    public ResponseEntity<?> upgradeTenant(
-            @RequestHeader(value = "X-Admin-Secret") String secret,
-            @Valid @RequestBody UpgradeRequest body) {
+    public ResponseEntity<?> upgradeTenant(@Valid @RequestBody UpgradeRequest body) {
 
-        // 1. Verify admin secret
-        if (!verifySecret(secret)) {
-            return forbidden();
-        }
-
-        // 2. Parse request
         String tenantIdStr = body.tenantId();
         String planId = body.planId();
 
@@ -69,7 +56,6 @@ public class AdminController {
                     .body(Map.of("error", "Invalid tenantId format"));
         }
 
-        // 3. Validate plan exists and get limits
         Map<String, Object> plan = jdbcTemplate.query(
                 "SELECT id, scan_limit, chat_limit FROM subscription_plans WHERE id = ?",
                 rs -> {
@@ -88,7 +74,6 @@ public class AdminController {
                     .body(Map.of("error", "Plan not found: " + planId));
         }
 
-        // 4. Update subscription (UPSERT in case subscription doesn't exist yet)
         int updated = jdbcTemplate.update(
                 "UPDATE tenant_subscriptions SET plan_id = ?, updated_at = CURRENT_TIMESTAMP " +
                 "WHERE tenant_id = ?",
@@ -112,28 +97,15 @@ public class AdminController {
     // ── Plan Management ─────────────────────────────────────────────
 
     @GetMapping("/plans")
-    public ResponseEntity<?> listPlans(
-            @RequestHeader(value = "X-Admin-Secret") String secret) {
-
-        if (!verifySecret(secret)) {
-            return forbidden();
-        }
-
+    public ResponseEntity<?> listPlans() {
         List<Map<String, Object>> plans = jdbcTemplate.queryForList(
                 "SELECT id, display_name, scan_limit, chat_limit, price_thb, created_at, updated_at " +
                 "FROM subscription_plans ORDER BY price_thb ASC");
-
         return ResponseEntity.ok(Map.of("plans", plans));
     }
 
     @PostMapping("/plans")
-    public ResponseEntity<?> createPlan(
-            @RequestHeader(value = "X-Admin-Secret") String secret,
-            @Valid @RequestBody CreatePlanRequest body) {
-
-        if (!verifySecret(secret)) {
-            return forbidden();
-        }
+    public ResponseEntity<?> createPlan(@Valid @RequestBody CreatePlanRequest body) {
 
         String id = body.id();
         String displayName = body.displayName();
@@ -141,7 +113,6 @@ public class AdminController {
         Integer chatLimit = body.chatLimit();
         Integer priceThb = body.priceThb();
 
-        // Check duplicate
         Integer exists = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM subscription_plans WHERE id = ?", Integer.class, id);
         if (exists != null && exists > 0) {
@@ -168,20 +139,14 @@ public class AdminController {
 
     @PutMapping("/plans/{id}")
     public ResponseEntity<?> updatePlan(
-            @RequestHeader(value = "X-Admin-Secret") String secret,
             @PathVariable @jakarta.validation.constraints.NotBlank String id,
             @RequestBody Map<String, Object> body) {
-
-        if (!verifySecret(secret)) {
-            return forbidden();
-        }
 
         if (body == null || body.isEmpty()) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "Request body is required"));
         }
 
-        // Check plan exists
         Integer exists = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM subscription_plans WHERE id = ?", Integer.class, id);
         if (exists == null || exists == 0) {
@@ -189,7 +154,6 @@ public class AdminController {
                     .body(Map.of("error", "Plan not found: " + id));
         }
 
-        // Build dynamic UPDATE (only provided fields)
         StringBuilder sql = new StringBuilder("UPDATE subscription_plans SET updated_at = CURRENT_TIMESTAMP");
         java.util.ArrayList<Object> params = new java.util.ArrayList<>();
 
@@ -222,25 +186,10 @@ public class AdminController {
 
         log.info("Admin updated plan: id={}, fields={}", id, body.keySet());
 
-        // Return updated plan
         Map<String, Object> updated = jdbcTemplate.queryForMap(
                 "SELECT id, display_name, scan_limit, chat_limit, price_thb FROM subscription_plans WHERE id = ?", id);
 
         return ResponseEntity.ok(Map.of("success", true, "plan", updated));
-    }
-
-    // ── Helpers ──────────────────────────────────────────────────────
-
-    private boolean verifySecret(String secret) {
-        return secret != null && java.security.MessageDigest.isEqual(
-                secret.getBytes(java.nio.charset.StandardCharsets.UTF_8),
-                adminSecret.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-    }
-
-    private ResponseEntity<?> forbidden() {
-        log.warn("Admin request with invalid secret");
-        return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(Map.of("error", "Invalid admin secret"));
     }
 
     private static Integer toInt(Object value) {

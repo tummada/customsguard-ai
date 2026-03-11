@@ -39,21 +39,25 @@ END
 $$;
 
 -- ==========================================================
--- 3. Create non-superuser app role (idempotent)
+-- 3. Create non-superuser app role (idempotent, skip if no privilege)
 -- ==========================================================
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'vollos_app') THEN
-    CREATE ROLE vollos_app LOGIN NOSUPERUSER NOBYPASSRLS;
-    RAISE NOTICE 'Created role: vollos_app';
+  -- Only create role if current user has CREATEROLE privilege
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = current_user AND rolcreaterole = true) THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'vollos_app') THEN
+      CREATE ROLE vollos_app LOGIN NOSUPERUSER NOBYPASSRLS;
+      RAISE NOTICE 'Created role: vollos_app';
+    END IF;
+    -- Grant privileges to app role
+    EXECUTE format('GRANT CONNECT ON DATABASE %I TO vollos_app', current_database());
+    GRANT USAGE ON SCHEMA public TO vollos_app;
+    GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO vollos_app;
+    GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO vollos_app;
+    GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO vollos_app;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO vollos_app;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO vollos_app;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO vollos_app;
+  ELSE
+    RAISE NOTICE 'Skipping vollos_app role creation — current user lacks CREATEROLE privilege';
   END IF;
 END $$;
-
--- Grant privileges to app role
-GRANT CONNECT ON DATABASE current_database() TO vollos_app;
-GRANT USAGE ON SCHEMA public TO vollos_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO vollos_app;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO vollos_app;
-GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO vollos_app;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO vollos_app;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO vollos_app;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO vollos_app;

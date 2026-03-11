@@ -16,17 +16,14 @@ public class SecretValidationConfig {
     private static final Logger log = LoggerFactory.getLogger(SecretValidationConfig.class);
 
     private final String jwtSecret;
-    private final String adminSecret;
     private final String geminiApiKey;
     private final Environment environment;
 
     public SecretValidationConfig(
             @Value("${jwt.secret:}") String jwtSecret,
-            @Value("${admin.secret:}") String adminSecret,
             @Value("${gemini.api-key:}") String geminiApiKey,
             Environment environment) {
         this.jwtSecret = jwtSecret;
-        this.adminSecret = adminSecret;
         this.geminiApiKey = geminiApiKey;
         this.environment = environment;
     }
@@ -36,7 +33,6 @@ public class SecretValidationConfig {
         boolean isDevProfile = Arrays.asList(environment.getActiveProfiles()).contains("dev")
                 || Arrays.asList(environment.getActiveProfiles()).isEmpty();
 
-        // Reject empty or blank secrets in any profile
         if (jwtSecret == null || jwtSecret.isBlank()) {
             if (isDevProfile) {
                 log.warn("JWT_SECRET not set — set it via env var before production");
@@ -53,21 +49,7 @@ public class SecretValidationConfig {
             }
         }
 
-        if (adminSecret == null || adminSecret.isBlank()) {
-            if (isDevProfile) {
-                log.warn("ADMIN_SECRET not set — set it via env var before production");
-            } else {
-                log.error("CRITICAL: ADMIN_SECRET is empty in non-dev profile! Set ADMIN_SECRET env var.");
-                throw new IllegalStateException("ADMIN_SECRET must be set in production");
-            }
-        } else if (adminSecret.contains("vollos-admin-secret-change-me")) {
-            if (isDevProfile) {
-                log.warn("Admin secret is using default value. Change in production!");
-            } else {
-                log.error("CRITICAL: Admin secret is using default value in non-dev profile!");
-                throw new IllegalStateException("Default admin secret not allowed in production");
-            }
-        }
+        // admin.secret no longer needed — admin auth uses JWT ROLE_ADMIN (M-admin-header)
 
         if (geminiApiKey == null || geminiApiKey.isBlank()) {
             log.warn("GEMINI_API_KEY not set — AI features (RAG, scan, embedding) will fail silently");

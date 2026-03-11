@@ -161,7 +161,7 @@ class GoogleAuthControllerTest {
 
         when(userRepository.findByGoogleId(googleId)).thenReturn(Optional.of(existingUser));
         when(userRepository.save(any(UserEntity.class))).thenReturn(existingUser);
-        when(tokenProvider.generateToken(eq(tenantId), eq(userId.toString()), eq(email)))
+        when(tokenProvider.generateToken(eq(tenantId), eq(userId.toString()), eq(email), anyString()))
                 .thenReturn("generated.jwt.token");
 
         Map<String, String> body = Map.of("idToken", "valid-google-token");
@@ -214,7 +214,7 @@ class GoogleAuthControllerTest {
         savedUser.setAvatarUrl("https://newpic.url");
 
         when(userRepository.save(any(UserEntity.class))).thenReturn(savedUser);
-        when(tokenProvider.generateToken(eq(newTenantId), eq(newUserId.toString()), eq(email)))
+        when(tokenProvider.generateToken(eq(newTenantId), eq(newUserId.toString()), eq(email), anyString()))
                 .thenReturn("new-user.jwt.token");
 
         Map<String, String> body = Map.of("idToken", "valid-google-token");

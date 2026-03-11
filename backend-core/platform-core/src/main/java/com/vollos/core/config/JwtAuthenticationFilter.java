@@ -40,10 +40,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 Claims claims = tokenProvider.validateToken(token);
                 String userId = tokenProvider.getUserId(claims);
                 var tenantId = tokenProvider.getTenantId(claims);
+                String role = tokenProvider.getRole(claims);
+
+                List<SimpleGrantedAuthority> authorities = new java.util.ArrayList<>();
+                authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
+                if ("ADMIN".equals(role)) {
+                    authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
+                }
 
                 var auth = new UsernamePasswordAuthenticationToken(
-                        userId, null,
-                        List.of(new SimpleGrantedAuthority("ROLE_USER")));
+                        userId, null, authorities);
                 SecurityContextHolder.getContext().setAuthentication(auth);
 
                 // Also set tenant context from JWT (overrides X-Tenant-ID header)

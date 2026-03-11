@@ -31,12 +31,25 @@ public class DevAuthController {
 
     @PostMapping("/dev-token")
     public ResponseEntity<?> devToken() {
-        String jwt = tokenProvider.generateToken(DEV_TENANT_ID, DEV_USER_ID, DEV_EMAIL);
+        String jwt = tokenProvider.generateToken(DEV_TENANT_ID, DEV_USER_ID, DEV_EMAIL, "USER");
         return ResponseEntity.ok(Map.of(
                 "accessToken", jwt,
                 "tenantId", DEV_TENANT_ID.toString(),
                 "userId", DEV_USER_ID,
                 "email", DEV_EMAIL,
+                "role", "USER",
+                "expiresIn", "24h"));
+    }
+
+    @PostMapping("/dev-admin-token")
+    public ResponseEntity<?> devAdminToken() {
+        String jwt = tokenProvider.generateToken(DEV_TENANT_ID, DEV_USER_ID, DEV_EMAIL, "ADMIN");
+        return ResponseEntity.ok(Map.of(
+                "accessToken", jwt,
+                "tenantId", DEV_TENANT_ID.toString(),
+                "userId", DEV_USER_ID,
+                "email", DEV_EMAIL,
+                "role", "ADMIN",
                 "expiresIn", "24h"));
     }
 }

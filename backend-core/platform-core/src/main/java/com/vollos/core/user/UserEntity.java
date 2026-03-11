@@ -25,6 +25,9 @@ public class UserEntity extends BaseEntity {
     @Column(name = "avatar_url")
     private String avatarUrl;
 
+    @Column(nullable = false)
+    private String role = "USER";
+
     public UUID getTenantId() { return tenantId; }
     public void setTenantId(UUID tenantId) { this.tenantId = tenantId; }
     public String getGoogleId() { return googleId; }
@@ -35,4 +38,6 @@ public class UserEntity extends BaseEntity {
     public void setName(String name) { this.name = name; }
     public String getAvatarUrl() { return avatarUrl; }
     public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
+    public String getRole() { return role; }
+    public void setRole(String role) { this.role = role; }
 }
