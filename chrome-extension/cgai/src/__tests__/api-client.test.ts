@@ -80,10 +80,10 @@ describe("ApiClient", () => {
     expect(client.isConfigured()).toBe(false);
   });
 
-  it("configure() stores config and calls chrome.storage.local.set", async () => {
+  it("configure() stores config and calls chrome.storage.session.set", async () => {
     await client.configure("tok123", "tenant-1");
-    expect(chrome.storage.local.set).toHaveBeenCalled();
-    const setCall = vi.mocked(chrome.storage.local.set).mock.calls[0][0] as Record<string, unknown>;
+    expect(chrome.storage.session.set).toHaveBeenCalled();
+    const setCall = vi.mocked(chrome.storage.session.set).mock.calls[0][0] as Record<string, unknown>;
     const config = setCall.vollosApiConfig as { token: string; tenantId: string };
     expect(config.token).toBe("tok123");
     expect(config.tenantId).toBe("tenant-1");
@@ -170,9 +170,9 @@ describe("ApiClient", () => {
   });
 
   it("loadConfig() rejects expired token", async () => {
-    // Store a config with expired token
+    // Store a config with expired token in session storage
     const expiredToken = fakeJwt(Math.floor(Date.now() / 1000) - 3600);
-    await chrome.storage.local.set({
+    await chrome.storage.session.set({
       vollosApiConfig: {
         baseUrl: "http://localhost:8080",
         token: expiredToken,

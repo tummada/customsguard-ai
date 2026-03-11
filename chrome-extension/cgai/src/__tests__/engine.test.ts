@@ -202,8 +202,9 @@ describe("FuzzySelectorEngine", () => {
       expect(engine.isAllowedOrigin("https://e-customs.customs.go.th")).toBe(true);
     });
 
-    it("allows any subdomain of customs.go.th", () => {
-      expect(engine.isAllowedOrigin("https://portal.customs.go.th")).toBe(true);
+    it("rejects unlisted subdomain of customs.go.th", () => {
+      // Only exact origins in ALLOWED_ORIGINS are accepted
+      expect(engine.isAllowedOrigin("https://portal.customs.go.th")).toBe(false);
     });
 
     it("rejects evil.com", () => {

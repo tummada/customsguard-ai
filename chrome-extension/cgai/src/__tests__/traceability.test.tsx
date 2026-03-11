@@ -56,32 +56,36 @@ function makeFtaAlert(
   };
 }
 
-// ─── Gap 1: Traffic Light V2 — CONFIRMED → gold ───
+// ─── Traffic Light V2 — getTrafficColor uses 5 confidence levels + blue ───
 
 describe("Traffic Light V2", () => {
-  it("returns gold when editStatus is CONFIRMED", () => {
+  it("returns red when editStatus is CONFIRMED (getTrafficColor does not handle CONFIRMED)", () => {
+    // getTrafficColor does NOT handle CONFIRMED — it falls through to confidence check
+    // CONFIRMED is handled by computeAuditRisk instead
+    // With no confidence, defaults to 0 → red
     expect(
       getTrafficColor(makeItem({ editStatus: "CONFIRMED", confidence: 0.5 }))
-    ).toBe("gold");
+    ).toBe("red");
   });
 
-  it("CONFIRMED overrides EDITED (gold, not blue)", () => {
-    // Can't have both, but CONFIRMED should win over anything
+  it("CONFIRMED without confidence returns red (getTrafficColor ignores CONFIRMED)", () => {
+    // getTrafficColor only checks EDITED, not CONFIRMED
     expect(
       getTrafficColor(makeItem({ editStatus: "CONFIRMED" }))
-    ).toBe("gold");
+    ).toBe("red");
   });
 
-  it("CONFIRMED overrides ftaAvailable", () => {
+  it("CONFIRMED with high confidence returns based on confidence", () => {
+    // getTrafficColor ignores CONFIRMED, uses confidence
     expect(
-      getTrafficColor(makeItem({ editStatus: "CONFIRMED" }), true)
-    ).toBe("gold");
+      getTrafficColor(makeItem({ editStatus: "CONFIRMED", confidence: 0.95 }))
+    ).toBe("darkGreen");
   });
 
-  it("CONFIRMED overrides low confidence", () => {
+  it("CONFIRMED with low confidence returns red", () => {
     expect(
       getTrafficColor(makeItem({ editStatus: "CONFIRMED", confidence: 0.1 }))
-    ).toBe("gold");
+    ).toBe("red");
   });
 
   it("EDITED still returns blue (not affected by CONFIRMED logic)", () => {

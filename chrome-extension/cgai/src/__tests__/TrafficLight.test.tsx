@@ -64,15 +64,16 @@ describe("TrafficLight", () => {
     expect(dot?.className).toContain("bg-blue-400");
   });
 
-  it("renders gold dot when risk.color is gold (confirmed)", () => {
-    const { container } = render(
+  it("renders checkmark when item is CONFIRMED (not colored dot)", () => {
+    // CONFIRMED items show a checkmark emoji, not a colored dot
+    render(
       <TrafficLight
-        item={makeItem({ editStatus: "CONFIRMED", confidence: 0.8 })}
-        risk={makeRisk({ color: "gold" })}
+        item={makeItem({ editStatus: "CONFIRMED", isConfirmed: true, confidence: 0.8 })}
+        risk={makeRisk({ color: "green" })}
       />
     );
-    const dot = container.querySelector("span");
-    expect(dot?.className).toContain("bg-brand");
+    // The checkmark emoji is rendered for confirmed items
+    expect(screen.getByText(/✅/)).toBeInTheDocument();
   });
 
   it("shows tooltip with confidence and label on hover", async () => {
@@ -87,10 +88,11 @@ describe("TrafficLight", () => {
 
     await user.hover(dot);
     expect(screen.getByText(/95%/)).toBeInTheDocument();
-    expect(screen.getByText(/traffic\.safe/)).toBeInTheDocument();
+    // i18n mock returns key as-is; color "green" maps to labelKey "traffic.high"
+    expect(screen.getByText(/traffic\.high/)).toBeInTheDocument();
   });
 
-  it("shows risk flags sorted in tooltip on hover", async () => {
+  it("shows risk flags in tooltip on hover", async () => {
     const user = userEvent.setup();
     const { container } = render(
       <TrafficLight
@@ -110,8 +112,8 @@ describe("TrafficLight", () => {
     await user.hover(dot);
     expect(screen.getByText("ต้องมีใบอนุญาต 2 หน่วยงาน")).toBeInTheDocument();
     expect(screen.getByText(/อัตราอากรสูง/)).toBeInTheDocument();
-    // Risk bar should show
-    expect(screen.getByText("45%")).toBeInTheDocument();
+    // Confidence bar shows confidence percentage (70%), not risk score
+    expect(screen.getByText(/70%/)).toBeInTheDocument();
   });
 
   it("fallback to green when no risk prop", () => {
