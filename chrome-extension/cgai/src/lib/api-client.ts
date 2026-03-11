@@ -84,6 +84,7 @@ export interface ExchangeRate {
   currencyCode: string;
   currencyName: string;
   midRate: number;
+  exportRate?: number | null;
   effectiveDate: string;
   source: string;
 }

@@ -6,6 +6,7 @@ interface ExchangeRateBannerProps {
   rates: ExchangeRate[];
   loading: boolean;
   onRefresh: () => void;
+  declarationType?: "IMPORT" | "EXPORT" | "TRANSIT" | "TRANSSHIPMENT";
 }
 
 function formatThaiDate(dateStr: string): string {
@@ -20,11 +21,13 @@ export default function ExchangeRateBanner({
   rates,
   loading,
   onRefresh,
+  declarationType,
 }: ExchangeRateBannerProps) {
   const { t } = useTranslation();
 
   if (rates.length === 0 && !loading) return null;
 
+  const isExport = declarationType === "EXPORT";
   const effectiveDate = rates[0]?.effectiveDate;
 
   return (
@@ -54,7 +57,9 @@ export default function ExchangeRateBanner({
           >
             <div className="text-[10px] text-gray-500">{rate.currencyCode}</div>
             <div className="text-xs font-medium text-blue-800">
-              {rate.midRate.toFixed(2)}
+              {isExport && rate.exportRate != null
+                ? rate.exportRate.toFixed(2)
+                : rate.midRate.toFixed(2)}
             </div>
           </div>
         ))}
@@ -68,7 +73,7 @@ export default function ExchangeRateBanner({
           </p>
         )}
         <p className="text-[10px] text-gray-400">
-          {t("banner.midRateNote")}
+          {isExport ? t("banner.exportRateNote", "อัตราขายออก (Export Rate) จากกรมศุลกากร") : t("banner.midRateNote")}
         </p>
       </div>
     </div>

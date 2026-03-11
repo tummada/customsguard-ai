@@ -22,6 +22,7 @@ export function useExchangeRates() {
             currencyCode: c.currencyCode,
             currencyName: c.currencyName,
             midRate: c.midRate,
+            exportRate: c.exportRate,
             effectiveDate: c.effectiveDate,
             source: c.source,
           })));
@@ -39,6 +40,7 @@ export function useExchangeRates() {
             currencyCode: c.currencyCode,
             currencyName: c.currencyName,
             midRate: c.midRate,
+            exportRate: c.exportRate,
             effectiveDate: c.effectiveDate,
             source: c.source,
           })));
@@ -57,6 +59,7 @@ export function useExchangeRates() {
         currencyCode: r.currencyCode,
         currencyName: r.currencyName,
         midRate: r.midRate,
+        exportRate: r.exportRate,
         effectiveDate: r.effectiveDate,
         source: r.source,
         cachedAt: now,
@@ -72,6 +75,7 @@ export function useExchangeRates() {
           currencyCode: c.currencyCode,
           currencyName: c.currencyName,
           midRate: c.midRate,
+          exportRate: c.exportRate,
           effectiveDate: c.effectiveDate,
           source: c.source,
         })));

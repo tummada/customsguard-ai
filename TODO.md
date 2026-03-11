@@ -14,53 +14,39 @@ Updated: 2026-03-10
 
 ---
 
-## ✅ Audit v7 — CRITICAL (4 ตัว) — FIXED 2026-03-10
+## 🔴 Audit v8 — CRITICAL (5 ตัว) — ต้องแก้ทันที
 
-- [x] **C1-SSRF:** GoogleAuthController — validate JWT format + length before URI.create()
-- [x] **C2-GEMINI-JSON:** ScanWorkerService — validate/strip Gemini JSON schema (only keep known fields)
-- [x] **C3-VSLEEP:** Thread.sleep() → TimeUnit.MILLISECONDS.sleep() (VT-safe) ใน 4 ไฟล์
-- [x] **C4-EXCISE-NULL:** TaxCalculationService — throw error เมื่อ SPECIFIC duty + quantity=null
+- [ ] **v8-C1:** Gemini Pass 2 fallback บอกว่า "AI verified" ทั้งที่ไม่ใช่ — `ScanWorkerService.java:362-377` — orElse(validCandidates.get(0)) ใส่ code แรกจาก semantic search แต่ mark requiresReview=false → ลูกค้าเชื่อแล้วกรอก HS Code ผิด โดนปรับ 4 เท่า
+- [ ] **v8-C2:** Race condition: 2 workers ทำ job เดียวกัน → items หาย — `ScanWorkerService.java:173-186` — worker แรกชนะ UPDATE ai_jobs คนที่สอง return ทิ้ง items
+- [ ] **v8-C3:** Timezone: LocalDateTime สมมติ UTC — `DocumentChunkService.java:207-212` — DB อาจเก็บ Bangkok time → isChunkStale() คลาดเคลื่อน 7 ชม.
+- [ ] **v8-C4:** Gemini empty text ไม่ throw — `GeminiChatService.java:81-87` — parts=[] → text="" → return เงียบ → PDF extraction ดูเหมือนสำเร็จ
+- [ ] **v8-C5:** cg_document_chunks ไม่มี tenant_id + RLS — V1003 migration + DocumentChunkEntity — RAG chunks เป็น global ทุก tenant เห็นหมด
 
-## ✅ Audit v7 — HIGH (6 ตัว) — FIXED 2026-03-10
+## ✅ Audit v8 — แก้แล้ว (4 ตัว, 2026-03-11)
 
-- [x] **H1-CORS-DEFAULT:** SecurityConfig — CORS fail-closed (ต้องมี dev profile explicitly)
-- [x] **H2-LOG-LEAK:** GeminiChatService — scrub response body จาก log (เหลือแค่ status code)
-- [x] **H3-RACE-JOB:** ScanWorkerService — มี FOR UPDATE SKIP LOCKED + conditional UPDATE อยู่แล้ว (verified)
-- [x] **H4-PROMPT-INJ:** ScanWorkerService — escape quotes + backticks ใน invoice text ก่อนส่ง Gemini
-- [x] **H5-PROMPT-HS:** ScanWorkerService — sanitize candidate descriptions ใน verifyWithGemini
-- [x] **H6-SEMANTIC:** ScanWorkerService — cross-check keyword overlap ก่อนยอมรับ semantic match
+- [x] **v8-C1-CURRENCY:** สร้าง CurrencyConversionService — แปลงสกุลเงินต่างประเทศเป็น THB ก่อนคำนวณภาษี (ใช้ exchange rate ศุลกากร + warning ถ้าไม่พบ rate)
+- [x] **v8-C2-DECL-TYPE:** ExchangeRateService เลือก rate ตาม declarationType — EXPORT→exportRate, IMPORT→midRate, fallback+log
+- [x] **v8-C3-EXPORT-FE:** Frontend เพิ่ม exportRate — types/api-client/hook/banner ครบ 4 ไฟล์
+- [x] **v8-H1-REGEX:** HS Code regex แก้จาก 6/8 หลัก → 4/6/8/10 หลัก ตรงกับ DB constraint V1016
 
-## ✅ Audit v7 — MEDIUM (11 ตัว) — FIXED 2026-03-10
+## 🟠 Audit v8 — HIGH (7 ตัว) — ควรแก้ sprint นี้
 
-- [x] **M1-RAG-THRESHOLD:** RagService — aligned disclaimer threshold กับ filter (0.70)
-- [x] **M2-SSE-RACE:** RagService — AtomicBoolean flag ให้ emitter.complete() เรียกครั้งเดียว
-- [x] **M3-OCR-BLANK:** GeminiChatService — blank OCR ถูก handle โดย PdfProcessingService (verified)
-- [x] **M4-NULL-SIM:** RagService — default similarity เป็น 0.0 แทน null
-- [x] **M5-RAG-RETRY:** RagService — "ไม่พบ" เป็น expected behavior เมื่อไม่มี data (not a bug)
-- [x] **M6-THAI-CHUNK:** DocumentChunkService — เพิ่ม Thai legal breaks (มาตรา/ข้อ), space priority
-- [x] **M7-THAI-NUM:** ScanWorkerService — convert Thai numerals ๐-๙ → 0-9
-- [x] **M8-EMPTY-QUERY:** RagService — validate empty query ก่อน embedding
-- [x] **M9-RAG-CONF:** RagService — aligned confidence disclaimer (0.70 threshold)
-- [x] **M10-CATCH:** ScanWorkerService — catch blocks เป็น per-item isolation (designed pattern, verified)
-- [x] **M11-NGINX:** Renamed default.conf → 00-default.conf + aligned security headers กับ vollos.conf
+- [ ] **v8-H1:** JSON structure injection ใน invoice text — `ScanWorkerService.java:210-215` — sanitize แค่ quote/backtick แต่ไม่กัน brace injection → ใช้ Jackson ObjectNode แทน string concat
+- [ ] **v8-H2:** Threshold ไม่ตรงกัน 3 จุด (0.70/0.65/0.55) — `RagService.java + ScanWorkerService` — เปลี่ยนที่เดียวไม่กระทบที่อื่น → สร้าง config class เดียว
+- [ ] **v8-H3:** Rate limit key ไม่มี tenant_id — `ChatGuardService.java:~438` — tenant A ใช้ quota tenant B ถ้า query hash ชน
+- [ ] **v8-H4:** PDF magic bytes: ไม่เช็ค read() return value — `ScanService.java:48-53` — ไฟล์ 0 bytes ผ่าน validation
+- [ ] **v8-H5:** Gemini API ไม่มี circuit breaker — `GeminiEmbeddingService.java:68-76` — API ค้าง → worker ค้างหมด
+- [ ] **v8-H6:** Vertex AI token expire mid-batch — `data-pipeline/09_generate_synthetic_qa.py:70-73` — script >1 ชม. token หมดอายุ ไม่ retry
+- [ ] **v8-H7:** HsCodeController.search() ไม่มี @Valid — `HsCodeController.java:28` — query ว่าง/ยาวเกินผ่านได้
 
-## ✅ Audit v5/v6 — Security (FIXED 2026-03-10)
+## 🟡 Audit v8 — MEDIUM (6 ตัว) — ควรแก้ 2 sprints
 
-- [x] **S5: X-Admin-Secret** — ลบออกจาก CORS allowedHeaders
-- [x] **S6: /actuator/health rate limit** — เพิ่ม limit_req zone=api ใน vollos.conf
-- [x] **S7: Log email** — hash email แทน plaintext ใน GoogleAuthController
-- [x] **S8: Gemini response body log** — scrub ทั้ง 3 จุด (H2-LOG-LEAK ครอบคลุมแล้ว)
-
-## ✅ Redesign Traffic Light — DONE 2026-03-10
-
-- [x] Backend: ลด minimum threshold → 0.65
-- [x] Backend: ลบ confidenceLevel เก่า (HIGH/MEDIUM/LOW)
-- [x] Frontend: แก้ `computeAuditRisk()` — แยก confidence color + alert flags
-- [x] Frontend: แก้ `TrafficLight.tsx` — 5 ระดับสี + ✅ ยืนยัน + ป้ายเตือนข้างวงกลม
-- [x] Frontend: แก้ `LineItemTable.tsx` — ✅ แทน CheckCircle
-- [x] Frontend: ลบสีทอง (gold) → ใช้ ✅ checkmark แทน
-- [x] Frontend: แก้ tooltip — แสดง confidence % + bar + alerts
-- [ ] **ทดสอบ:** ลูกค้า scan invoice → ดูว่าสีวงกลม + ป้ายเตือนแสดงถูกต้องทุกกรณี
+- [ ] **v8-M1:** Unpinned image minor versions — `docker-compose.yml:150` — nginx:1.27-alpine, redis:7-alpine ไม่ pin digest
+- [ ] **v8-M2:** Empty catch(NumberFormatException) — `ScanWorkerService.java:486` — quantity parse ล้มเหลว → null เงียบ
+- [ ] **v8-M3:** Python bare except pass ×3 — `20_rag_eval_pipeline.py:376,414,425` — error หายไปเงียบ
+- [ ] **v8-M4:** AdminController dynamic SQL field whitelist — `AdminController.java:157-185` — ไม่มี explicit whitelist
+- [ ] **v8-M5:** Missing healthcheck: n8n, marketing, nginx — `docker-compose.yml` — 4/7 services ไม่มี healthcheck
+- [ ] **v8-M6:** DB password อาจแสดงใน docker logs (marketing) — `docker-compose.yml:142` — DATABASE_URL expand ${DB_PASSWORD}
 
 ---
 
@@ -68,15 +54,14 @@ Updated: 2026-03-10
 
 ### Audit v5/v6 — ค้าง (scope ใหญ่ / manual task)
 
-- [ ] **M-export-rate:** ขาด export rate → ต้องเพิ่ม column ใน ExchangeRateEntity (scope ใหญ่ รอ Sprint ถัดไป)
-- [ ] **M-html-fragile:** HTML parsing fragile → ต้อง test กับ customs.go.th จริง (manual task)
-- [ ] **M-admin-header:** Admin header-based auth → ต้อง design JWT+ROLE_ADMIN (scope ใหญ่)
 - [ ] **M2:** Embedding dimension stale data → ต้อง migration script (scope ใหญ่)
 - [ ] **M3:** ไม่มี re-indexing schedule → H-no-reembed fix ช่วยบางส่วนแล้ว (on-demand re-embed)
-- [x] **L-dev-secopt:** Dev backend ไม่มี security_opt → dev ไม่มี backend service (N/A)
-- [x] **L-model-name:** model name ตรงแล้ว (gemini-embedding-001 ถูกต้อง)
 - [ ] **L4:** Redis rate limit fixed window → ไม่ urgent, ยอมรับได้ที่ scale ปัจจุบัน
 - [ ] **A2:** GitLab CI SSH key → ต้องทำบน GitLab CI settings (manual task)
+
+### ทดสอบ Traffic Light (จาก Redesign — ค้าง)
+
+- [ ] **ทดสอบ:** ลูกค้า scan invoice → ดูว่าสีวงกลม + ป้ายเตือนแสดงถูกต้องทุกกรณี
 
 ### อัตราแลกเปลี่ยน — ทดสอบ Auto-sync
 
@@ -94,7 +79,32 @@ Updated: 2026-03-10
 - [ ] ทดสอบ Chrome Extension — UsageBadge แสดงถูก, QuotaExceededModal ขึ้นเมื่อเกิน
 - [ ] ทดสอบ Marketing Site — หน้า /pricing แสดงถูก, Navbar link ราคา, mobile hamburger
 - [ ] Deploy production — push + build + verify
-- [ ] เพิ่ม ADMIN_SECRET ใน `.env.production` บน VPS
+
+### ⚠️ Post-Deploy: M-admin-header + M-export-rate (ห้ามลืม!)
+
+หลัง deploy เสร็จ ต้องทำ 3 อย่างนี้บน VPS:
+
+1. **ตั้ง admin role ใน DB:**
+   ```sql
+   UPDATE users SET role='ADMIN' WHERE email='tummadajingjing@gmail.com';
+   ```
+   (ทำผ่าน `docker exec` หรือ psql — ต้องเชื่อม DB container)
+
+2. **ลบ ADMIN_SECRET จาก `.env.production`:**
+   ```bash
+   sed -i '/^ADMIN_SECRET/d' /opt/vollos/.env.production
+   ```
+   (ไม่ต้องใช้แล้ว — admin auth เปลี่ยนเป็น JWT ROLE_ADMIN)
+
+3. **ทดสอบ exchange rate sync ด้วย admin JWT:**
+   ```bash
+   # ขอ admin token (ต้อง login ด้วย Google ก่อน แล้ว role จะเป็น ADMIN)
+   # จากนั้นเรียก:
+   curl -X POST https://api.vollos.ai/v1/customsguard/exchange-rates/sync \
+     -H "Authorization: Bearer <ADMIN_JWT_TOKEN>"
+   # ต้องได้ {"synced": N, "source": "customs.go.th"} ถ้า N > 0 = สำเร็จ
+   # ถ้า 403 = role ยังไม่ใช่ ADMIN → ตรวจ DB ว่า UPDATE สำเร็จหรือยัง
+   ```
 
 ### Data Pipeline Tier 2 — ทดสอบ + Deploy
 

@@ -10,6 +10,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -26,6 +28,7 @@ import static org.mockito.Mockito.when;
  * TC-CG-097 to TC-CG-102
  */
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class ExchangeRateServiceTest {
 
     @Mock
@@ -38,10 +41,16 @@ class ExchangeRateServiceTest {
 
     private ExchangeRateEntity buildEntity(String code, String name,
                                             BigDecimal rate, LocalDate date) {
+        return buildEntity(code, name, rate, rate, date);
+    }
+
+    private ExchangeRateEntity buildEntity(String code, String name,
+                                            BigDecimal midRate, BigDecimal exportRate, LocalDate date) {
         ExchangeRateEntity e = mock(ExchangeRateEntity.class);
         when(e.getCurrencyCode()).thenReturn(code);
         when(e.getCurrencyName()).thenReturn(name);
-        when(e.getMidRate()).thenReturn(rate);
+        when(e.getMidRate()).thenReturn(midRate);
+        when(e.getExportRate()).thenReturn(exportRate);
         when(e.getEffectiveDate()).thenReturn(date);
         when(e.getSource()).thenReturn("BOT");
         return e;
@@ -142,6 +151,75 @@ class ExchangeRateServiceTest {
             // Then
             assertThat(result).isPresent();
             assertThat(result.get().currencyCode()).isEqualTo("JPY");
+        }
+    }
+
+    // ===== C2: getRateForDeclaration — เลือก rate ตาม declarationType =====
+
+    @Nested
+    @DisplayName("C2: getRateForDeclaration — เลือก rate ตาม declarationType")
+    class GetRateForDeclaration {
+
+        @Test
+        @DisplayName("C2-001: IMPORT → ใช้ midRate")
+        void import_usesMidRate() {
+            ExchangeRateEntity usd = buildEntity("USD", "US Dollar",
+                    new BigDecimal("34.5000"), new BigDecimal("34.2000"), LocalDate.of(2026, 3, 9));
+            when(exchangeRateRepo.findLatestByCurrency("USD")).thenReturn(Optional.of(usd));
+
+            Optional<java.math.BigDecimal> result = exchangeRateService.getRateForDeclaration("USD", "IMPORT");
+
+            assertThat(result).isPresent();
+            assertThat(result.get()).isEqualByComparingTo("34.5000");
+        }
+
+        @Test
+        @DisplayName("C2-002: EXPORT → ใช้ exportRate")
+        void export_usesExportRate() {
+            ExchangeRateEntity usd = buildEntity("USD", "US Dollar",
+                    new BigDecimal("34.5000"), new BigDecimal("34.2000"), LocalDate.of(2026, 3, 9));
+            when(exchangeRateRepo.findLatestByCurrency("USD")).thenReturn(Optional.of(usd));
+
+            Optional<java.math.BigDecimal> result = exchangeRateService.getRateForDeclaration("USD", "EXPORT");
+
+            assertThat(result).isPresent();
+            assertThat(result.get()).isEqualByComparingTo("34.2000");
+        }
+
+        @Test
+        @DisplayName("C2-003: EXPORT + exportRate=null → fallback midRate")
+        void export_nullExportRate_fallbackMidRate() {
+            ExchangeRateEntity usd = buildEntity("USD", "US Dollar",
+                    new BigDecimal("34.5000"), null, LocalDate.of(2026, 3, 9));
+            when(exchangeRateRepo.findLatestByCurrency("USD")).thenReturn(Optional.of(usd));
+
+            Optional<java.math.BigDecimal> result = exchangeRateService.getRateForDeclaration("USD", "EXPORT");
+
+            assertThat(result).isPresent();
+            assertThat(result.get()).isEqualByComparingTo("34.5000"); // fallback to midRate
+        }
+
+        @Test
+        @DisplayName("C2-004: TRANSIT → ใช้ midRate")
+        void transit_usesMidRate() {
+            ExchangeRateEntity eur = buildEntity("EUR", "Euro",
+                    new BigDecimal("37.2500"), new BigDecimal("37.0000"), LocalDate.of(2026, 3, 9));
+            when(exchangeRateRepo.findLatestByCurrency("EUR")).thenReturn(Optional.of(eur));
+
+            Optional<java.math.BigDecimal> result = exchangeRateService.getRateForDeclaration("EUR", "TRANSIT");
+
+            assertThat(result).isPresent();
+            assertThat(result.get()).isEqualByComparingTo("37.2500");
+        }
+
+        @Test
+        @DisplayName("C2-005: ไม่พบ currency → empty")
+        void unknownCurrency_empty() {
+            when(exchangeRateRepo.findLatestByCurrency("XYZ")).thenReturn(Optional.empty());
+
+            Optional<java.math.BigDecimal> result = exchangeRateService.getRateForDeclaration("XYZ", "IMPORT");
+
+            assertThat(result).isEmpty();
         }
     }
 }

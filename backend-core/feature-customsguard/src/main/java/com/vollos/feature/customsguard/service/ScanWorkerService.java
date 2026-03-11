@@ -39,6 +39,7 @@ public class ScanWorkerService {
     private final GeminiChatService geminiChat;
     private final HsCodeService hsCodeService;
     private final TaxCalculationService taxService;
+    private final CurrencyConversionService currencyConversionService;
     private final ObjectMapper objectMapper;
 
     @Value("${customsguard.scan.high-confidence-threshold:0.95}")
@@ -50,6 +51,7 @@ public class ScanWorkerService {
                              GeminiChatService geminiChat,
                              HsCodeService hsCodeService,
                              TaxCalculationService taxService,
+                             CurrencyConversionService currencyConversionService,
                              ObjectMapper objectMapper) {
         this.jdbcTemplate = jdbcTemplate;
         this.s3Service = s3Service;
@@ -57,13 +59,14 @@ public class ScanWorkerService {
         this.geminiChat = geminiChat;
         this.hsCodeService = hsCodeService;
         this.taxService = taxService;
+        this.currencyConversionService = currencyConversionService;
         this.objectMapper = objectMapper;
     }
 
     private static final int MAX_RETRIES = 3;
     private static final long BASE_RETRY_DELAY_MS = 15_000;
     private static final int MAX_INPUT_LENGTH = 50_000;
-    private static final Pattern HS_CODE_PATTERN = Pattern.compile("\\d{4}\\.\\d{2}(?:\\.\\d{2})?");
+    private static final Pattern HS_CODE_PATTERN = Pattern.compile("\\d{4}(?:\\.\\d{2}){0,3}");
 
     @Scheduled(fixedDelay = 15_000, initialDelay = 30_000)
     @Transactional
@@ -88,12 +91,26 @@ public class ScanWorkerService {
 
         log.info("Processing scan job: jobId={}, s3Key={}", jobId, s3Key);
 
+        // C1: ดึง declarationType จาก cg_declarations สำหรับแปลงสกุลเงิน
+        String declarationType = "IMPORT"; // default fallback
+
         try {
             // Set tenant context for RLS (parameterized to prevent SQL injection)
             jdbcTemplate.queryForObject(
                     "SELECT set_config('app.current_tenant_id', ?, false)",
                     String.class, tenantId);
             TenantContext.setCurrentTenantId(UUID.fromString(tenantId));
+
+            // C1: ดึง declarationType จาก cg_declarations
+            try {
+                List<Map<String, Object>> declRows = jdbcTemplate.queryForList(
+                        "SELECT declaration_type FROM cg_declarations WHERE ai_job_id = ?::uuid LIMIT 1", jobId);
+                if (!declRows.isEmpty() && declRows.get(0).get("declaration_type") != null) {
+                    declarationType = declRows.get(0).get("declaration_type").toString();
+                }
+            } catch (Exception e) {
+                log.warn("C1: Cannot fetch declarationType for job {} — using default IMPORT", jobId);
+            }
 
             // 1. Update status → PROCESSING
             jdbcTemplate.update("""
@@ -158,8 +175,8 @@ public class ScanWorkerService {
             // 4c. Enrich items with HS codes from semantic search
             itemsJson = enrichWithHsCodes(itemsJson);
 
-            // 4c. Calculate VAT 7% and total tax for each item
-            itemsJson = calculateTaxes(itemsJson);
+            // 4c. Calculate VAT 7% and total tax for each item (C1: แปลงสกุลเงินก่อนคำนวณ)
+            itemsJson = calculateTaxes(itemsJson, declarationType);
 
             jdbcTemplate.update("""
                 UPDATE ai_jobs SET progress = 80, updated_at = NOW()
@@ -453,8 +470,9 @@ public class ScanWorkerService {
 
     /**
      * Calculate VAT 7% and total tax due for each item using TaxCalculationService.
+     * C1: แปลงสกุลเงินต่างประเทศเป็น THB ก่อนคำนวณภาษี
      */
-    private String calculateTaxes(String itemsJson) {
+    private String calculateTaxes(String itemsJson, String declarationType) {
         try {
             JsonNode root = objectMapper.readTree(itemsJson);
             if (!root.isArray()) return itemsJson;
@@ -470,10 +488,25 @@ public class ScanWorkerService {
 
                     if (cifStr == null || cifStr.isBlank()) continue;
 
-                    java.math.BigDecimal cif = new java.math.BigDecimal(normalizeNumber(cifStr));
+                    java.math.BigDecimal cifOriginal = new java.math.BigDecimal(normalizeNumber(cifStr));
                     java.math.BigDecimal dutyRatePercent = dutyRateStr != null && !dutyRateStr.isBlank()
                             ? new java.math.BigDecimal(normalizeNumber(dutyRateStr))
                             : java.math.BigDecimal.ZERO;
+
+                    // C1: แปลงสกุลเงินต่างประเทศเป็น THB
+                    String currency = item.has("currency") && !item.get("currency").isNull()
+                            ? item.get("currency").asText() : null;
+                    var conversion = currencyConversionService.convertToThb(cifOriginal, currency, declarationType);
+                    java.math.BigDecimal cif = conversion.amountThb();
+
+                    if (conversion.hasWarning()) {
+                        item.put("currencyWarning", conversion.warning());
+                    }
+                    if (conversion.converted()) {
+                        item.put("cifPriceThb", cif.toPlainString());
+                        item.put("exchangeRate", conversion.exchangeRate().toPlainString());
+                        item.put("originalCurrency", conversion.originalCurrency());
+                    }
 
                     // C4: Pass hsCode for excise lookup + quantity for specific duty
                     String hsCode = item.has("hsCode") && !item.get("hsCode").isNull()
@@ -606,9 +639,9 @@ public class ScanWorkerService {
         return s;
     }
 
-    /** Validate Thai customs HS code format: DDDD.DD or DDDD.DD.DD */
-    private static boolean isValidHsCode(String code) {
-        return code != null && code.matches("\\d{4}\\.\\d{2}(\\.\\d{2})?");
+    /** Validate Thai customs HS code format: 4/6/8/10 digits (DDDD, DDDD.DD, DDDD.DD.DD, DDDD.DD.DD.DD) */
+    static boolean isValidHsCode(String code) {
+        return code != null && code.matches("\\d{4}(\\.\\d{2}){0,3}");
     }
 
     /** Set HS code result — Frontend คำนวณสีจาก confidence เอง (Traffic Light redesign) */

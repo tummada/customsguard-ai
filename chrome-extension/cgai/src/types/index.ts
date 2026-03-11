@@ -97,6 +97,7 @@ export interface CgExchangeRateCache {
   currencyCode: string; // PK
   currencyName: string;
   midRate: number;
+  exportRate?: number | null;
   effectiveDate: string;
   source: string;
   cachedAt: string; // ISO timestamp for cache invalidation

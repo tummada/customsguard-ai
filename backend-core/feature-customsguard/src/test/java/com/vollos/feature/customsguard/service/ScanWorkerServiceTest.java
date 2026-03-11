@@ -3,6 +3,7 @@ package com.vollos.feature.customsguard.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vollos.core.tenant.TenantContext;
 import com.vollos.feature.customsguard.dto.SemanticSearchResponse;
+import com.vollos.feature.customsguard.dto.TaxCalculationResponse;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -21,6 +22,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.doAnswer;
 
 /**
  * Unit tests for ScanWorkerService — background scan job processor.
@@ -40,6 +42,11 @@ class ScanWorkerServiceTest {
     @Mock
     private HsCodeService hsCodeService;
 
+    @Mock
+    private TaxCalculationService taxCalculationService;
+    @Mock
+    private CurrencyConversionService currencyConversionService;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private ScanWorkerService scanWorkerService;
@@ -51,7 +58,27 @@ class ScanWorkerServiceTest {
     @BeforeEach
     void setUp() {
         scanWorkerService = new ScanWorkerService(
-                jdbcTemplate, s3Service, pdfService, geminiChat, hsCodeService, objectMapper);
+                jdbcTemplate, s3Service, pdfService, geminiChat, hsCodeService, taxCalculationService, currencyConversionService, objectMapper);
+        // Default: CurrencyConversionService returns unchanged (THB) for any call
+        doAnswer(inv -> {
+            java.math.BigDecimal amount = inv.getArgument(0);
+            if (amount == null) amount = java.math.BigDecimal.ZERO;
+            return new CurrencyConversionService.ConversionResult(amount, null, "THB", null, false);
+        }).when(currencyConversionService).convertToThb(any(), any(), any());
+
+        // Default: TaxCalculationService calculates duty + VAT
+        doAnswer(inv -> {
+            java.math.BigDecimal cif = inv.getArgument(0);
+            java.math.BigDecimal dutyRatePct = inv.getArgument(1);
+            java.math.BigDecimal rate = dutyRatePct.divide(java.math.BigDecimal.valueOf(100), 10, java.math.RoundingMode.HALF_UP);
+            java.math.BigDecimal duty = cif.multiply(rate).setScale(2, java.math.RoundingMode.DOWN);
+            java.math.BigDecimal vatBase = cif.add(duty);
+            java.math.BigDecimal vat = vatBase.multiply(new java.math.BigDecimal("0.07")).setScale(2, java.math.RoundingMode.HALF_UP);
+            java.math.BigDecimal total = duty.add(vat);
+            return new TaxCalculationResponse(cif, dutyRatePct, duty,
+                    java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO,
+                    vatBase, vat, total, null);
+        }).when(taxCalculationService).calculateFull(any(), any(), any(), any());
     }
 
     @AfterEach
@@ -102,7 +129,7 @@ class ScanWorkerServiceTest {
         when(geminiChat.rawPrompt(anyString())).thenReturn(geminiResult);
 
         // HS code enrichment
-        when(hsCodeService.semanticSearch(anyString(), eq(3))).thenReturn(List.of());
+        when(hsCodeService.semanticSearch(anyString(), eq(5))).thenReturn(List.of());
 
         // When
         scanWorkerService.pollAndProcess();
@@ -209,7 +236,7 @@ class ScanWorkerServiceTest {
         // Gemini returns JSON wrapped in markdown fences
         String wrappedJson = "```json\n[{\"descriptionEn\":\"Rice\",\"descriptionTh\":\"ข้าว\"}]\n```";
         when(geminiChat.rawPrompt(anyString())).thenReturn(wrappedJson);
-        when(hsCodeService.semanticSearch(anyString(), eq(3))).thenReturn(List.of());
+        when(hsCodeService.semanticSearch(anyString(), eq(5))).thenReturn(List.of());
 
         // When
         scanWorkerService.pollAndProcess();
@@ -241,25 +268,29 @@ class ScanWorkerServiceTest {
         when(geminiChat.rawPrompt(anyString())).thenReturn(itemsJson);
 
         // First item enrichment fails, second succeeds
-        when(hsCodeService.semanticSearch(contains("Shrimps"), eq(3)))
+        when(hsCodeService.semanticSearch(contains("Shrimps"), eq(5)))
                 .thenThrow(new RuntimeException("Embedding failed"));
-        when(hsCodeService.semanticSearch(contains("Rice"), eq(3)))
+        when(hsCodeService.semanticSearch(contains("Rice"), eq(5)))
                 .thenReturn(List.of());
 
         // When
         scanWorkerService.pollAndProcess();
 
         // Then: both items attempted
-        verify(hsCodeService, times(2)).semanticSearch(anyString(), eq(3));
+        verify(hsCodeService, times(2)).semanticSearch(anyString(), eq(5));
     }
 
     // ========== Audit V3: calculateTaxes tests ==========
 
-    /** Helper to invoke private calculateTaxes(String) via reflection */
+    /** Helper to invoke private calculateTaxes(String, String) via reflection */
     private String invokeCalculateTaxes(String itemsJson) throws Exception {
-        Method method = ScanWorkerService.class.getDeclaredMethod("calculateTaxes", String.class);
+        return invokeCalculateTaxes(itemsJson, "IMPORT");
+    }
+
+    private String invokeCalculateTaxes(String itemsJson, String declarationType) throws Exception {
+        Method method = ScanWorkerService.class.getDeclaredMethod("calculateTaxes", String.class, String.class);
         method.setAccessible(true);
-        return (String) method.invoke(scanWorkerService, itemsJson);
+        return (String) method.invoke(scanWorkerService, itemsJson, declarationType);
     }
 
     /** Helper to invoke private validateWeightUnits(String) via reflection */
@@ -339,9 +370,9 @@ class ScanWorkerServiceTest {
 
     // --- TC-CG-038: calculateTaxes — invalid cifPrice ---
     @Test
-    @DisplayName("TC-CG-038: calculateTaxes — cifPrice=\"N/A\" → ไม่ crash, item ไม่ถูกแก้ไข")
+    @DisplayName("TC-CG-038: calculateTaxes — cifPrice=\"N/A\" → normalize เป็น 0 คำนวณได้ ไม่ crash")
     void calculateTaxes_invalidCifPrice() throws Exception {
-        // Given: cifPrice is non-numeric "N/A" → NumberFormatException caught internally
+        // Given: cifPrice is non-numeric "N/A" → normalizeNumber strips to "0" → calculates as CIF=0
         String input = """
                 [{"descriptionEn":"Sample","cifPrice":"N/A","dutyRate":"5"}]
                 """;
@@ -349,12 +380,12 @@ class ScanWorkerServiceTest {
         // When
         String result = invokeCalculateTaxes(input);
 
-        // Then: no crash, no tax fields added (exception caught per-item)
+        // Then: no crash, tax fields calculated as zero (normalizeNumber("N/A") → "0")
         com.fasterxml.jackson.databind.JsonNode items = objectMapper.readTree(result);
         com.fasterxml.jackson.databind.JsonNode item = items.get(0);
-        assertThat(item.has("dutyAmount")).isFalse();
-        assertThat(item.has("vatAmount")).isFalse();
-        assertThat(item.has("totalTaxDue")).isFalse();
+        assertThat(item.get("dutyAmount").asText()).isEqualTo("0.00");
+        assertThat(item.get("vatAmount").asText()).isEqualTo("0.00");
+        assertThat(item.get("totalTaxDue").asText()).isEqualTo("0.00");
         // Original fields preserved
         assertThat(item.get("descriptionEn").asText()).isEqualTo("Sample");
         assertThat(item.get("cifPrice").asText()).isEqualTo("N/A");
@@ -385,7 +416,7 @@ class ScanWorkerServiceTest {
         // Semantic search returns code WITHOUT dots → should be rejected by isValidHsCode
         var resultWithBadCode = new SemanticSearchResponse(
                 "030617", "กุ้งแช่แข็ง", "Frozen shrimps", null, null, null, 0.85);
-        when(hsCodeService.semanticSearch(anyString(), eq(3)))
+        when(hsCodeService.semanticSearch(anyString(), eq(5)))
                 .thenReturn(List.of(resultWithBadCode));
 
         // When
@@ -522,5 +553,101 @@ class ScanWorkerServiceTest {
 
         // Then: no exception (the method only logs, no return value to assert)
         // If we got here without exception, the test passes
+    }
+
+    // ========== H1: isValidHsCode — 4/6/8/10 digit support ==========
+
+    @Test
+    @DisplayName("H1-001: isValidHsCode — 4 หลัก (DDDD) → valid")
+    void isValidHsCode_4digits() {
+        assertThat(ScanWorkerService.isValidHsCode("0306")).isTrue();
+    }
+
+    @Test
+    @DisplayName("H1-002: isValidHsCode — 6 หลัก (DDDD.DD) → valid")
+    void isValidHsCode_6digits() {
+        assertThat(ScanWorkerService.isValidHsCode("0306.17")).isTrue();
+    }
+
+    @Test
+    @DisplayName("H1-003: isValidHsCode — 8 หลัก (DDDD.DD.DD) → valid")
+    void isValidHsCode_8digits() {
+        assertThat(ScanWorkerService.isValidHsCode("0306.17.00")).isTrue();
+    }
+
+    @Test
+    @DisplayName("H1-004: isValidHsCode — 10 หลัก (DDDD.DD.DD.DD) → valid")
+    void isValidHsCode_10digits() {
+        assertThat(ScanWorkerService.isValidHsCode("0306.17.00.01")).isTrue();
+    }
+
+    @Test
+    @DisplayName("H1-005: isValidHsCode — ไม่มีจุด (030617) → invalid")
+    void isValidHsCode_noDots_invalid() {
+        assertThat(ScanWorkerService.isValidHsCode("030617")).isFalse();
+    }
+
+    @Test
+    @DisplayName("H1-006: isValidHsCode — null → invalid")
+    void isValidHsCode_null_invalid() {
+        assertThat(ScanWorkerService.isValidHsCode(null)).isFalse();
+    }
+
+    @Test
+    @DisplayName("H1-007: isValidHsCode — 3 หลัก → invalid")
+    void isValidHsCode_3digits_invalid() {
+        assertThat(ScanWorkerService.isValidHsCode("030")).isFalse();
+    }
+
+    @Test
+    @DisplayName("H1-008: isValidHsCode — 12 หลัก (DDDD.DD.DD.DD.DD) → invalid (เกิน)")
+    void isValidHsCode_12digits_invalid() {
+        assertThat(ScanWorkerService.isValidHsCode("0306.17.00.01.02")).isFalse();
+    }
+
+    // ========== C1: calculateTaxes — currency conversion ==========
+
+    @Test
+    @DisplayName("C1-TAX-001: calculateTaxes — USD item → แปลงเป็น THB ก่อนคำนวณ")
+    void calculateTaxes_usdCurrency_convertsToThb() throws Exception {
+        // Given: CIF=1000 USD, rate=34.50 → CIF THB=34500
+        // Override default mock for USD
+        doAnswer(inv -> new CurrencyConversionService.ConversionResult(
+                new java.math.BigDecimal("34500.00"),
+                new java.math.BigDecimal("34.5000"), "USD", null, true))
+                .when(currencyConversionService).convertToThb(
+                        eq(new java.math.BigDecimal("1000")), eq("USD"), eq("IMPORT"));
+
+        String input = """
+                [{"descriptionEn":"Shrimps","cifPrice":"1000","dutyRate":"30","currency":"USD"}]
+                """;
+
+        String result = invokeCalculateTaxes(input, "IMPORT");
+
+        com.fasterxml.jackson.databind.JsonNode item = objectMapper.readTree(result).get(0);
+        assertThat(item.get("cifPriceThb").asText()).isEqualTo("34500.00");
+        assertThat(item.get("exchangeRate").asText()).isEqualTo("34.5000");
+        assertThat(item.get("originalCurrency").asText()).isEqualTo("USD");
+        assertThat(item.has("currencyWarning")).isFalse();
+    }
+
+    @Test
+    @DisplayName("C1-TAX-002: calculateTaxes — สกุลเงินที่ไม่มี rate → warning flag")
+    void calculateTaxes_unknownCurrency_warningFlag() throws Exception {
+        doAnswer(inv -> new CurrencyConversionService.ConversionResult(
+                new java.math.BigDecimal("1000"), null, null,
+                "ไม่พบอัตราแลกเปลี่ยนสกุล XYZ กรุณาตรวจสอบ", false))
+                .when(currencyConversionService).convertToThb(
+                        eq(new java.math.BigDecimal("1000")), eq("XYZ"), eq("IMPORT"));
+
+        String input = """
+                [{"descriptionEn":"Widget","cifPrice":"1000","dutyRate":"10","currency":"XYZ"}]
+                """;
+
+        String result = invokeCalculateTaxes(input, "IMPORT");
+
+        com.fasterxml.jackson.databind.JsonNode item = objectMapper.readTree(result).get(0);
+        assertThat(item.get("currencyWarning").asText()).contains("XYZ");
+        assertThat(item.has("cifPriceThb")).isFalse();
     }
 }
