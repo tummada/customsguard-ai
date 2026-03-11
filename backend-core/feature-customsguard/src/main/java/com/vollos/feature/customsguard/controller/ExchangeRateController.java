@@ -47,4 +47,11 @@ public class ExchangeRateController {
                 "source", "customs.go.th"
         ));
     }
+
+    /** Sync status for monitoring (admin only) */
+    @GetMapping("/sync-status")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Object>> getSyncStatus() {
+        return ResponseEntity.ok(exchangeRateSyncService.getSyncStatus());
+    }
 }
