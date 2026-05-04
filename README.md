@@ -1,82 +1,71 @@
-# 🚀 AI-SaaS World-Class
+# CustomsGuard AI
 
-> **"Efficiency is the highest form of Beauty."** > แพลตฟอร์มให้บริการ AI ในรูปแบบ Multi-tenant SaaS ที่ออกแบบมาให้ "แรง" บนสเปกจำกัด (8GB RAM) และ "พร้อมขยาย" อย่างไร้ขีดจำกัด
+AI-powered customs declaration assistant for Thai import/export businesses — automates HS Code classification, duty calculation, and declaration form generation.
 
----
-
-## 🏗️ Architecture & Tech Stack
-
-โปรเจกต์นี้ถูกสร้างขึ้นด้วยสถาปัตยกรรม **Modular Monolith** ที่พร้อมแยกเป็น Microservices ได้ทันที และใช้เทคโนโลยีระดับ Cutting-edge:
-
-* **Frontend:** `Angular 21` (Zoneless, Signals) + `Tailwind CSS` — เน้นความเร็วระดับ 100/100 Lighthouse score
-* **Core Backend:** `Java 21` + `Spring Boot 3.5` — รันบน **GraalVM Native Image** เพื่อรีด RAM ให้เหลือน้อยที่สุด
-* **AI Orchestration:** `n8n` (Queue Mode) + `Redis (AOF)` — เชื่อมต่อไปยัง `ComfyUI` บน External GPU (RunPod)
-* **Database:** `PostgreSQL 16` — บังคับใช้ **UUID v7** และ **Row Level Security (RLS)** เพื่อแยกข้อมูลลูกค้า
-* **Infrastructure:** `Docker Compose` บน Ubuntu — จำกัด RAM อย่างเข้มงวดด้วย Resource Limits
+> Thai customs clerks spend 3-5 hours per declaration manually looking up HS Codes. One wrong classification = $3,000+ penalty. CustomsGuard cuts prep time by ~70%.
 
 ---
 
-## ✨ Key Features
+## What It Does
 
-* 👥 **Strict Multi-tenancy:** แยกข้อมูลลูกค้าขาดจากกันในระดับฐานข้อมูล ปลอดภัยสูงสุด
-* ⚡ **Async AI Pipeline:** ระบบสร้างรูปภาพและวิดีโอแบบไม่บล็อกการทำงานหลัก (Fire & Forget)
-* 💳 **Secure Monetization:** เชื่อมต่อ Stripe พร้อมระบบ **Transactional Outbox** ป้องกันการทำรายการพลาดเมื่อเครื่อง Lag
-* 📉 **Ultra-low Footprint:** ออกแบบมาเพื่อรันทั้งระบบ (DB, Backend, Frontend, AI Bridge) ภายใน **RAM 8GB**
-* 🛡️ **Idempotency Guarantee:** ทุก API การเงินและเครดิตรองรับการส่งซ้ำ ป้องกันการหักเงินซ้ำซ้อน
-
----
-
-## 🧙‍♂️ Agentic Workflow (The Team)
-
-โปรเจกต์นี้ขับเคลื่อนโดยระบบ **Antigravity AI Agents** 5 บทบาทหลัก:
-
-1. **@SystemArchitect:** ผู้วางแผนและคุมกฎ Schema-First
-2. **@BackendAgent:** พัฒนา Java Spring Boot และระบบ Security
-3. **@FrontendAgent:** พัฒนา UI/UX ด้วย Angular 21
-4. **@WorkflowAgent:** สถาปนิก n8n และตัวเชื่อมต่อ AI Engine
-5. **@DevOpsAgent:** ผู้พิทักษ์ทรัพยากร คุม RAM 8GB และคุณภาพ Code
+- **HS Code Classification** — AI classifies goods automatically from product descriptions
+- **Duty Calculation** — calculates import/export duties including surcharges and FTA rates
+- **Declaration Generation** — pre-fills customs declaration forms ready for submission
+- **Chrome Extension** — works directly inside the Thai customs e-filing system
+- **Multi-tenant** — strict data isolation between companies at the database level
 
 ---
 
-## 🛠️ Folder Structure
+## Tech Stack
 
-```text
-my-ai-saas/
-├── .antigravity/       # สมองและกฎเหล็กของ AI Agents (The Manifesto)
-├── backend-core/       # โค้ด Java Spring Boot (Native Image Ready)
-├── backend-ai/         # n8n Workflows และ Python Scripts
-├── frontend-app/       # โค้ด Angular 21 (Zoneless UI)
-├── docs/               # OpenAPI Specs และ System Docs
-└── docker-compose.yml  # การตั้งค่า Resource Limits (RAM/CPU)
+| Layer | Technology |
+|-------|-----------|
+| Backend | Java 21 + Spring Boot 3.5 (GraalVM Native Image) |
+| Frontend | Angular 21 (Zoneless + Signals) |
+| Chrome Extension | React 19 + Vite |
+| AI Pipeline | Python + RAG + n8n |
+| Database | PostgreSQL 16 + Row Level Security |
+| Infrastructure | Docker Compose + Caddy + Cloudflare |
+| CI/CD | GitLab CI → VPS auto-deploy |
 
+---
+
+## Architecture
+
+```
+aiservice/
+├── backend-core/        # Java Spring Boot API (GraalVM Native)
+├── chrome-extension/    # React Chrome Extension for customs filing
+├── data-pipeline/       # Python RAG pipeline for HS Code classification
+├── frontend-app/        # Angular 21 web dashboard
+├── marketing-site/      # Landing page
+└── docker-compose.yml   # Full stack orchestration
 ```
 
 ---
 
-## ⚡ Global Commandments (กฎเหล็ก)
+## Key Features
 
-1. **No Yes-Man:** AI ต้องกล้าขัดคำสั่งที่เสี่ยงต่อเสถียรภาพของระบบ
-2. **RAM Awareness:** ทุกส่วนต้องรันได้ภายใต้ Memory Quota ที่ @DevOpsAgent กำหนด
-3. **Silence is Veto:** หาก Agent ที่เกี่ยวข้องไม่ยืนยันความปลอดภัย/ประสิทธิภาพ ห้าม Merge Code
-4. **Async-First:** งานหนักต้องรันแบบเบื้องหลังเสมอ
+- **Multi-tenant SaaS** — each company's data fully isolated via PostgreSQL RLS
+- **GraalVM Native** — Spring Boot compiles to native binary, ~70% less RAM
+- **Async AI Pipeline** — n8n orchestrates classification jobs without blocking API
+- **Idempotency** — all payment and credit APIs are safe to retry
+- **Security hardened** — Semgrep + Gitleaks + OWASP scanned, secrets via env vars only
 
 ---
 
-## 🚀 Getting Started
+## Local Development
 
-1. **Prerequisites:** Docker & Docker Compose
-2. **Setup Environment:** คัดลอก `.env.example` เป็น `.env` และตั้งค่า API Keys
-3. **Run System:**
 ```bash
-docker-compose up -d
+# Copy environment config
+cp .env.example .env
 
+# Start all services
+docker compose up -d
+
+# Verify
+# Frontend: http://localhost:80
+# API Docs: http://localhost:8080/swagger-ui
 ```
 
-
-4. **Verify:** ตรวจสอบระบบผ่าน Dashboard ที่พอร์ต `80` (Frontend) และ `8080` (API Docs)
-
----
-
-*Created with ❤️ by the AI-SaaS World-Class Team*
-
---- 
+> Requires: Docker, Java 21, Node.js 22+
