@@ -1,0 +1,56 @@
+# Dependabot — auto-create PRs for dependency updates
+# Docs: https://docs.github.com/en/code-security/dependabot
+
+version: 2
+updates:
+  # GitHub Actions workflow updates
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Chrome Extension (npm)
+  - package-ecosystem: "npm"
+    directory: "/chrome-extension/cgai"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      dev-dependencies:
+        dependency-type: "development"
+      production-dependencies:
+        dependency-type: "production"
+
+  # Marketing site (Next.js)
+  - package-ecosystem: "npm"
+    directory: "/marketing-site"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      dev-dependencies:
+        dependency-type: "development"
+      production-dependencies:
+        dependency-type: "production"
+
+  # Backend Java (Gradle)
+  - package-ecosystem: "gradle"
+    directory: "/backend-core"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Python data pipeline
+  - package-ecosystem: "pip"
+    directory: "/data-pipeline"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Docker base images
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
