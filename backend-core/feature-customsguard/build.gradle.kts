@@ -10,7 +10,7 @@ dependencies {
     implementation("software.amazon.awssdk:s3")
 
     // PDFBox for text extraction from PDF
-    implementation("org.apache.pdfbox:pdfbox:3.0.4")
+    implementation("org.apache.pdfbox:pdfbox:3.0.7")
 
     // Test dependencies
     testImplementation("org.springframework.boot:spring-boot-starter-test")
