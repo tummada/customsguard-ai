@@ -33,7 +33,7 @@ AI-powered customs declaration assistant for Thai import/export businesses — a
 ## Architecture
 
 ```
-aiservice/
+customsguard-ai/
 ├── backend-core/        # Java Spring Boot API (GraalVM Native)
 ├── chrome-extension/    # React Chrome Extension for customs filing
 ├── data-pipeline/       # Python RAG pipeline for HS Code classification
