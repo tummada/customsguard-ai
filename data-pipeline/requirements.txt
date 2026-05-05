@@ -20,4 +20,4 @@ openpyxl>=3.1.2       # Excel/XLSX parsing
 tqdm>=4.66.0           # Progress bars
 tenacity>=8.2.3        # Retry logic
 tiktoken>=0.5.2        # Token counting for chunking
-python-dotenv>=1.0.0   # .env file support
+python-dotenv>=1.2.2   # .env file support
