@@ -3,7 +3,7 @@ google-cloud-aiplatform>=1.38.0
 google-cloud-storage>=3.10.1
 
 # Database
-psycopg2-binary>=2.9.9
+psycopg2-binary>=2.9.12
 
 # PDF Processing
 pdfplumber>=0.10.3
